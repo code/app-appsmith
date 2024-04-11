@@ -458,6 +458,20 @@ function setup_auto_heal(){
    fi
 }
 
+function setup_new_relic_agent(){
+   if [[ ${APPSMITH_ENABLE_NEW_RELIC_LOGGING-} = 1 ]]; then
+     # By default APPSMITH_ENABLE_NEW_RELIC_LOGGING=0
+     # To enable auto heal set APPSMITH_ENABLE_NEW_RELIC_LOGGING=1
+    cat > /opt/appsmith/newrelic/newrelic.yml << EOL
+    common:
+      license_key: $APPSMITH_APP_NEW_RELIC_LICENSE_KEY
+      app_name: $APPSMITH_NEW_RELIC_APP_NAME
+    EOL
+    ## TODO: Check APPSMITH_JAVA_ARGS if present and then add newrelic.jar
+    export APPSMITH_JAVA_ARGS=-javaagent:/opt/appsmith/newrelic/newrelic.jar
+   fi
+}
+
 # Main Section
 init_loading_pages
 init_env_file
