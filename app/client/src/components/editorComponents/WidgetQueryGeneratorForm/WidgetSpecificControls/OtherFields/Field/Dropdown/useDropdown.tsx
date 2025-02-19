@@ -5,14 +5,14 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Option } from "design-system";
+import { Option } from "@appsmith/ads";
 import { DropdownOption } from "../../../../CommonControls/DatasourceDropdown/DropdownOption";
 import { WidgetQueryGeneratorFormContext } from "../../../../index";
 import { useColumns } from "../../../ColumnDropdown/useColumns";
 import type { DefaultOptionType } from "rc-select/lib/Select";
 import { get } from "lodash";
 import { useSelector } from "react-redux";
-import { getCurrentPageWidgets } from "@appsmith/selectors/entitiesSelector";
+import { getCurrentPageWidgets } from "ee/selectors/entitiesSelector";
 import { StyledImage } from "./styles";
 import { FieldOptionsType } from "./types";
 import type { DropdownOptionType } from "../../../../types";
@@ -21,10 +21,10 @@ import WidgetFactory from "WidgetProvider/factory";
 import {
   createMessage,
   NO_CONNECTABLE_WIDGET_FOUND,
-} from "@appsmith/constants/messages";
-import type { AppState } from "@appsmith/reducers";
+} from "ee/constants/messages";
+import type { AppState } from "ee/reducers";
 import { getWidget } from "sagas/selectors";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 
 export interface OneClickDropdownFieldProps {
   label: string;
@@ -77,14 +77,19 @@ export function useDropdown(props: OneClickDropdownFieldProps) {
     .map(([currWidgetId, currWidget]) => {
       const { getOneClickBindingConnectableWidgetConfig } =
         WidgetFactory.getWidgetMethods(currWidget.type);
+
       if (getOneClickBindingConnectableWidgetConfig) {
         const { message, widgetBindPath } =
           getOneClickBindingConnectableWidgetConfig(currWidget);
+        const iconSVG =
+          WidgetFactory.getConfig(currWidget.type)?.iconSVG ||
+          currWidget.iconSVG;
+
         return {
           id: currWidgetId,
           value: widgetBindPath,
           label: currWidget.widgetName,
-          icon: <StyledImage alt="widget-icon" src={currWidget.iconSVG} />,
+          icon: <StyledImage alt="widget-icon" src={iconSVG} />,
           data: {
             widgetType: currWidget.type,
             widgetName: currWidget.widgetName,
@@ -92,6 +97,7 @@ export function useDropdown(props: OneClickDropdownFieldProps) {
           message,
         };
       }
+
       return null;
     })
     .filter(Boolean) as DropdownOptionType[];
@@ -119,13 +125,18 @@ export function useDropdown(props: OneClickDropdownFieldProps) {
 
   const handleSelect = (value: string, selectedOption: DefaultOptionType) => {
     const option = (options as DropdownOptionType[]).find(
+      // TODO: Fix this the next time the file is edited
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (d: any) => d.id === selectedOption.key,
     );
+
     if (option) {
       onSelect(value);
+
       if (option.message) {
         setMessage(option.message);
       }
+
       AnalyticsUtil.logEvent("ONE_CLICK_BINDING_CONFIG", {
         widgetName: widget.widgetName,
         widgetType: widget.type,
@@ -153,6 +164,7 @@ export function useDropdown(props: OneClickDropdownFieldProps) {
       const option = (options as DropdownOptionType[]).find(
         (option) => option.value === selectedValue,
       );
+
       return {
         label: <DropdownOption label={option?.label} leftIcon={option?.icon} />,
         key: option?.id,
@@ -164,7 +176,7 @@ export function useDropdown(props: OneClickDropdownFieldProps) {
     if (options && options.length > 0) {
       return (options as DropdownOptionType[])?.map((option) => (
         <Option
-          data-testId={`t--one-click-binding-column-${props.id}--column`}
+          data-testid={`t--one-click-binding-column-${props.id}--column`}
           key={option.id}
           value={option.value}
         >
@@ -174,7 +186,7 @@ export function useDropdown(props: OneClickDropdownFieldProps) {
     } else {
       return (
         <Option
-          data-testId="t--one-click-binding-no-connectable-widget"
+          data-testid="t--one-click-binding-no-connectable-widget"
           disabled
         >
           {createMessage(NO_CONNECTABLE_WIDGET_FOUND)}

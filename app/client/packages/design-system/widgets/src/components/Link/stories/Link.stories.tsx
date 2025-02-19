@@ -3,15 +3,15 @@ import type { Meta, StoryObj } from "@storybook/react";
 import {
   TYPOGRAPHY_VARIANTS,
   TYPOGRAPHY_FONT_WEIGHTS,
-} from "@design-system/theming";
-import { Link, Flex } from "@design-system/widgets";
+} from "@appsmith/wds-theming";
+import { Link, Flex } from "@appsmith/wds";
 
 /**
  * Link component is used to navigate to a different page or section of the current page.
  */
 const meta: Meta<typeof Link> = {
   component: Link,
-  title: "Design-system/Widgets/Link",
+  title: "WDS/Widgets/Link",
 };
 
 export default meta;
@@ -21,7 +21,7 @@ export const Main: Story = {
   args: {
     target: "_blank",
     href: "https://appsmith.com",
-    children: "This is a link.",
+    children: "Appsmith.",
   },
 };
 

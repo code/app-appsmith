@@ -1,10 +1,14 @@
-import React from "react";
-import type { WidgetProps, WidgetState } from "widgets/BaseWidget";
-import type { InputComponentProps } from "../component";
-import InputComponent from "../component";
+import type {
+  AnvilConfig,
+  AutocompletionDefinitions,
+} from "WidgetProvider/constants";
+import { ICON_NAMES } from "WidgetProvider/constants";
+import type { DerivedPropertiesMap } from "WidgetProvider/factory";
+import { LabelPosition } from "components/constants";
 import { EventType } from "constants/AppsmithActionConstants/ActionConstants";
 import type { ValidationResponse } from "constants/WidgetValidation";
 import { ValidationTypes } from "constants/WidgetValidation";
+import { FILL_WIDGET_MIN_WIDTH } from "constants/minWidthConstants";
 import {
   createMessage,
   FIELD_REQUIRED_ERROR,
@@ -12,49 +16,49 @@ import {
   INPUT_DEFAULT_TEXT_MAX_NUM_ERROR,
   INPUT_DEFAULT_TEXT_MIN_NUM_ERROR,
   INPUT_TEXT_MAX_CHAR_ERROR,
-} from "@appsmith/constants/messages";
-import type { DerivedPropertiesMap } from "WidgetProvider/factory";
-import { ICON_NAMES } from "WidgetProvider/constants";
-import { AutocompleteDataType } from "utils/autocomplete/AutocompleteDataType";
-import BaseInputWidget from "widgets/BaseInputWidget";
+} from "ee/constants/messages";
+import type { SetterConfig, Stylesheet } from "entities/AppTheming";
 import { isNil, isNumber, merge, toString } from "lodash";
-import derivedProperties from "./parsedDerivedProperties";
-import type { BaseInputWidgetProps } from "widgets/BaseInputWidget/widget";
+import React from "react";
+import { DynamicHeight } from "utils/WidgetFeatures";
+import { AutocompleteDataType } from "utils/autocomplete/AutocompleteDataType";
 import { mergeWidgetConfig } from "utils/helpers";
+import BaseInputWidget from "widgets/BaseInputWidget";
 import {
   InputTypes,
   NumberInputStepButtonPosition,
 } from "widgets/BaseInputWidget/constants";
-import type { SetterConfig, Stylesheet } from "entities/AppTheming";
-import { getParsedText, isInputTypeEmailOrPassword } from "./Utilities";
+import { checkInputTypeTextByProps } from "widgets/BaseInputWidget/utils";
+import type { BaseInputWidgetProps } from "widgets/BaseInputWidget/widget";
+import type { WidgetProps, WidgetState } from "widgets/BaseWidget";
 import {
-  isAutoHeightEnabledForWidget,
   DefaultAutocompleteDefinitions,
+  isAutoHeightEnabledForWidget,
   isCompactMode,
 } from "widgets/WidgetUtils";
-import { checkInputTypeTextByProps } from "widgets/BaseInputWidget/utils";
-import type {
-  AnvilConfig,
-  AutocompletionDefinitions,
-} from "WidgetProvider/constants";
-import { LabelPosition } from "components/constants";
-import { FILL_WIDGET_MIN_WIDTH } from "constants/minWidthConstants";
-import { DynamicHeight } from "utils/WidgetFeatures";
+import type { InputComponentProps } from "../component";
+import InputComponent from "../component";
+import { getParsedText, isInputTypeEmailOrPassword } from "./Utilities";
+import derivedProperties from "./parsedDerivedProperties";
 
 import IconSVG from "../icon.svg";
 import ThumbnailSVG from "../thumbnail.svg";
 
 import type {
-  SnipingModeProperty,
   PropertyUpdates,
+  SnipingModeProperty,
 } from "WidgetProvider/constants";
 import { WIDGET_TAGS } from "constants/WidgetConstants";
+import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
 import { ResponsiveBehavior } from "layoutSystems/common/utils/constants";
-import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
 
 export function defaultValueValidation(
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   value: any,
   props: InputWidgetProps,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   _?: any,
 ): ValidationResponse {
   const STRING_ERROR_MESSAGE = {
@@ -66,6 +70,7 @@ export function defaultValueValidation(
     message: "This value must be number",
   };
   const EMPTY_ERROR_MESSAGE = { name: "", message: "" };
+
   if (_.isObject(value)) {
     return {
       isValid: false,
@@ -85,6 +90,7 @@ export function defaultValueValidation(
   }
 
   let parsed;
+
   switch (inputType) {
     case "NUMBER":
       parsed = Number(value);
@@ -123,6 +129,7 @@ export function defaultValueValidation(
     case "PASSWORD":
     case "EMAIL":
       parsed = value;
+
       if (!_.isString(parsed)) {
         try {
           parsed = _.toString(parsed);
@@ -134,6 +141,7 @@ export function defaultValueValidation(
           };
         }
       }
+
       return {
         isValid: _.isString(parsed),
         parsed: parsed,
@@ -148,9 +156,12 @@ export function defaultValueValidation(
   }
 }
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function minValueValidation(min: any, props: InputWidgetProps, _?: any) {
   const max = props.maxNum;
   const value = min;
+
   min = Number(min);
 
   if (_?.isNil(value) || value === "") {
@@ -200,9 +211,12 @@ export function minValueValidation(min: any, props: InputWidgetProps, _?: any) {
   }
 }
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function maxValueValidation(max: any, props: InputWidgetProps, _?: any) {
   const min = props.minNum;
   const value = max;
+
   max = Number(max);
 
   if (_?.isNil(value) || value === "") {
@@ -255,6 +269,8 @@ export function maxValueValidation(max: any, props: InputWidgetProps, _?: any) {
 function InputTypeUpdateHook(
   props: WidgetProps,
   propertyName: string,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   propertyValue: any,
 ) {
   const updates = [
@@ -272,6 +288,7 @@ function InputTypeUpdateHook(
       });
     }
   }
+
   //if input type is email or password default the autofill state to be true
   // the user needs to explicity set autofill to fault disable autofill
   updates.push({
@@ -283,6 +300,13 @@ function InputTypeUpdateHook(
 }
 
 class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
+  constructor(props: InputWidgetProps) {
+    super(props);
+    this.state = {
+      isFocused: false,
+    };
+  }
+
   static type = "INPUT_WIDGET_V2";
 
   static getConfig() {
@@ -621,8 +645,12 @@ class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
     });
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static getMetaPropertiesMap(): Record<string, any> {
-    return merge(super.getMetaPropertiesMap(), {
+    const baseMetaProperties = BaseInputWidget.getMetaPropertiesMap();
+
+    return merge(baseMetaProperties, {
       inputText: "",
       text: "",
     });
@@ -644,8 +672,10 @@ class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
   }
 
   handleFocusChange = (focusState: boolean) => {
+    this.setState({ isFocused: focusState });
+
     if (focusState) {
-      this.props.updateWidgetMetaProperty("isFocused", focusState, {
+      this.executeAction({
         triggerPropertyName: "onFocus",
         dynamicString: this.props.onFocus,
         event: {
@@ -653,8 +683,9 @@ class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
         },
       });
     }
+
     if (!focusState) {
-      this.props.updateWidgetMetaProperty("isFocused", focusState, {
+      this.executeAction({
         triggerPropertyName: "onBlur",
         dynamicString: this.props.onBlur,
         event: {
@@ -662,6 +693,7 @@ class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
         },
       });
     }
+
     super.handleFocusChange(focusState);
   };
 
@@ -690,6 +722,7 @@ class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
         getParsedText(this.props.inputText, this.props.inputType),
       );
     }
+
     // If defaultText property has changed, reset isDirty to false
     if (
       this.props.defaultText !== prevProps.defaultText &&
@@ -718,6 +751,7 @@ class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
         type: EventType.ON_TEXT_CHANGE,
       },
     });
+
     if (!this.props.isDirty) {
       this.props.updateWidgetMetaProperty("isDirty", true);
     }
@@ -758,6 +792,7 @@ class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
   getWidgetView() {
     const value = this.props.inputText ?? "";
     let isInvalid = false;
+
     if (this.props.isDirty) {
       isInvalid = "isValid" in this.props && !this.props.isValid;
     } else {
@@ -765,7 +800,9 @@ class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
     }
 
     const conditionalProps: Partial<InputComponentProps> = {};
+
     conditionalProps.errorMessage = this.props.errorMessage;
+
     if (this.props.isRequired && value.length === 0) {
       conditionalProps.errorMessage = createMessage(FIELD_REQUIRED_ERROR);
     }
@@ -781,6 +818,7 @@ class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
     if (checkInputTypeTextByProps(this.props) && this.props.maxChars) {
       // pass maxChars only for Text type inputs, undefined for other types
       conditionalProps.maxChars = this.props.maxChars;
+
       if (
         this.props.defaultText &&
         this.props.defaultText.toString().length > this.props.maxChars
@@ -871,7 +909,7 @@ class InputWidget extends BaseInputWidget<InputWidgetProps, WidgetState> {
         onValueChange={this.onValueChange}
         placeholder={this.props.placeholderText}
         rtl={this.props.rtl}
-        showError={!!this.props.isFocused}
+        showError={!!this.state.isFocused}
         spellCheck={!!this.props.isSpellCheck}
         stepSize={1}
         tooltip={this.props.tooltip}

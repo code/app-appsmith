@@ -1,15 +1,16 @@
-import type { ReduxAction } from "@appsmith/constants/ReduxActionConstants";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
-import type { JSCollection, JSAction } from "entities/JSCollection";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
+import { type ReduxAction } from "./ReduxActionTypes";
+import type { JSAction, JSCollection } from "entities/JSCollection";
 import type {
   RefactorAction,
   SetFunctionPropertyPayload,
-} from "@appsmith/api/JSActionAPI";
-import type { EventLocation } from "@appsmith/utils/analyticsUtilTypes";
+} from "ee/api/JSActionAPI";
+import type { EventLocation } from "ee/utils/analyticsUtilTypes";
 import type {
   JSEditorTab,
   JSPaneDebuggerState,
 } from "reducers/uiReducers/jsPaneReducer";
+import type { JSUpdate } from "../utils/JSPaneUtils";
 
 export const createNewJSCollection = (
   pageId: string,
@@ -130,5 +131,12 @@ export const setJsPaneDebuggerState = (
   payload: Partial<JSPaneDebuggerState>,
 ) => ({
   type: ReduxActionTypes.SET_JS_PANE_DEBUGGER_STATE,
+  payload,
+});
+
+export const executeJSUpdates = (
+  payload: Record<string, JSUpdate>,
+): ReduxAction<unknown> => ({
+  type: ReduxActionTypes.EXECUTE_JS_UPDATES,
   payload,
 });

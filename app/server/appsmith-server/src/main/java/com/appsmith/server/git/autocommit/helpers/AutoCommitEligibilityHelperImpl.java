@@ -1,7 +1,5 @@
 package com.appsmith.server.git.autocommit.helpers;
 
-import com.appsmith.external.annotations.FeatureFlagged;
-import com.appsmith.external.enums.FeatureFlagEnum;
 import com.appsmith.server.domains.GitArtifactMetadata;
 import com.appsmith.server.domains.Layout;
 import com.appsmith.server.dtos.AutoCommitTriggerDTO;
@@ -27,8 +25,7 @@ import static java.lang.Boolean.TRUE;
 @Primary
 @Component
 @RequiredArgsConstructor
-public class AutoCommitEligibilityHelperImpl extends AutoCommitEligibilityHelperFallbackImpl
-        implements AutoCommitEligibilityHelper {
+public class AutoCommitEligibilityHelperImpl implements AutoCommitEligibilityHelper {
 
     private final CommonGitFileUtils commonGitFileUtils;
     private final DSLMigrationUtils dslMigrationUtils;
@@ -36,11 +33,10 @@ public class AutoCommitEligibilityHelperImpl extends AutoCommitEligibilityHelper
     private final JsonSchemaVersions jsonSchemaVersions;
 
     @Override
-    @FeatureFlagged(featureFlagName = FeatureFlagEnum.release_git_autocommit_eligibility_enabled)
     public Mono<Boolean> isServerAutoCommitRequired(String workspaceId, GitArtifactMetadata gitMetadata) {
 
         String defaultApplicationId = gitMetadata.getDefaultArtifactId();
-        String branchName = gitMetadata.getBranchName();
+        String refName = gitMetadata.getRefName();
 
         Mono<Boolean> isServerMigrationRequiredMonoCached = commonGitFileUtils
                 .getMetadataServerSchemaMigrationVersion(workspaceId, gitMetadata, FALSE, APPLICATION)
@@ -48,7 +44,7 @@ public class AutoCommitEligibilityHelperImpl extends AutoCommitEligibilityHelper
                     log.info(
                             "server schema for application id : {}  and branch name : {} is : {}",
                             defaultApplicationId,
-                            branchName,
+                            refName,
                             serverSchemaVersion);
                     return jsonSchemaVersions.getServerVersion() > serverSchemaVersion ? TRUE : FALSE;
                 })
@@ -57,9 +53,9 @@ public class AutoCommitEligibilityHelperImpl extends AutoCommitEligibilityHelper
 
         return Mono.defer(() -> isServerMigrationRequiredMonoCached).onErrorResume(error -> {
             log.debug(
-                    "error while retrieving the metadata for defaultApplicationId : {}, branchName : {} error : {}",
+                    "error while retrieving the metadata for defaultApplicationId : {}, refName : {} error : {}",
                     defaultApplicationId,
-                    branchName,
+                    refName,
                     error.getMessage());
             return Mono.just(FALSE);
         });
@@ -75,7 +71,6 @@ public class AutoCommitEligibilityHelperImpl extends AutoCommitEligibilityHelper
      */
     @Override
     @Deprecated
-    @FeatureFlagged(featureFlagName = FeatureFlagEnum.release_git_autocommit_eligibility_enabled)
     public Mono<Boolean> isClientMigrationRequired(PageDTO pageDTO) {
         return dslMigrationUtils
                 .getLatestDslVersion()
@@ -95,11 +90,10 @@ public class AutoCommitEligibilityHelperImpl extends AutoCommitEligibilityHelper
     }
 
     @Override
-    @FeatureFlagged(featureFlagName = FeatureFlagEnum.release_git_autocommit_eligibility_enabled)
     public Mono<Boolean> isClientMigrationRequiredFSOps(
             String workspaceId, GitArtifactMetadata gitMetadata, PageDTO pageDTO) {
         String defaultApplicationId = gitMetadata.getDefaultArtifactId();
-        String branchName = gitMetadata.getBranchName();
+        String refName = gitMetadata.getRefName();
 
         Mono<Integer> latestDslVersionMono = dslMigrationUtils.getLatestDslVersion();
 
@@ -117,17 +111,16 @@ public class AutoCommitEligibilityHelperImpl extends AutoCommitEligibilityHelper
 
         return Mono.defer(() -> isClientMigrationRequired).onErrorResume(error -> {
             log.debug(
-                    "error while fetching the dsl version for page : {}, defaultApplicationId : {}, branchName : {} error : {}",
+                    "error while fetching the dsl version for page : {}, defaultApplicationId : {}, refName : {} error : {}",
                     pageDTO.getName(),
                     defaultApplicationId,
-                    branchName,
+                    refName,
                     error.getMessage());
             return Mono.just(FALSE);
         });
     }
 
     @Override
-    @FeatureFlagged(featureFlagName = FeatureFlagEnum.release_git_autocommit_eligibility_enabled)
     public Mono<AutoCommitTriggerDTO> isAutoCommitRequired(
             String workspaceId, GitArtifactMetadata gitArtifactMetadata, PageDTO pageDTO) {
 

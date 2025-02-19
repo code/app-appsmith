@@ -1,5 +1,6 @@
 package com.external.plugins;
 
+import com.appsmith.external.configurations.connectionpool.ConnectionPoolConfig;
 import com.appsmith.external.models.DBAuth;
 import com.appsmith.external.models.DatasourceConfiguration;
 import com.appsmith.external.models.Endpoint;
@@ -8,6 +9,7 @@ import com.external.plugins.utils.MssqlDatasourceUtils;
 import com.zaxxer.hikari.HikariDataSource;
 import org.testcontainers.containers.MSSQLServerContainer;
 import org.testcontainers.utility.DockerImageName;
+import reactor.core.publisher.Mono;
 
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -18,14 +20,21 @@ import static com.external.plugins.utils.MssqlExecuteUtils.closeConnectionPostEx
 
 public class MssqlTestDBContainerManager {
 
-    static MssqlPlugin.MssqlPluginExecutor mssqlPluginExecutor = new MssqlPlugin.MssqlPluginExecutor();
+    private static class MockConnectionPoolConfig implements ConnectionPoolConfig {
+        @Override
+        public Mono<Integer> getMaxConnectionPoolSize() {
+            return Mono.just(5);
+        }
+    }
+
+    static MssqlPlugin.MssqlPluginExecutor mssqlPluginExecutor =
+            new MssqlPlugin.MssqlPluginExecutor(new MockConnectionPoolConfig());
 
     public static MssqlDatasourceUtils mssqlDatasourceUtils = new MssqlDatasourceUtils();
 
     @SuppressWarnings("rawtypes")
     public static MSSQLServerContainer getMssqlDBForTest() {
-        return new MSSQLServerContainer<>(DockerImageName.parse("mcr.microsoft.com/azure-sql-edge:1.0.3")
-                        .asCompatibleSubstituteFor("mcr.microsoft.com/mssql/server:2017-latest"))
+        return new MSSQLServerContainer<>(DockerImageName.parse("mcr.microsoft.com/mssql/server:2022-latest"))
                 .acceptLicense()
                 .withExposedPorts(1433)
                 .withPassword("Mssql12;3");

@@ -1,13 +1,13 @@
-import type { ReduxAction } from "@appsmith/constants/ReduxActionConstants";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+import type { ReduxAction } from "./ReduxActionTypes";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import type { BatchAction } from "actions/batchActions";
 import { batchAction } from "actions/batchActions";
-import type { EvalMetaUpdates } from "@appsmith/workers/common/DataTreeEvaluator/types";
+import type { EvalMetaUpdates } from "ee/workers/common/DataTreeEvaluator/types";
 import type {
   WidgetEntity,
   DataTreeEntityConfig,
   WidgetEntityConfig,
-} from "@appsmith/entities/DataTree/types";
+} from "ee/entities/DataTree/types";
 
 export interface UpdateWidgetMetaPropertyPayload {
   widgetId: string;
@@ -18,6 +18,7 @@ export interface UpdateWidgetMetaPropertyPayload {
 export interface BatchUpdateWidgetMetaPropertyPayload {
   batchMetaUpdates: UpdateWidgetMetaPropertyPayload[];
 }
+
 export const updateWidgetMetaPropAndEval = (
   widgetId: string,
   propertyName: string,

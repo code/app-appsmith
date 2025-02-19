@@ -1,5 +1,5 @@
 import React from "react";
-import { Select, Option } from "design-system";
+import { Select, Option } from "@appsmith/ads";
 import type { AppTheme } from "entities/AppTheming";
 import styled from "styled-components";
 
@@ -43,7 +43,7 @@ function ThemeFontControl(props: ThemeFontControlProps) {
         value={selectedOption}
       >
         {options.map((option, index) => (
-          <Option key={index} value={option}>
+          <Option key={index} label={option} value={option}>
             <div className="flex space-x-2  w-full cursor-pointer items-center">
               <FontText className="flex items-center justify-center">
                 Aa

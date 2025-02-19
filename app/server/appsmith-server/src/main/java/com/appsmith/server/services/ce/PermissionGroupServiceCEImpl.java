@@ -18,11 +18,12 @@ import com.appsmith.server.repositories.PermissionGroupRepository;
 import com.appsmith.server.repositories.UserRepository;
 import com.appsmith.server.services.AnalyticsService;
 import com.appsmith.server.services.BaseService;
+import com.appsmith.server.services.OrganizationService;
 import com.appsmith.server.services.SessionUserService;
-import com.appsmith.server.services.TenantService;
 import com.appsmith.server.solutions.PermissionGroupPermission;
 import com.appsmith.server.solutions.PolicySolution;
 import jakarta.validation.Validator;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
@@ -39,11 +40,12 @@ import static com.appsmith.server.constants.FieldName.PERMISSION_GROUP_ID;
 import static com.appsmith.server.constants.FieldName.PUBLIC_PERMISSION_GROUP;
 import static java.lang.Boolean.TRUE;
 
+@Slf4j
 public class PermissionGroupServiceCEImpl extends BaseService<PermissionGroupRepository, PermissionGroup, String>
         implements PermissionGroupServiceCE {
 
     private final SessionUserService sessionUserService;
-    private final TenantService tenantService;
+    private final OrganizationService organizationService;
     private final UserRepository userRepository;
     private final PolicySolution policySolution;
 
@@ -57,7 +59,7 @@ public class PermissionGroupServiceCEImpl extends BaseService<PermissionGroupRep
             PermissionGroupRepository repository,
             AnalyticsService analyticsService,
             SessionUserService sessionUserService,
-            TenantService tenantService,
+            OrganizationService organizationService,
             UserRepository userRepository,
             PolicySolution policySolution,
             ConfigRepository configRepository,
@@ -65,7 +67,7 @@ public class PermissionGroupServiceCEImpl extends BaseService<PermissionGroupRep
 
         super(validator, repository, analyticsService);
         this.sessionUserService = sessionUserService;
-        this.tenantService = tenantService;
+        this.organizationService = organizationService;
         this.userRepository = userRepository;
         this.policySolution = policySolution;
         this.configRepository = configRepository;
@@ -150,8 +152,14 @@ public class PermissionGroupServiceCEImpl extends BaseService<PermissionGroupRep
         return bulkAssignToUsers(permissionGroup, List.of(user));
     }
 
-    private void ensureAssignedToUserIds(PermissionGroup permissionGroup) {
+    protected void ensureAssignedToUserIds(PermissionGroup permissionGroup) {
         if (permissionGroup.getAssignedToUserIds() == null) {
+            permissionGroup.setAssignedToUserIds(new HashSet<>());
+        }
+    }
+
+    protected void ensureAssignedToUserGroups(PermissionGroup permissionGroup) {
+        if (permissionGroup.getAssignedToGroupIds() == null) {
             permissionGroup.setAssignedToUserIds(new HashSet<>());
         }
     }
@@ -264,16 +272,16 @@ public class PermissionGroupServiceCEImpl extends BaseService<PermissionGroupRep
         Mono<Map<String, String>> userMapMono =
                 userRepository.findAllById(userIds).collectMap(user -> user.getId(), user -> user.getEmail());
 
-        return tenantService
-                .getDefaultTenantId()
+        return organizationService
+                .getDefaultOrganizationId()
                 .zipWith(userMapMono)
                 .flatMapMany(tuple -> {
-                    String defaultTenantId = tuple.getT1();
+                    String defaultOrganizationId = tuple.getT1();
                     Map<String, String> userMap = tuple.getT2();
                     return Flux.fromIterable(userIds).flatMap(userId -> {
                         String email = userMap.get(userId);
                         return repository
-                                .evictAllPermissionGroupCachesForUser(email, defaultTenantId)
+                                .evictAllPermissionGroupCachesForUser(email, defaultOrganizationId)
                                 .thenReturn(TRUE);
                     });
                 })
@@ -301,7 +309,8 @@ public class PermissionGroupServiceCEImpl extends BaseService<PermissionGroupRep
 
     @Override
     public boolean isEntityAccessible(BaseDomain object, String permission, String permissionGroupId) {
-        return object.getPolicies().stream()
+        Set<Policy> policies = object.getPolicies() == null ? Set.of() : object.getPolicies();
+        return policies.stream()
                 .filter(policy -> policy.getPermission().equals(permission)
                         && policy.getPermissionGroups().contains(permissionGroupId))
                 .findFirst()

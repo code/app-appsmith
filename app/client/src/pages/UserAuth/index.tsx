@@ -9,16 +9,16 @@ import * as Sentry from "@sentry/react";
 import { requiresUnauth } from "./requiresAuthHOC";
 import { useSelector } from "react-redux";
 import { getThemeDetails, ThemeMode } from "selectors/themeSelectors";
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import { ThemeProvider } from "styled-components";
 import VerificationPending from "./VerificationPending";
 import VerifyUser from "./VerifyUser";
 import VerificationError from "./VerificationError";
 import FooterLinks from "./FooterLinks";
 import { useIsMobileDevice } from "utils/hooks/useDeviceDetect";
-import { getAssetUrl } from "@appsmith/utils/airgapHelpers";
-import { getTenantConfig } from "@appsmith/selectors/tenantSelectors";
-import { getAppsmithConfigs } from "@appsmith/configs";
+import { getAssetUrl } from "ee/utils/airgapHelpers";
+import { getOrganizationConfig } from "ee/selectors/organizationSelectors";
+import { getAppsmithConfigs } from "ee/configs";
 
 const SentryRoute = Sentry.withSentryRouting(Route);
 
@@ -29,7 +29,7 @@ export function UserAuth() {
     getThemeDetails(state, ThemeMode.LIGHT),
   );
   const isMobileDevice = useIsMobileDevice();
-  const tenantConfig = useSelector(getTenantConfig);
+  const organizationConfig = useSelector(getOrganizationConfig);
   const { cloudHosting } = getAppsmithConfigs();
 
   return (
@@ -43,7 +43,7 @@ export function UserAuth() {
         {isMobileDevice && (
           <img
             className="h-8 mx-auto"
-            src={getAssetUrl(tenantConfig.brandLogoUrl)}
+            src={getAssetUrl(organizationConfig.brandLogoUrl)}
           />
         )}
         <Switch location={location}>

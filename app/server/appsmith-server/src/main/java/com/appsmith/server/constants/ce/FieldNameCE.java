@@ -4,9 +4,6 @@ public class FieldNameCE {
     public static final String EMAIL = "email";
     public static final String PASSWORD = "password";
 
-    @Deprecated
-    public static final String ORGANIZATION_ID = "organizationId";
-
     public static final String WORKSPACE_ID = "workspaceId";
     public static final String DATASOURCE_ID = "datasourceId";
     public static final String DELETED = "deleted";
@@ -25,7 +22,6 @@ public class FieldNameCE {
     public static final String LAYOUT_ID = "layoutId";
     public static final String APPLICATION_ID = "applicationId";
     public static final String SOURCE_APPLICATION_ID = "sourceApplicationId";
-    public static final String DEFAULT_RESOURCES = "defaultResources";
     public static final String PLUGIN_ID = "pluginId";
     public static final String DATASOURCE = "datasource";
     public static final String CONFIG = "config";
@@ -75,6 +71,7 @@ public class FieldNameCE {
     public static final String ACTIONS = "actions";
     public static final String ASSET = "asset";
     public static final String APPLICATION = "application";
+    public static final String ARTIFACT = "artifact";
     public static final String SOURCE_APPLICATION = "sourceApplication";
     public static final String COMMENT = "comment";
     public static final String COMMENT_THREAD = "commentThread";
@@ -103,6 +100,8 @@ public class FieldNameCE {
     public static final String IS_REQUIRED = "isRequired";
     public static final String UNUSED_DATASOURCE = "UNUSED_DATASOURCE";
     public static final String BRANCH_NAME = "branchName";
+    public static final String REF_TYPE = "refType";
+    public static final String REF_NAME = "refName";
     public static final String SOURCE_BRANCH = "sourceBranch";
     public static final String DESTINATION_BRANCH = "destinationBranch";
     public static final String DEFAULT = "default";
@@ -152,6 +151,9 @@ public class FieldNameCE {
     public static final String ACTION_EXECUTION_REQUEST_PARAMS_COUNT = "actionExecutionRequestParamsCount";
     public static final String ACTION_EXECUTION_RESULT = "actionExecutionResult";
     public static final String ACTION_EXECUTION_TIME = "actionExecutionTime";
+    public static final String ACTION_EXECUTION_REQUEST_PARAMS_VALUE_MAP = "actionExecutionRequestParamsValueMap";
+    public static final String ACTION_EXECUTION_INVERT_PARAMETER_MAP = "actionExecutionInvertParameterMap";
+    public static final String ACTION_CONFIGURATION = "actionConfiguration";
     public static final String WEBSITE = "website";
     public static final String TEMPLATE_APPLICATION_NAME = "templateAppName";
     public static final String SOURCE = "source";
@@ -181,7 +183,7 @@ public class FieldNameCE {
     public static final String ENVIRONMENT = "environment";
     public static final String UNUSED_ENVIRONMENT_ID = "unused_env";
 
-    public static final String TENANT = "tenant";
+    public static final String ORGANIZATION = "organization";
 
     public static final String SUFFIX_USER_MANAGEMENT_ROLE = " User Management";
 
@@ -195,6 +197,7 @@ public class FieldNameCE {
 
     public static final String REMOTE_PLUGINS = "remotePlugins";
     public static final String INSTANCE_ID = "instanceId";
+    public static final String TENANT_ID = "tenantId";
     public static final String IP_ADDRESS = "ipAddress";
     public static final String VERSION = "version";
     public static final String PUBLISHED = "published";
@@ -202,4 +205,6 @@ public class FieldNameCE {
     public static final String ARTIFACT_CONTEXT = "artifactContext";
     public static final String ARTIFACT_ID = "artifactId";
     public static final String BODY = "body";
+    public static final String ORGANIZATION_ID = "organizationId";
+    public static final String NONE = "none";
 }

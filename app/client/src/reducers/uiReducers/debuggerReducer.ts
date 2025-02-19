@@ -1,10 +1,10 @@
 import { createImmerReducer } from "utils/ReducerUtils";
 import type { Log } from "entities/AppsmithConsole";
-import type { ReduxAction } from "@appsmith/constants/ReduxActionConstants";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+import type { ReduxAction } from "actions/ReduxActionTypes";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import { omit, isUndefined, isEmpty } from "lodash";
 import equal from "fast-deep-equal";
-import { ActionExecutionResizerHeight } from "pages/Editor/APIEditor/constants";
+import { ActionExecutionResizerHeight } from "PluginActionEditor/components/PluginActionResponse/constants";
 import { klona } from "klona";
 
 export const DefaultDebuggerContext = {
@@ -22,6 +22,7 @@ const initialState: DebuggerReduxState = {
   expandId: "",
   hideErrors: true,
   context: DefaultDebuggerContext,
+  stateInspector: {},
 };
 
 // check the last message from the current log and update the occurrence count
@@ -34,10 +35,11 @@ const removeRepeatedLogsAndMerge = (
       acc.push(incomingLog);
     } else {
       const lastLog = acc[acc.length - 1];
+
       if (
         equal(
-          omit(lastLog, ["occurrenceCount"]),
-          omit(incomingLog, ["occurrenceCount"]),
+          omit(lastLog, ["occurrenceCount", "timestamp"]),
+          omit(incomingLog, ["occurrenceCount", "timestamp"]),
         )
       ) {
         lastLog.hasOwnProperty("occurrenceCount") && !!lastLog.occurrenceCount
@@ -47,6 +49,7 @@ const removeRepeatedLogsAndMerge = (
         acc.push(incomingLog);
       }
     }
+
     return acc;
   }, currentLogs);
 
@@ -78,6 +81,7 @@ const debuggerReducer = createImmerReducer(initialState, {
     // Remove Logs without IDs
     const validDebuggerErrors = payload.reduce((validLogs, currentLog) => {
       if (!currentLog.id) return validLogs;
+
       return {
         ...validLogs,
         [currentLog.id]: currentLog,
@@ -148,7 +152,9 @@ const debuggerReducer = createImmerReducer(initialState, {
   ) => {
     const { id, isExpanded } = action.payload;
     const errors = JSON.parse(JSON.stringify(state.errors));
+
     errors[id] = { ...errors[id], isExpanded };
+
     return {
       ...state,
       errors,
@@ -180,6 +186,17 @@ const debuggerReducer = createImmerReducer(initialState, {
       },
     };
   },
+  [ReduxActionTypes.SET_DEBUGGER_STATE_INSPECTOR_SELECTED_ITEM]: (
+    state: DebuggerReduxState,
+    action: ReduxAction<string>,
+  ): DebuggerReduxState => {
+    return {
+      ...state,
+      stateInspector: {
+        selectedItemId: action.payload,
+      },
+    };
+  },
   // Resetting debugger state after env switch
   [ReduxActionTypes.SWITCH_ENVIRONMENT_SUCCESS]: () => {
     return klona(initialState);
@@ -193,6 +210,9 @@ export interface DebuggerReduxState {
   expandId: string;
   hideErrors: boolean;
   context: DebuggerContext;
+  stateInspector: {
+    selectedItemId?: string;
+  };
 }
 
 export interface DebuggerContext {

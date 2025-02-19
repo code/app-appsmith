@@ -7,21 +7,22 @@ import { initExplorerEntityNameEdit } from "actions/explorerActions";
 import { noop } from "lodash";
 import React, { useCallback, useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { getPageListAsOptions } from "@appsmith/selectors/entitiesSelector";
+import { getPageListAsOptions } from "ee/selectors/entitiesSelector";
 import history from "utils/history";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
-import { ENTITY_TYPE } from "entities/DataTree/dataTreeFactory";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
+import { ENTITY_TYPE } from "ee/entities/DataTree/types";
 import {
   CONTEXT_COPY,
   CONTEXT_DELETE,
   CONFIRM_CONTEXT_DELETE,
-  CONTEXT_EDIT_NAME,
+  CONTEXT_RENAME,
   CONTEXT_MOVE,
   CONTEXT_NO_PAGE,
   CONTEXT_SHOW_BINDING,
   createMessage,
-} from "@appsmith/constants/messages";
-import { builderURL } from "@appsmith/RouteBuilder";
+  CONTEXT_DUPLICATE,
+} from "ee/constants/messages";
+import { builderURL } from "ee/RouteBuilder";
 
 import ContextMenu from "pages/Editor/Explorer/ContextMenu";
 import type { TreeDropdownOption } from "pages/Editor/Explorer/ContextMenu";
@@ -29,11 +30,13 @@ import {
   ActionEntityContextMenuItemsEnum,
   FilesContext,
 } from "../Files/FilesContextProvider";
-import { useConvertToModuleOptions } from "@appsmith/pages/Editor/Explorer/hooks";
-import { MODULE_TYPE } from "@appsmith/constants/ModuleConstants";
-import { PluginType } from "entities/Action";
+import { useConvertToModuleOptions } from "ee/pages/Editor/Explorer/hooks";
+import { MODULE_TYPE } from "ee/constants/ModuleConstants";
+import { PluginType } from "entities/Plugin";
+import { convertToBaseParentEntityIdSelector } from "selectors/pageListSelectors";
+import { ActionParentEntityType } from "ee/entities/Engine/actionHelpers";
 
-interface EntityContextMenuProps {
+export interface EntityContextMenuProps {
   id: string;
   name: string;
   className?: string;
@@ -41,20 +44,24 @@ interface EntityContextMenuProps {
   canDeleteAction: boolean;
   pluginType: PluginType;
 }
+
 export function ActionEntityContextMenu(props: EntityContextMenuProps) {
   // Import the context
   const context = useContext(FilesContext);
-  const { menuItems, parentEntityId } = context;
+  const { menuItems, parentEntityId, parentEntityType } = context;
+  const baseParentEntityId = useSelector((state) =>
+    convertToBaseParentEntityIdSelector(state, parentEntityId),
+  );
 
   const { canDeleteAction, canManageAction } = props;
   const dispatch = useDispatch();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const copyActionToPage = useCallback(
-    (actionId: string, actionName: string, pageId: string) =>
+  const copyAction = useCallback(
+    (actionId: string, actionName: string, destinationEntityId: string) =>
       dispatch(
         copyActionRequest({
           id: actionId,
-          destinationPageId: pageId,
+          destinationEntityId,
           name: actionName,
         }),
       ),
@@ -106,11 +113,11 @@ export function ActionEntityContextMenu(props: EntityContextMenuProps) {
   );
 
   const optionsTree = [
-    menuItems.includes(ActionEntityContextMenuItemsEnum.EDIT_NAME) &&
+    menuItems.includes(ActionEntityContextMenuItemsEnum.RENAME) &&
       canManageAction && {
         value: "rename",
         onSelect: editActionName,
-        label: createMessage(CONTEXT_EDIT_NAME),
+        label: createMessage(CONTEXT_RENAME),
       },
     menuItems.includes(ActionEntityContextMenuItemsEnum.SHOW_BINDING) && {
       value: "showBinding",
@@ -125,14 +132,26 @@ export function ActionEntityContextMenu(props: EntityContextMenuProps) {
     menuItems.includes(ActionEntityContextMenuItemsEnum.COPY) &&
       canManageAction && {
         value: "copy",
-        onSelect: noop,
-        label: createMessage(CONTEXT_COPY),
-        children: menuPages.map((page) => {
-          return {
-            ...page,
-            onSelect: () => copyActionToPage(props.id, props.name, page.id),
-          };
-        }),
+        onSelect:
+          parentEntityType === ActionParentEntityType.PAGE
+            ? noop
+            : () => {
+                copyAction(props.id, props.name, parentEntityId);
+              },
+        label: createMessage(
+          parentEntityType === ActionParentEntityType.PAGE
+            ? CONTEXT_COPY
+            : CONTEXT_DUPLICATE,
+        ),
+        children:
+          parentEntityType === ActionParentEntityType.PAGE &&
+          menuPages.length > 0 &&
+          menuPages.map((page) => {
+            return {
+              ...page,
+              onSelect: () => copyAction(props.id, props.name, page.id),
+            };
+          }),
       },
     menuItems.includes(ActionEntityContextMenuItemsEnum.MOVE) &&
       canManageAction && {
@@ -170,7 +189,7 @@ export function ActionEntityContextMenu(props: EntityContextMenuProps) {
         onSelect: () => {
           confirmDelete
             ? deleteActionFromPage(props.id, props.name, () => {
-                history.push(builderURL({ pageId: parentEntityId }));
+                history.push(builderURL({ basePageId: baseParentEntityId }));
                 setConfirmDelete(false);
               })
             : setConfirmDelete(true);

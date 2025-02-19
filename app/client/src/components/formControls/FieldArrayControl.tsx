@@ -3,7 +3,7 @@ import FormControl from "pages/Editor/FormControl";
 import styled from "styled-components";
 import { FieldArray } from "redux-form";
 import type { ControlProps } from "./BaseControl";
-import { Button } from "design-system";
+import { Button } from "@appsmith/ads";
 
 const CenteredIconButton = styled(Button)<{
   alignSelf?: string;
@@ -28,17 +28,14 @@ const PrimaryBox = styled.div`
 const SecondaryBox = styled.div`
   display: flex;
   flex-direction: row;
-  width: min-content;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
 
   & > div {
+    flex: 1;
     margin-right: 8px;
     margin-bottom: 8px;
-  }
-
-  & > .t--form-control-QUERY_DYNAMIC_INPUT_TEXT > div {
-    width: 20vw !important;
   }
 
   & > .t--form-control-DROP_DOWN,
@@ -53,11 +50,17 @@ const AddMoreAction = styled.div`
   width: max-content;
 `;
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function NestedComponents(props: any) {
   const addMore = useCallback(() => {
     const { schema = {} } = props;
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const newObject: any = {};
 
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     schema.forEach((s: any) => {
       newObject[s.key] = s.initialValue || "";
     });
@@ -71,7 +74,9 @@ function NestedComponents(props: any) {
         props.fields.length > 0 &&
         props.fields.map((field: string, index: number) => {
           return (
-            <SecondaryBox key={index}>
+            <SecondaryBox className="array-control-secondary-box" key={index}>
+              {/* TODO: Fix this the next time the file is edited */}
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {props.schema.map((sch: any, idx: number) => {
                 sch = {
                   ...sch,
@@ -81,6 +86,7 @@ function NestedComponents(props: any) {
                     ...(props.customStyles ?? {}),
                   },
                 };
+
                 return (
                   <FormControl
                     config={sch}
@@ -92,6 +98,7 @@ function NestedComponents(props: any) {
               <CenteredIconButton
                 alignSelf={"start"}
                 data-testid={`t--where-clause-delete-[${index}]`}
+                isIconButton
                 kind="tertiary"
                 onClick={(e: React.MouseEvent) => {
                   e.stopPropagation();
@@ -127,6 +134,7 @@ export default function FieldArrayControl(props: FieldArrayControlProps) {
     formName,
     schema,
   } = props;
+
   return (
     <FieldArray
       component={NestedComponents}

@@ -1,5 +1,4 @@
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
-import type { SIGNPOSTING_STEP } from "pages/Editor/FirstTimeUserOnboarding/Utils";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 
 export const toggleInOnboardingWidgetSelection = (payload: boolean) => {
   return {
@@ -32,14 +31,14 @@ export const disableStartSignpostingAction = () => {
 
 export const firstTimeUserOnboardingInit = (
   applicationId: string | undefined,
-  pageId: string,
+  basePageId: string,
   suffix?: string,
 ) => {
   return {
     type: ReduxActionTypes.FIRST_TIME_USER_ONBOARDING_INIT,
     payload: {
-      applicationId: applicationId,
-      pageId: pageId,
+      applicationId,
+      basePageId,
       suffix,
     },
   };
@@ -55,27 +54,6 @@ export const setSignpostingOverlay = (payload: boolean) => {
 export const signpostingMarkAllRead = () => {
   return {
     type: ReduxActionTypes.SIGNPOSTING_MARK_ALL_READ,
-  };
-};
-
-export const signpostingStepUpdateInit = (payload: {
-  step: SIGNPOSTING_STEP;
-  completed: boolean;
-}) => {
-  return {
-    type: ReduxActionTypes.SIGNPOSTING_STEP_UPDATE_INIT,
-    payload,
-  };
-};
-
-export const signpostingStepUpdate = (payload: {
-  step: SIGNPOSTING_STEP;
-  completed: boolean;
-  read?: boolean;
-}) => {
-  return {
-    type: ReduxActionTypes.SIGNPOSTING_STEP_UPDATE,
-    payload,
   };
 };
 

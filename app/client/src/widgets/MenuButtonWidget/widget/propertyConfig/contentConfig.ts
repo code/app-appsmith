@@ -1,6 +1,6 @@
 import type { PropertyPaneConfig } from "constants/PropertyControlConstants";
 import { ValidationTypes } from "constants/WidgetValidation";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import { AutocompleteDataType } from "utils/autocomplete/AutocompleteDataType";
 import { sourceDataArrayValidation } from "widgets/MenuButtonWidget/validations";
 import type { MenuButtonWidgetProps } from "../../constants";
@@ -8,6 +8,7 @@ import { MenuItemsSource } from "../../constants";
 import configureMenuItemsConfig from "./childPanels/configureMenuItemsConfig";
 import menuItemsConfig from "./childPanels/menuItemsConfig";
 import { updateMenuItemsSource } from "./propertyUtils";
+
 export default [
   {
     sectionName: "Basic",
@@ -89,7 +90,7 @@ export default [
         controlType: "OPEN_CONFIG_PANEL",
         buttonConfig: {
           label: "Configure",
-          icon: "settings-2-line",
+          icon: "settings-v3",
         },
         label: "Configure menu items",
         isBindProperty: false,

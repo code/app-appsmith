@@ -1,7 +1,7 @@
 import { get } from "lodash";
 import type { TableWidgetProps } from "../constants";
 import { ValidationTypes } from "constants/WidgetValidation";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import { AutocompleteDataType } from "utils/autocomplete/AutocompleteDataType";
 import type { PropertyPaneConfig } from "constants/PropertyControlConstants";
 import { ButtonVariantTypes } from "components/constants";
@@ -21,7 +21,7 @@ import {
 import {
   createMessage,
   TABLE_WIDGET_TOTAL_RECORD_TOOLTIP,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 import { IconNames } from "@blueprintjs/icons";
 import { getPrimaryColumnStylesheetValue } from "./helpers";
 
@@ -195,6 +195,7 @@ export default [
                       `${baseProperty}.columnType`,
                       "",
                     );
+
                     return columnType !== "url";
                   },
                   dependencies: [
@@ -405,6 +406,7 @@ export default [
                       `${baseProperty}.columnType`,
                       "",
                     );
+
                     return columnType !== "date";
                   },
                   dependencies: [
@@ -543,6 +545,7 @@ export default [
                       `${baseProperty}.columnType`,
                       "",
                     );
+
                     return columnType !== "date";
                   },
                   dependencies: [
@@ -596,6 +599,7 @@ export default [
                       `${baseProperty}.columnType`,
                       "",
                     );
+
                     return columnType !== "image";
                   },
                   dependencies: [

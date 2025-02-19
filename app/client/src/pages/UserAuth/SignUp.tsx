@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import type { InjectedFormProps } from "redux-form";
 import { reduxForm, formValueSelector } from "redux-form";
 import { AUTH_LOGIN_URL } from "constants/routes";
-import { SIGNUP_FORM_NAME } from "@appsmith/constants/forms";
+import { SIGNUP_FORM_NAME } from "ee/constants/forms";
 import type { RouteComponentProps } from "react-router-dom";
 import { useHistory, useLocation, withRouter } from "react-router-dom";
 import {
@@ -26,43 +26,44 @@ import {
   GOOGLE_RECAPTCHA_KEY_ERROR,
   LOOKING_TO_SELF_HOST,
   VISIT_OUR_DOCS,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 import FormTextField from "components/utils/ReduxFormTextField";
 import ThirdPartyAuth from "pages/UserAuth/ThirdPartyAuth";
-import { FormGroup } from "design-system-old";
-import { Button, Link, Callout } from "design-system";
+import { FormGroup } from "@appsmith/ads-old";
+import { Button, Link, Callout } from "@appsmith/ads";
 import { isEmail, isStrongPassword, isEmptyString } from "utils/formhelpers";
 
 import type { SignupFormValues } from "pages/UserAuth/helpers";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 
-import { SIGNUP_SUBMIT_PATH } from "@appsmith/constants/ApiConstants";
+import { SIGNUP_SUBMIT_PATH } from "ee/constants/ApiConstants";
 import { connect, useSelector } from "react-redux";
-import type { AppState } from "@appsmith/reducers";
-import PerformanceTracker, {
-  PerformanceTransactionName,
-} from "utils/PerformanceTracker";
+import type { AppState } from "ee/reducers";
 
-import { SIGNUP_FORM_EMAIL_FIELD_NAME } from "@appsmith/constants/forms";
-import { getAppsmithConfigs } from "@appsmith/configs";
+import { SIGNUP_FORM_EMAIL_FIELD_NAME } from "ee/constants/forms";
+import { getAppsmithConfigs } from "ee/configs";
 import { useScript, ScriptStatus, AddScriptTo } from "utils/hooks/useScript";
 
 import { getIsSafeRedirectURL } from "utils/helpers";
 import Container from "pages/UserAuth/Container";
 import {
   getIsFormLoginEnabled,
-  getTenantConfig,
+  getOrganizationConfig,
   getThirdPartyAuths,
-} from "@appsmith/selectors/tenantSelectors";
+} from "ee/selectors/organizationSelectors";
 import Helmet from "react-helmet";
 import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
-import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
-import { getHTMLPageTitle } from "@appsmith/utils/BusinessFeatures/brandingPageHelpers";
+import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
+import { getHTMLPageTitle } from "ee/utils/BusinessFeatures/brandingPageHelpers";
 import log from "loglevel";
 import { SELF_HOSTING_DOC } from "constants/ThirdPartyConstants";
+import * as Sentry from "@sentry/react";
+import { Severity } from "@sentry/react";
 
 declare global {
   interface Window {
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     grecaptcha: any;
   }
 }
@@ -70,6 +71,7 @@ const { cloudHosting, googleRecaptchaSiteKey } = getAppsmithConfigs();
 
 const validate = (values: SignupFormValues) => {
   const errors: SignupFormValues = {};
+
   if (!values.password || isEmptyString(values.password)) {
     errors.password = createMessage(FORM_VALIDATION_EMPTY_PASSWORD);
   } else if (!isStrongPassword(values.password)) {
@@ -77,9 +79,11 @@ const validate = (values: SignupFormValues) => {
   }
 
   const email = values.email || "";
+
   if (!isEmptyString(email) && !isEmail(email)) {
     errors.email = createMessage(FORM_VALIDATION_INVALID_EMAIL);
   }
+
   return errors;
 };
 
@@ -92,9 +96,11 @@ type SignUpFormProps = InjectedFormProps<
 export function SignUp(props: SignUpFormProps) {
   const history = useHistory();
   const isFormLoginEnabled = useSelector(getIsFormLoginEnabled);
+
   useEffect(() => {
     if (!isFormLoginEnabled) {
       const search = new URL(window.location.href)?.searchParams?.toString();
+
       history.replace({
         pathname: AUTH_LOGIN_URL,
         search,
@@ -113,8 +119,8 @@ export function SignUp(props: SignUpFormProps) {
   const isBrandingEnabled = useFeatureFlag(
     FEATURE_FLAG.license_branding_enabled,
   );
-  const tentantConfig = useSelector(getTenantConfig);
-  const { instanceName } = tentantConfig;
+  const organizationConfig = useSelector(getOrganizationConfig);
+  const { instanceName } = organizationConfig;
   const htmlPageTitle = getHTMLPageTitle(isBrandingEnabled, instanceName);
 
   const recaptchaStatus = useScript(
@@ -125,9 +131,16 @@ export function SignUp(props: SignUpFormProps) {
   let showError = false;
   let errorMessage = "";
   const queryParams = new URLSearchParams(location.search);
+
   if (queryParams.get("error")) {
     errorMessage = queryParams.get("error") || "";
     showError = true;
+    Sentry.captureException("Sign up failed", {
+      level: Severity.Error,
+      extra: {
+        error: new Error(errorMessage),
+      },
+    });
   }
 
   const signupURL = new URL(
@@ -135,10 +148,12 @@ export function SignUp(props: SignUpFormProps) {
     window.location.origin,
   );
   const appId = queryParams.get("appId");
+
   if (appId) {
     signupURL.searchParams.append("appId", appId);
   } else {
     const redirectUrl = queryParams.get("redirectUrl");
+
     if (redirectUrl != null && getIsSafeRedirectURL(redirectUrl)) {
       signupURL.searchParams.append("redirectUrl", redirectUrl);
     }
@@ -149,6 +164,7 @@ export function SignUp(props: SignUpFormProps) {
     const formElement: HTMLFormElement = document.getElementById(
       "signup-form",
     ) as HTMLFormElement;
+
     if (
       googleRecaptchaSiteKey.enabled &&
       recaptchaStatus === ScriptStatus.READY
@@ -157,7 +173,8 @@ export function SignUp(props: SignUpFormProps) {
         window.grecaptcha
           .execute(googleRecaptchaSiteKey.apiKey, {
             action: "submit",
-          })
+          }) // TODO: Fix this the next time the file is edited
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .then(function (token: any) {
             if (formElement) {
               signupURL.searchParams.append("recaptchaToken", token);
@@ -258,9 +275,6 @@ export function SignUp(props: SignUpFormProps) {
                 AnalyticsUtil.logEvent("SIGNUP_CLICK", {
                   signupMethod: "EMAIL",
                 });
-                PerformanceTracker.startTracking(
-                  PerformanceTransactionName.SIGN_UP,
-                );
               }}
               size="md"
               type="submit"
@@ -275,8 +289,10 @@ export function SignUp(props: SignUpFormProps) {
 }
 
 const selector = formValueSelector(SIGNUP_FORM_NAME);
+
 export default connect((state: AppState, props: SignUpFormProps) => {
   const queryParams = new URLSearchParams(props.location.search);
+
   return {
     initialValues: {
       email: queryParams.get("email"),

@@ -1,7 +1,7 @@
 import React, { memo, useContext } from "react";
 import { ErrorMessage, Label, LabelWrapper, SelectWrapper } from "../../styles";
 import { useTableOrSpreadsheet } from "./useTableOrSpreadsheet";
-import { Select, Option, Tooltip } from "design-system";
+import { Select, Option, Tooltip } from "@appsmith/ads";
 import { DropdownOption } from "../DatasourceDropdown/DropdownOption";
 import type { DefaultOptionType } from "rc-select/lib/Select";
 import { ColumnSelectorModal } from "../ColumnSelectorModal";
@@ -35,10 +35,6 @@ function TableOrSpreadsheetDropdown() {
         </LabelWrapper>
         <Select
           data-testid="t--one-click-binding-table-selector"
-          dropdownStyle={{
-            minWidth: "350px",
-            maxHeight: "300px",
-          }}
           isDisabled={disabled}
           isLoading={isLoading}
           isValid={!error}
@@ -58,7 +54,7 @@ function TableOrSpreadsheetDropdown() {
           {options.map((option) => {
             return (
               <Option
-                data-testId="t--one-click-binding-table-selector--table"
+                data-testid="t--one-click-binding-table-selector--table"
                 key={option.id}
                 value={option.value}
               >
@@ -67,7 +63,7 @@ function TableOrSpreadsheetDropdown() {
             );
           })}
         </Select>
-        <ErrorMessage data-testId="t--one-click-binding-table-selector--error">
+        <ErrorMessage data-testid="t--one-click-binding-table-selector--error">
           {error}
         </ErrorMessage>
       </SelectWrapper>

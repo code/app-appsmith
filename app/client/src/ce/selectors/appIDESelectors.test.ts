@@ -1,6 +1,6 @@
-import type { EntityItem } from "@appsmith/entities/IDE/constants";
+import type { EntityItem } from "ee/IDE/Interfaces/EntityItem";
 import { groupAndSortEntitySegmentList } from "./appIDESelectors";
-import { PluginType } from "entities/Action";
+import { PluginType } from "entities/Plugin";
 
 describe("groupAndSortEntitySegmentList", () => {
   it("should group and sort entity segment list alphabetically", () => {
@@ -57,6 +57,7 @@ describe("groupAndSortEntitySegmentList", () => {
 
   it("should handle empty input", () => {
     const result = groupAndSortEntitySegmentList([]);
+
     expect(result).toEqual([]);
   });
 

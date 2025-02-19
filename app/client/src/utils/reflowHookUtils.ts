@@ -1,6 +1,6 @@
 import type { OccupiedSpace } from "constants/CanvasEditorConstants";
 import { GridDefaults } from "constants/WidgetConstants";
-import type { FlattenedWidgetProps } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { FlattenedWidgetProps } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type {
   GridProps,
   ReflowedSpace,
@@ -79,14 +79,17 @@ export function getBottomRowAfterReflow(
     (bottomMostRow, each) => {
       const [id, reflowedParams] = each;
       const widget = occupiedSpaces.find((eachSpace) => eachSpace.id === id);
+
       if (widget) {
         const bottomMovement =
           (reflowedParams.Y || 0) / gridProps.parentRowSpace;
         const bottomRow = widget.bottom + bottomMovement;
+
         if (bottomRow > bottomMostRow) {
           return bottomRow;
         }
       }
+
       return bottomMostRow;
     },
     0,

@@ -1,19 +1,25 @@
-import { isEditorPath } from "@appsmith/pages/Editor/Explorer/helpers";
+import { isEditorPath } from "ee/pages/Editor/Explorer/helpers";
 import { APP_MODE } from "entities/App";
 import { isNil } from "lodash";
 import nanoid from "nanoid";
-import { getAppMode } from "@appsmith/selectors/entitiesSelector";
+import { getAppMode } from "ee/selectors/entitiesSelector";
 import store from "store";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
-import { FALLBACK_KEY } from "@appsmith/constants/UsagePulse";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
+import { FALLBACK_KEY } from "ee/constants/UsagePulse";
+import { getInstanceId } from "ee/selectors/organizationSelectors";
 
 //TODO (Dipyaman): We should return a promise that will get resolved only on success or rejected after the retries
 export const fetchWithRetry = (config: {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   url: any;
   payload: Record<string, unknown>;
   retries: number;
   retryTimeout: number;
 }) => {
+  const instanceId = getInstanceId(store.getState());
+  const anonymousUserId = AnalyticsUtil.getAnonymousId();
+
   fetch(config.url, {
     method: "POST",
     credentials: "same-origin",
@@ -33,6 +39,12 @@ export const fetchWithRetry = (config: {
           payload: config.payload,
           retries: config.retries - 1,
           retryTimeout: config.retryTimeout,
+        });
+      } else {
+        // add analytics for failed usage pulse
+        AnalyticsUtil.logEvent("MALFORMED_USAGE_PULSE", {
+          anonymousUserId,
+          instanceId,
         });
       }
     });
@@ -64,8 +76,10 @@ export const getUsagePulsePayload = (
         fallback = nanoid() as string;
         localStorage.setItem(FALLBACK_KEY, fallback);
       }
+
       data["anonymousUserId"] = fallback;
     }
   }
+
   return data;
 };

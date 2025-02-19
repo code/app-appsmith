@@ -86,12 +86,43 @@ Cypress.Commands.add("selectDateFormat", (value) => {
     .click({ force: true });
 });
 
+Cypress.Commands.add("openSelectDropdown", (element) => {
+  let isDropdownAlreadyOpen = false;
+
+  cy.get(element)
+    .invoke("html")
+    .then((html) => {
+      if (html.includes("rc-select-open")) {
+        isDropdownAlreadyOpen = true;
+      }
+    })
+    .then(() => {
+      if (!isDropdownAlreadyOpen) {
+        cy.get(element).last().scrollIntoView().click({ force: true });
+        cy.get(`${element} .rc-select-selection-search-input`)
+          .last()
+          .click({ force: true });
+      }
+    });
+});
+
 Cypress.Commands.add("selectDropdownValue", (element, value) => {
-  cy.get(element).last().scrollIntoView().click({ force: true });
+  cy.openSelectDropdown(element);
+
   cy.get(".t--dropdown-option")
     .children()
     .contains(value)
     .click({ force: true });
+});
+
+Cypress.Commands.add("searchSelectDropdown", (value) => {
+  cy.get(".ads-v2-select__dropdown .ads-v2-input__input-section-input").click();
+  cy.get(".ads-v2-select__dropdown .ads-v2-input__input-section-input").should(
+    "have.focus",
+  );
+  cy.get(".ads-v2-select__dropdown .ads-v2-input__input-section-input").type(
+    value,
+  );
 });
 
 Cypress.Commands.add("assertDateFormat", () => {
@@ -837,7 +868,7 @@ Cypress.Commands.add("selectWidgetForReset", (value) => {
 });
 
 Cypress.Commands.add("SetDateToToday", () => {
-  cy.get(".react-datepicker .react-datepicker__day--today").click({
+  cy.get("button:contains('Today')").click({
     force: true,
   });
   agHelper.AssertAutoSave();
@@ -1397,12 +1428,6 @@ Cypress.Commands.add("editTableSelectCell", (x, y) => {
   cy.get(`[data-colindex="${x}"][data-rowindex="${y}"] .select-button`).should(
     "exist",
   );
-});
-
-Cypress.Commands.add("makeColumnEditable", (column) => {
-  cy.get(
-    `[data-rbd-draggable-id="${column}"] .t--card-checkbox input+span`,
-  ).click();
 });
 
 Cypress.Commands.add("enterTableCellValue", (x, y, text) => {

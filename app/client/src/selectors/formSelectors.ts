@@ -1,7 +1,8 @@
 import { getFormValues, isValid, getFormInitialValues } from "redux-form";
-import type { AppState } from "@appsmith/reducers";
-import type { ActionData } from "@appsmith/reducers/entityReducers/actionsReducer";
+import type { AppState } from "ee/reducers";
+import type { ActionData } from "ee/reducers/entityReducers/actionsReducer";
 import type {
+  ConditionalOutput,
   DynamicValues,
   FormEvalOutput,
   FormEvaluationState,
@@ -12,11 +13,14 @@ import { getDataTree } from "./dataTreeSelectors";
 import type { DataTree } from "entities/DataTree/dataTreeTypes";
 import type { Action } from "entities/Action";
 import type { EvaluationError } from "utils/DynamicBindingUtils";
-import { getActionIdFromURL } from "@appsmith/pages/Editor/Explorer/helpers";
+import { getActionIdFromURL } from "ee/pages/Editor/Explorer/helpers";
 import { extractConditionalOutput } from "components/formControls/utils";
+import { getActionByBaseId } from "ee/selectors/entitiesSelector";
 
 export interface GetFormData {
   initialValues: Record<string, unknown>;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   values: any;
   valid: boolean;
 }
@@ -25,6 +29,7 @@ export const getFormData = (state: AppState, formName: string): GetFormData => {
   const initialValues = getFormInitialValues(formName)(state);
   const values = getFormValues(formName)(state);
   const valid = isValid(formName)(state);
+
   return { initialValues, values, valid };
 };
 
@@ -37,16 +42,39 @@ export const getApiName = (state: AppState, id: string) => {
 export const getFormEvaluationState = (state: AppState): FormEvaluationState =>
   state.evaluations.formEvaluation;
 
+export const getFormConfigConditionalOutput = (
+  state: AppState,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  config: any,
+): ConditionalOutput => {
+  const baseActionId = getActionIdFromURL();
+  const action = getActionByBaseId(state, baseActionId as string);
+  const actionId = action?.id ?? "";
+  const conditionalOutput = extractConditionalOutput(
+    config,
+    state.evaluations.triggers[actionId],
+  );
+
+  return conditionalOutput;
+};
+
 // Selector to return the fetched values of the form components, only called for components that
 // have the fetchOptionsDynamically option set to true
 export const getDynamicFetchedValues = (
   state: AppState,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config: any,
 ): DynamicValues => {
+  const baseActionId = getActionIdFromURL();
+  const action = getActionByBaseId(state, baseActionId as string);
+  const actionId = action?.id ?? "";
   const conditionalOutput = extractConditionalOutput(
     config,
-    state.evaluations.triggers[getActionIdFromURL() as string],
+    state.evaluations.triggers[actionId],
   );
+
   return !!conditionalOutput.fetchDynamicValues
     ? conditionalOutput.fetchDynamicValues
     : ({} as DynamicValues);
@@ -58,6 +86,7 @@ export const getDynamicTriggers = (
 ): FormEvalOutput | undefined => {
   const allTriggers = state.evaluations.triggers[actionId];
   const triggersAllowedToFetch: FormEvalOutput = {};
+
   if (!isEmpty(allTriggers)) {
     Object.entries(allTriggers).forEach(([key, value]) => {
       if (value?.fetchDynamicValues?.allowedToFetch) {
@@ -65,6 +94,7 @@ export const getDynamicTriggers = (
       }
     });
   }
+
   return !isEmpty(triggersAllowedToFetch) ? triggersAllowedToFetch : undefined;
 };
 
@@ -80,6 +110,8 @@ export const getConfigErrors = createSelector(
   (_: AppState, props: ConfigErrorProps) => props.configProperty,
   (dataTree: DataTree, formValues: Partial<Action>, configProperty: string) => {
     // action that corresponds to this form control
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let action: any;
     let configErrors: EvaluationError[] = [];
 

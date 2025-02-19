@@ -1,5 +1,5 @@
 import { ValidationTypes } from "constants/WidgetValidation";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import type { ChartWidgetProps } from "widgets/ChartWidget/widget";
 import {
   CUSTOM_CHART_TYPES,
@@ -318,6 +318,8 @@ export const contentConfig = () => {
           isBindProperty: true,
           isTriggerProperty: false,
           validation: { type: ValidationTypes.BOOLEAN },
+          // TODO: Fix this the next time the file is edited
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           hidden: (props: any) => props.chartType == "CUSTOM_ECHART",
         },
         {
@@ -329,6 +331,8 @@ export const contentConfig = () => {
           isBindProperty: true,
           isTriggerProperty: false,
           validation: { type: ValidationTypes.TEXT },
+          // TODO: Fix this the next time the file is edited
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           hidden: (props: any) =>
             ["CUSTOM_FUSION_CHART", "CUSTOM_ECHART"].includes(props.chartType),
           dependencies: ["chartType"],
@@ -342,6 +346,8 @@ export const contentConfig = () => {
           isBindProperty: true,
           isTriggerProperty: false,
           validation: { type: ValidationTypes.TEXT },
+          // TODO: Fix this the next time the file is edited
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           hidden: (props: any) =>
             ["CUSTOM_FUSION_CHART", "CUSTOM_ECHART"].includes(props.chartType),
           dependencies: ["chartType"],

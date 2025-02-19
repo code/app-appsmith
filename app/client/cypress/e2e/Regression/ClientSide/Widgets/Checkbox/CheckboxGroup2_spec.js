@@ -8,7 +8,7 @@ import {
 
 describe(
   "Checkbox Group Widget Functionality",
-  { tags: ["@tag.Widget", "@tag.Checkbox"] },
+  { tags: ["@tag.Widget", "@tag.Checkbox", "@tag.Binding"] },
   function () {
     before(() => {
       agHelper.AddDsl("checkboxgroupDsl");
@@ -77,8 +77,6 @@ describe(
     it("3. handleSelectAllChange: unchecked", function () {
       const selectAllSelector = formWidgetsPage.selectAllCheckboxControl;
       const uncheckedOptionInputs = `${formWidgetsPage.checkboxGroupOptionInputs} input:not(:checked)`;
-      // Deselect all
-      cy.get(selectAllSelector).click();
       // Should get 2 unchecked option inputs
       cy.get(uncheckedOptionInputs).should("have.length", 2);
       //handleSelectAllChange: checked", function () {

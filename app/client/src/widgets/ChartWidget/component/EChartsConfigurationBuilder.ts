@@ -9,9 +9,10 @@ import {
 
 import { Colors } from "constants/Colors";
 import { EChartsLayoutBuilder } from "./LayoutBuilders/EChartsLayoutBuilder";
+import { objectKeys } from "@appsmith/utils";
 
 export class EChartsConfigurationBuilder {
-  fontFamily: string = "Nunito Sans";
+  fontFamily: string = "";
   fontSize = 14;
 
   #seriesConfigurationForPieChart(
@@ -21,6 +22,7 @@ export class EChartsConfigurationBuilder {
     layoutConfig: Record<string, Record<string, unknown>>,
   ) {
     let seriesName = messages.Undefined;
+
     if (seriesData.seriesName && seriesData.seriesName.length > 0) {
       seriesName = seriesData.seriesName;
     }
@@ -42,6 +44,7 @@ export class EChartsConfigurationBuilder {
         value: seriesID,
       },
     };
+
     return config;
   }
 
@@ -57,57 +60,61 @@ export class EChartsConfigurationBuilder {
      */
     const configs: unknown[] = [];
 
-    Object.keys(allSeriesData).forEach((seriesID, index) => {
-      const seriesData = allSeriesData[seriesID];
-      let color = seriesData.color;
+    objectKeys(allSeriesData).forEach(
+      (seriesID: string | number, index: number) => {
+        const seriesData = allSeriesData[seriesID];
+        let color = seriesData.color;
 
-      if (index == 0 && (!color || color.length == 0)) {
-        color = props.primaryColor;
-      }
+        if (index == 0 && (!color || color.length == 0)) {
+          color = props.primaryColor;
+        }
 
-      let seriesName = messages.Undefined;
-      if (seriesData.seriesName && seriesData.seriesName.length > 0) {
-        seriesName = seriesData.seriesName;
-      }
+        let seriesName = messages.Undefined;
 
-      let config: Record<string, unknown> = {
-        label: { show: props.showDataPointLabel, position: "top" },
-        name: seriesName,
-        itemStyle: { color: color },
-      };
+        if (seriesData.seriesName && seriesData.seriesName.length > 0) {
+          seriesName = seriesData.seriesName;
+        }
 
-      switch (props.chartType) {
-        case "BAR_CHART":
-          config = { ...config, type: "bar" };
+        let config: Record<string, unknown> = {
+          label: { show: props.showDataPointLabel, position: "top" },
+          name: seriesName,
+          itemStyle: { color: color },
+        };
 
-          // The series label should be on the right for bar chart
-          (config.label as Record<string, unknown>).position = "right";
-          break;
-        case "COLUMN_CHART":
-          config = { ...config, type: "bar" };
-          break;
-        case "LINE_CHART":
-          config = { ...config, type: "line" };
-          break;
-        case "AREA_CHART":
-          config = {
-            ...config,
-            type: "line",
-            areaStyle: {},
-          };
-          break;
-        case "PIE_CHART":
-          config = this.#seriesConfigurationForPieChart(
-            seriesID,
-            seriesData,
-            props.showDataPointLabel,
-            layoutConfig,
-          );
-          break;
-      }
+        switch (props.chartType) {
+          case "BAR_CHART":
+            config = { ...config, type: "bar" };
 
-      configs.push(config);
-    });
+            // The series label should be on the right for bar chart
+            (config.label as Record<string, unknown>).position = "right";
+            break;
+          case "COLUMN_CHART":
+            config = { ...config, type: "bar" };
+            break;
+          case "LINE_CHART":
+            config = { ...config, type: "line" };
+            break;
+          case "AREA_CHART":
+            config = {
+              ...config,
+              type: "line",
+              areaStyle: {},
+            };
+            break;
+          case "PIE_CHART":
+            config = this.#seriesConfigurationForPieChart(
+              String(seriesID),
+              seriesData,
+              props.showDataPointLabel,
+              layoutConfig,
+            );
+            break;
+        }
+
+        configs.push(config);
+      },
+    );
+
     return configs;
   }
 
@@ -121,6 +128,7 @@ export class EChartsConfigurationBuilder {
     layoutConfig: Record<string, Record<string, unknown>>,
   ) {
     const config: Record<string, unknown>[] = [];
+
     Object.values(allSeriesData).forEach((seriesData) => {
       config.push({
         top: (layoutConfig.grid.top as number) - 20,
@@ -129,6 +137,7 @@ export class EChartsConfigurationBuilder {
         text: seriesData.seriesName ?? "",
       });
     });
+
     return config;
   }
 
@@ -194,6 +203,8 @@ export class EChartsConfigurationBuilder {
   #defaultEChartConfig = (
     layoutConfig: Record<string, Record<string, unknown>>,
   ): Record<string, unknown> => {
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const config: Record<string, any> = {
       legend: {
         show: layoutConfig.legend.show,
@@ -209,12 +220,14 @@ export class EChartsConfigurationBuilder {
         trigger: "item",
       },
     };
+
     config.grid = {
       top: layoutConfig.grid.top,
       bottom: layoutConfig.grid.bottom,
       left: layoutConfig.grid.left,
       show: false,
     };
+
     return config;
   };
 
@@ -244,18 +257,22 @@ export class EChartsConfigurationBuilder {
         },
       };
     }
+
     if (props.chartType == "BAR_CHART") {
       config.type = "category";
     }
+
     if (props.setAdaptiveYMin) {
       config.min = "dataMin";
     }
+
     config.axisLabel = {
       fontFamily: this.fontFamily,
       color: Colors.DOVE_GRAY2,
       show: layoutConfig.yAxis.show,
       ...(layoutConfig.yAxis.axisLabel as Record<string, unknown>),
     };
+
     return config;
   };
 
@@ -270,9 +287,11 @@ export class EChartsConfigurationBuilder {
      */
     const config: Record<string, unknown> = {};
     let type = "category";
+
     if (props.chartType == "BAR_CHART") {
       type = "value";
     }
+
     config.type = type;
     config.axisLabel = {
       show: layoutConfig.xAxis.show,
@@ -298,6 +317,7 @@ export class EChartsConfigurationBuilder {
     }
 
     config.show = layoutConfig.xAxis.show;
+
     return config;
   };
 
@@ -327,6 +347,7 @@ export class EChartsConfigurationBuilder {
         ];
       }
     }
+
     return [];
   };
 
@@ -354,6 +375,7 @@ export class EChartsConfigurationBuilder {
 
     const chartConfig: Record<string, unknown> =
       this.#defaultEChartConfig(layoutConfig);
+
     chartConfig.title = this.#titleConfigForChart(
       props,
       allSeriesData,
@@ -368,6 +390,7 @@ export class EChartsConfigurationBuilder {
       allSeriesData,
       layoutConfig,
     );
+
     return chartConfig;
   }
 }

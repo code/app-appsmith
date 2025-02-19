@@ -3,28 +3,19 @@ import { parse } from "acorn";
 import { ancestor } from "acorn-walk";
 import type { CodeEditorGutter } from "components/editorComponents/CodeEditor";
 import type { JSAction, JSCollection } from "entities/JSCollection";
-import {
-  RUN_GUTTER_CLASSNAME,
-  RUN_GUTTER_ID,
-  NO_FUNCTION_DROPDOWN_OPTION,
-} from "./constants";
-import type { DropdownOption } from "design-system-old";
+import { RUN_GUTTER_CLASSNAME, RUN_GUTTER_ID } from "./constants";
 import { find, memoize } from "lodash";
 import type { PropertyNode } from "@shared/ast";
 import {
+  ECMA_VERSION,
   isLiteralNode,
   isPropertyNode,
-  ECMA_VERSION,
   NodeTypes,
   SourceType,
 } from "@shared/ast";
-import type { EventLocation } from "@appsmith/utils/analyticsUtilTypes";
+import type { EventLocation } from "ee/utils/analyticsUtilTypes";
 import log from "loglevel";
 import type CodeMirror from "codemirror";
-
-export interface JSActionDropdownOption extends DropdownOption {
-  data: JSAction | null;
-}
 
 export const getAST = memoize((code: string, sourceType: SourceType) =>
   parse(code, {
@@ -66,6 +57,7 @@ export const getJSFunctionLocationFromCursor = (
       Property(node, ancestors: Node[]) {
         // We are only interested in identifiers at this depth (exported object keys)
         const depth = ancestors.length - 3;
+
         if (
           isPropertyNode(node) &&
           (node.value.type === NodeTypes.ArrowFunctionExpression ||
@@ -97,6 +89,7 @@ export const getJSFunctionStartLineFromCode = (
 ): { line: number; actionName: string } | null => {
   let ast: Node = { end: 0, start: 0, type: "" };
   let result: { line: number; actionName: string } | null = null;
+
   try {
     ast = getAST(code, SourceType.module);
   } catch (e) {
@@ -107,6 +100,7 @@ export const getJSFunctionStartLineFromCode = (
     Property(node, ancestors: Node[]) {
       // We are only interested in identifiers at this depth (exported object keys)
       const depth = ancestors.length - 3;
+
       if (
         isPropertyNode(node) &&
         (node.value.type === NodeTypes.ArrowFunctionExpression ||
@@ -124,6 +118,7 @@ export const getJSFunctionStartLineFromCode = (
       }
     },
   });
+
   return result;
 };
 
@@ -133,6 +128,7 @@ export const getJSPropertyLineFromName = (
 ): { line: number; ch: number } | null => {
   let ast: Node = { end: 0, start: 0, type: "" };
   let result: { line: number; ch: number } | null = null;
+
   try {
     ast = getAST(code, SourceType.module);
   } catch (e) {
@@ -143,6 +139,7 @@ export const getJSPropertyLineFromName = (
     Property(node, ancestors: Node[]) {
       // We are only interested in identifiers at this depth (exported object keys)
       const depth = ancestors.length - 3;
+
       if (
         isPropertyNode(node) &&
         node.loc &&
@@ -158,11 +155,13 @@ export const getJSPropertyLineFromName = (
       }
     },
   });
+
   return result;
 };
 
 export const createGutterMarker = (gutterOnclick: () => void) => {
   const marker = document.createElement("button");
+
   // For most browsers the default type of button is submit, this causes the page to reload when marker is clicked
   // Set type to button, to prevent this behaviour
   marker.type = "button";
@@ -177,6 +176,7 @@ export const createGutterMarker = (gutterOnclick: () => void) => {
     e.preventDefault();
     gutterOnclick();
   };
+
   return marker;
 };
 
@@ -191,12 +191,14 @@ export const getJSFunctionLineGutter = (
     getGutterConfig: null,
     gutterId: RUN_GUTTER_ID,
   };
+
   if (!showGutters || !jsActions.length) return gutter;
 
   return {
     getGutterConfig: (code: string, lineNumber: number) => {
       const config = getJSFunctionStartLineFromCode(code, lineNumber);
       const action = find(jsActions, ["name", config?.actionName]);
+
       return config && action && isExecutePermitted
         ? {
             line: config.line,
@@ -213,40 +215,11 @@ export const getJSFunctionLineGutter = (
   };
 };
 
-export const convertJSActionsToDropdownOptions = (
-  JSActions: JSAction[],
-): JSActionDropdownOption[] => {
-  return JSActions.map(convertJSActionToDropdownOption);
-};
-
-export const convertJSActionToDropdownOption = (
-  JSAction: JSAction,
-): JSActionDropdownOption => ({
-  label: JSAction.name,
-  value: JSAction.id,
-  data: JSAction,
-});
-
 export const getActionFromJsCollection = (
   actionId: string | null,
   jsCollection: JSCollection,
 ): JSAction | null => {
   if (!actionId) return null;
-  return jsCollection.actions.find((action) => action.id === actionId) || null;
-};
 
-/**
- * Returns dropdown option based on priority and availability
- */
-export const getJSActionOption = (
-  activeJSAction: JSAction | null,
-  jsActions: JSAction[],
-): JSActionDropdownOption => {
-  let jsActionOption = NO_FUNCTION_DROPDOWN_OPTION;
-  if (activeJSAction) {
-    jsActionOption = convertJSActionToDropdownOption(activeJSAction);
-  } else if (jsActions.length) {
-    jsActionOption = convertJSActionToDropdownOption(jsActions[0]);
-  }
-  return jsActionOption;
+  return jsCollection.actions.find((action) => action.id === actionId) || null;
 };

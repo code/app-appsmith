@@ -1,11 +1,13 @@
 import * as Factory from "factory.ts";
 import type { JSCollection } from "entities/JSCollection";
-import { PluginPackageName, PluginType } from "entities/Action";
+import { PluginPackageName, PluginType } from "entities/Plugin";
 import { PluginIDs } from "test/factories/MockPluginsState";
 
 const pageId = "0123456789abcdef00000000";
+
 export const JSObjectFactory = Factory.Sync.makeFactory<JSCollection>({
   id: "js_id",
+  baseId: "js_base_id",
   workspaceId: "workspaceId",
   applicationId: "appId",
   name: Factory.each((i) => `JSObject${i + 1}`),
@@ -15,7 +17,9 @@ export const JSObjectFactory = Factory.Sync.makeFactory<JSCollection>({
   actions: [
     {
       id: "myFunc1_id",
+      baseId: "myFunc1_base_id",
       workspaceId: "workspaceId",
+      applicationId: "applicationId",
       pluginId: PluginIDs[PluginPackageName.JS],
       name: "myFun1",
       fullyQualifiedName: "JSObject1.myFun1",
@@ -50,7 +54,9 @@ export const JSObjectFactory = Factory.Sync.makeFactory<JSCollection>({
     },
     {
       id: "myFunc2_id",
+      baseId: "myFunc2_base_id",
       workspaceId: "workspaceId",
+      applicationId: "applicationId",
       pluginId: "613a26d921750e4b557a9241",
       name: "myFun2",
       fullyQualifiedName: "JSObject1.myFun2",

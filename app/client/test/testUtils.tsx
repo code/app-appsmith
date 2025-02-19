@@ -7,17 +7,17 @@ import { ThemeProvider } from "styled-components";
 import { getCurrentThemeDetails } from "selectors/themeSelectors";
 import * as customQueries from "./customQueries";
 import { BrowserRouter } from "react-router-dom";
-import type { AppState } from "@appsmith/reducers";
-import appReducer from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
+import appReducer from "ee/reducers";
 import { applyMiddleware, compose, createStore } from "redux";
 import { reduxBatch } from "@manaflair/redux-batch";
 import createSagaMiddleware from "redux-saga";
 import store, { testStore } from "store";
 import { sagasToRunForTests } from "./sagas";
 import { all, call, spawn } from "redux-saga/effects";
-import type { FeatureFlags } from "@appsmith/entities/FeatureFlag";
+import type { FeatureFlags } from "ee/entities/FeatureFlag";
 import { fetchFeatureFlagsSuccess } from "../src/actions/userActions";
-import { DEFAULT_FEATURE_FLAG_VALUE } from "@appsmith/entities/FeatureFlag";
+import { DEFAULT_FEATURE_FLAG_VALUE } from "ee/entities/FeatureFlag";
 
 const testSagaMiddleware = createSagaMiddleware();
 
@@ -49,9 +49,12 @@ interface State {
 }
 const setupState = (state?: State) => {
   let reduxStore = store;
+
   window.history.pushState({}, "Appsmith", state?.url || "/");
+
   if (state && (state.initialState || state.featureFlags)) {
     reduxStore = testStore(state.initialState || {});
+
     if (state.featureFlags) {
       reduxStore.dispatch(
         fetchFeatureFlagsSuccess({
@@ -61,10 +64,12 @@ const setupState = (state?: State) => {
       );
     }
   }
+
   if (state && state.sagasToRun) {
     reduxStore = testStoreWithTestMiddleWare(reduxStore.getState());
     testSagaMiddleware.run(() => rootSaga(state.sagasToRun));
   }
+
   const defaultTheme = getCurrentThemeDetails(reduxStore.getState());
 
   return { reduxStore, defaultTheme };
@@ -76,6 +81,7 @@ const customRender = (
   options?: Omit<RenderOptions, "queries">,
 ) => {
   const { defaultTheme, reduxStore } = setupState(state);
+
   return render(
     <BrowserRouter>
       <Provider store={reduxStore}>
@@ -92,6 +98,7 @@ const customRender = (
 const hookWrapper = (state: State) => {
   return ({ children }: { children: ReactElement }) => {
     const { defaultTheme, reduxStore } = setupState(state);
+
     return (
       <BrowserRouter>
         <Provider store={reduxStore}>

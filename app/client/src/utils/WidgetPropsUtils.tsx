@@ -11,7 +11,7 @@ import {
 import { snapToGrid } from "./helpers";
 import type { OccupiedSpace } from "constants/CanvasEditorConstants";
 import defaultTemplate from "templates/default";
-import type { FlattenedWidgetProps } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { FlattenedWidgetProps } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type { WidgetType } from "../WidgetProvider/factory";
 import type { DSLWidget } from "WidgetProvider/constants";
 import type { BlockSpace, GridProps } from "reflow/reflowTypes";
@@ -28,6 +28,8 @@ import type { ContainerWidgetProps } from "widgets/ContainerWidget/widget";
 export interface WidgetOperationParams {
   operation: WidgetOperation;
   widgetId: string;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any;
 }
 
@@ -42,13 +44,13 @@ const defaultDSL = defaultTemplate;
  * @param fetchPageResponse The response from the fetchPage API Call
  * @returns The updated DSL and the layoutId
  */
-export const extractCurrentDSL = ({
+export const extractCurrentDSL = async ({
   dslTransformer,
   response,
 }: {
   dslTransformer?: (dsl: DSLWidget) => DSLWidget;
   response?: FetchPageResponse;
-}): { dsl: DSLWidget; layoutId: string | undefined } => {
+}): Promise<{ dsl: DSLWidget; layoutId: string | undefined }> => {
   // If fetch page response doesn't exist
   // It means we are creating a new page
   const newPage = !response;
@@ -58,11 +60,13 @@ export const extractCurrentDSL = ({
   };
 
   let dsl = currentDSL as DSLWidget;
+
   // Run all the migrations on this DSL
-  dsl = migrateDSL(
+  dsl = (await migrateDSL(
     currentDSL as ContainerWidgetProps<WidgetProps>,
     newPage,
-  ) as DSLWidget;
+  )) as DSLWidget;
+
   // If this DSL is meant to be transformed
   // then the dslTransformer would have been passed by the caller
   if (dslTransformer) {
@@ -89,6 +93,7 @@ export function getDraggingSpacesFromBlocks(
   snapRowSpace: number,
 ): BlockSpace[] {
   const draggingSpaces = [];
+
   for (const draggingBlock of draggingBlocks) {
     //gets top and left position of the block
     const [leftColumn, topRow] = getDropZoneOffsets(
@@ -103,6 +108,7 @@ export function getDraggingSpacesFromBlocks(
         y: 0,
       },
     );
+
     draggingSpaces.push({
       left: leftColumn,
       top: topRow,
@@ -115,6 +121,7 @@ export function getDraggingSpacesFromBlocks(
           : undefined,
     });
   }
+
   return draggingSpaces;
 }
 
@@ -166,13 +173,16 @@ export const isDropZoneOccupied = (
         widgetDetails.id !== widgetId && widgetDetails.parentId !== widgetId
       );
     });
+
     for (let i = 0; i < occupied.length; i++) {
       if (areIntersecting(occupied[i], offset)) {
         return true;
       }
     }
+
     return false;
   }
+
   return false;
 };
 
@@ -204,6 +214,7 @@ export const noCollision = (
   if (detachFromLayout) {
     return true;
   }
+
   if (clientOffset && dropTargetOffset) {
     const [left, top] = getDropZoneOffsets(
       colWidth,
@@ -211,20 +222,24 @@ export const noCollision = (
       clientOffset as XYCord,
       dropTargetOffset,
     );
+
     if (left < 0 || top < 0) {
       return false;
     }
+
     const currentOffset = {
       left,
       right: left + widgetWidth,
       top,
       bottom: top + widgetHeight,
     };
+
     return (
       !isDropZoneOccupied(currentOffset, widgetId, occupiedSpaces) &&
       !isWidgetOverflowingParentBounds({ rows, cols }, currentOffset)
     );
   }
+
   return false;
 };
 
@@ -242,6 +257,7 @@ export const currentDropRow = (
       dropTargetRowSpace,
   );
   const currentBottomOffset = top + widgetHeight;
+
   return currentBottomOffset;
 };
 
@@ -264,6 +280,7 @@ export const widgetOperationParams = (
     widgetOffset,
     parentOffset,
   );
+
   // If this is an existing widget, we'll have the widgetId
   // Therefore, this is a move operation on drop of the widget
   if (widget.widgetName) {
@@ -288,6 +305,7 @@ export const widgetOperationParams = (
     // If this is not an existing widget, we'll not have the widgetId
     // Therefore, this is an operation to add child to this container
   }
+
   const widgetDimensions = {
     columns: fullWidth ? GridDefaults.DEFAULT_GRID_COLUMNS : widget.columns,
     rows: widget.rows,
@@ -371,8 +389,10 @@ export const generateWidgetProps = (
       parentId: parent.widgetId,
       version,
     };
+
     delete props.rows;
     delete props.columns;
+
     return props;
   } else {
     if (parent) {

@@ -10,7 +10,7 @@ import {
 } from "../../propertyUtils";
 import { IconNames } from "@blueprintjs/icons";
 import { MenuItemsSource } from "widgets/MenuButtonWidget/constants";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import configureMenuItemsConfig from "./childPanels/configureMenuItemsConfig";
 
 export default {
@@ -181,7 +181,7 @@ export default {
       controlType: "OPEN_CONFIG_PANEL",
       buttonConfig: {
         label: "Configure",
-        icon: "settings-2-line",
+        icon: "settings-v3",
       },
       label: "Configure menu items",
       isBindProperty: false,

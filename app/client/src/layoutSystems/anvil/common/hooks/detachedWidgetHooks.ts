@@ -1,14 +1,14 @@
 import { useWidgetBorderStyles } from "./useWidgetBorderStyles";
 import { useDispatch, useSelector } from "react-redux";
 import { useWidgetSelection } from "utils/hooks/useWidgetSelection";
-import { combinedPreviewModeSelector } from "selectors/editorSelectors";
 import { SELECT_ANVIL_WIDGET_CUSTOM_EVENT } from "layoutSystems/anvil/utils/constants";
 import log from "loglevel";
 import { useEffect, useMemo } from "react";
 import { getAnvilWidgetDOMId } from "layoutSystems/common/utils/LayoutElementPositionsObserver/utils";
 import { getCurrentlyOpenAnvilDetachedWidgets } from "layoutSystems/anvil/integrations/modalSelectors";
-import { getCanvasWidgetsStructure } from "@appsmith/selectors/entitiesSelector";
+import { getCanvasWidgetsStructure } from "ee/selectors/entitiesSelector";
 import type { CanvasWidgetStructure } from "WidgetProvider/constants";
+import { selectCombinedPreviewMode } from "selectors/gitModSelectors";
 /**
  * This hook is used to select and focus on a detached widget
  * As detached widgets are outside of the layout flow, we need to access the correct element in the DOM
@@ -17,7 +17,7 @@ import type { CanvasWidgetStructure } from "WidgetProvider/constants";
  */
 export function useHandleDetachedWidgetSelect(widgetId: string) {
   const dispatch = useDispatch();
-  const isPreviewMode = useSelector(combinedPreviewModeSelector);
+  const isPreviewMode = useSelector(selectCombinedPreviewMode);
 
   const className = getAnvilWidgetDOMId(widgetId);
   const element = document.querySelector(`.${className}`);
@@ -26,6 +26,8 @@ export function useHandleDetachedWidgetSelect(widgetId: string) {
   useEffect(() => {
     // The select handler sends a custom event that is handled at a singular place in the AnvilEditorCanvas
     // The event listener is actually attached to the body and not the AnvilEditorCanvas. This can be changed in the future if necessary.
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleWidgetSelect = (e: any) => {
       // EventPhase 2 is the Target phase.
       // This signifies that the event has reached the target element.
@@ -49,6 +51,8 @@ export function useHandleDetachedWidgetSelect(widgetId: string) {
 
     // The handler for focusing on a detached widget
     // It makes sure to check if the app mode is preview or not
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleWidgetFocus = (e: any) => {
       // In case of a detached widget like (modal widget) fully capture the focus event.
       e.stopImmediatePropagation();
@@ -64,6 +68,7 @@ export function useHandleDetachedWidgetSelect(widgetId: string) {
       });
       element.addEventListener("mouseover", handleWidgetFocus);
     }
+
     return () => {
       if (element) {
         element.removeEventListener("click", handleWidgetSelect);
@@ -126,9 +131,12 @@ export function useDetachedChildren() {
         widgets.children.find((each) => each.widgetId === widgetId)
       );
     });
+
     return allChildren.filter((child) => !!child) as CanvasWidgetStructure[];
   }, [currentlyOpenWidgets, widgets]);
   const end = performance.now();
+
   log.debug("### Computing detached children took:", end - start, "ms");
+
   return detachedChildren;
 }

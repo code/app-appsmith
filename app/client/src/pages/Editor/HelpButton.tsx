@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 import { HELP_MODAL_WIDTH } from "constants/HelpConstants";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import { getCurrentUser } from "selectors/usersSelectors";
 import { useDispatch, useSelector } from "react-redux";
 import bootIntercom, { updateIntercomProperties } from "utils/bootIntercom";
@@ -11,7 +11,7 @@ import {
   createMessage,
   HELP_RESOURCE_TOOLTIP,
   INTERCOM_CONSENT_MESSAGE,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 import {
   Button,
   Menu,
@@ -21,8 +21,8 @@ import {
   Tooltip,
   MenuSeparator,
   Text,
-} from "design-system";
-import { getAppsmithConfigs } from "@appsmith/configs";
+} from "@appsmith/ads";
+import { getAppsmithConfigs } from "ee/configs";
 import moment from "moment/moment";
 import styled from "styled-components";
 import {
@@ -35,7 +35,7 @@ import {
 import SignpostingPopup from "pages/Editor/FirstTimeUserOnboarding/Modal";
 import { showSignpostingModal } from "actions/onboardingActions";
 import TooltipContent from "./FirstTimeUserOnboarding/TooltipContent";
-import { getInstanceId } from "@appsmith/selectors/tenantSelectors";
+import { getInstanceId } from "ee/selectors/organizationSelectors";
 import { updateIntercomConsent, updateUserDetails } from "actions/userActions";
 
 const { appVersion, cloudHosting, intercomAppID } = getAppsmithConfigs();
@@ -102,8 +102,9 @@ export function IntercomConsent({
   const instanceId = useSelector(getInstanceId);
   const dispatch = useDispatch();
 
-  const sendUserDataToIntercom = () => {
+  const sendUserDataToIntercom = async () => {
     const { email } = user || {};
+
     updateIntercomProperties(instanceId, user);
     dispatch(
       updateUserDetails({
@@ -114,7 +115,7 @@ export function IntercomConsent({
     showIntercomConsent(false);
 
     if (user?.enableTelemetry) {
-      AnalyticsUtil.identifyUser(user, true);
+      await AnalyticsUtil.identifyUser(user, true);
       AnalyticsUtil.logEvent("SUPPORT_REQUEST_INITIATED", {
         email,
       });
@@ -122,6 +123,7 @@ export function IntercomConsent({
 
     window.Intercom("show");
   };
+
   return (
     <ConsentContainer>
       <ActionsRow>
@@ -198,6 +200,7 @@ function HelpButton() {
             dispatch(showSignpostingModal(true));
             setShowTooltip(false);
           }
+
           setShowIntercomConsent(false);
           AnalyticsUtil.logEvent("OPEN_HELP", {
             page: "Editor",
@@ -259,8 +262,10 @@ function HelpButton() {
                     if (item.link) {
                       window.open(item.link, "_blank");
                     }
+
                     if (item.id === "intercom-trigger") {
                       e?.preventDefault();
+
                       if (intercomAppID && window.Intercom) {
                         if (user?.isIntercomConsentGiven || cloudHosting) {
                           window.Intercom("show");

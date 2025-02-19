@@ -1,9 +1,9 @@
 import { createSelector } from "reselect";
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import type {
   CanvasWidgetsReduxState,
   FlattenedWidgetProps,
-} from "reducers/entityReducers/canvasWidgetsReducer";
+} from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import { getExistingWidgetNames } from "sagas/selectors";
 import { getNextEntityName } from "utils/AppsmithUtils";
 
@@ -16,13 +16,13 @@ import {
 } from "./ui";
 import { MAIN_CONTAINER_WIDGET_ID } from "constants/WidgetConstants";
 import { get } from "lodash";
-import { getAppMode } from "@appsmith/selectors/applicationSelectors";
+import { getAppMode } from "ee/selectors/applicationSelectors";
 import { APP_MODE } from "entities/App";
 import { getIsTableFilterPaneVisible } from "selectors/tableFilterSelectors";
 import { getIsAutoHeightWithLimitsChanging } from "utils/hooks/autoHeightUIHooks";
 import { getIsPropertyPaneVisible } from "./propertyPaneSelectors";
-import { combinedPreviewModeSelector } from "./editorSelectors";
 import { getIsAnvilLayout } from "layoutSystems/anvil/integrations/selectors";
+import { selectCombinedPreviewMode } from "./gitModSelectors";
 
 export const getIsDraggingOrResizing = (state: AppState) =>
   state.ui.widgetDragResize.isResizing || state.ui.widgetDragResize.isDragging;
@@ -38,9 +38,11 @@ export const getModalWidgetType = createSelector(
   getIsAnvilLayout,
   (isAnvilLayout: boolean) => {
     let modalWidgetType = "MODAL_WIDGET";
+
     if (isAnvilLayout) {
       modalWidgetType = "WDS_MODAL_WIDGET";
     }
+
     return modalWidgetType;
   },
 );
@@ -52,7 +54,9 @@ export const getModalWidgets = createSelector(
     const modalWidgets = Object.values(widgets).filter(
       (widget: FlattenedWidgetProps) => widget.type === modalWidgetType,
     );
+
     if (modalWidgets.length === 0) return undefined;
+
     return modalWidgets;
   },
 );
@@ -76,6 +80,7 @@ export const getNextModalName = createSelector(
   (names, modalWidgetType) => {
     const prefix =
       WidgetFactory.widgetConfigMap.get(modalWidgetType)?.widgetName || "";
+
     return getNextEntityName(prefix, names);
   },
 );
@@ -89,11 +94,14 @@ export const getParentWidget = createSelector(
   (canvasWidgets, widgetId: string): FlattenedWidgetProps | undefined => {
     if (canvasWidgets.hasOwnProperty(widgetId)) {
       const widget = canvasWidgets[widgetId];
+
       if (widget.parentId && canvasWidgets.hasOwnProperty(widget.parentId)) {
         const parent = canvasWidgets[widget.parentId];
+
         return parent;
       }
     }
+
     return;
   },
 );
@@ -178,7 +186,7 @@ export const shouldWidgetIgnoreClicksSelector = (widgetId: string) => {
     (state: AppState) => state.ui.widgetDragResize.isDragging,
     (state: AppState) => state.ui.canvasSelection.isDraggingForSelection,
     getAppMode,
-    combinedPreviewModeSelector,
+    selectCombinedPreviewMode,
     getIsAutoHeightWithLimitsChanging,
     getAltBlockWidgetSelection,
     (

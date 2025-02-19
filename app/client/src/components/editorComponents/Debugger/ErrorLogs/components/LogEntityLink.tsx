@@ -4,10 +4,10 @@ import { useSelector } from "react-redux";
 import { keyBy } from "lodash";
 import type { LogItemProps } from "../ErrorLogItem";
 import { Colors } from "constants/Colors";
-import { getPlugins } from "@appsmith/selectors/entitiesSelector";
+import { getPlugins } from "ee/selectors/entitiesSelector";
 import EntityLink from "../../EntityLink";
 import { DebuggerLinkUI } from "components/editorComponents/Debugger/DebuggerEntityLink";
-import { getIconForEntity } from "@appsmith/components/editorComponents/Debugger/ErrorLogs/getLogIconForEntity";
+import { getIconForEntity } from "ee/components/editorComponents/Debugger/ErrorLogs/getLogIconForEntity";
 import { getPluginImagesFromPlugins } from "pages/Editor/utils";
 
 const EntityLinkWrapper = styled.div`
@@ -26,6 +26,7 @@ const IconWrapper = styled.span`
     width: 12px;
     height: 12px;
   }
+
   margin-right: 4px;
 `;
 
@@ -33,9 +34,11 @@ const IconWrapper = styled.span`
 const getIcon = (props: LogItemProps, pluginImages: Record<string, string>) => {
   const entityType = props.source?.type;
   let Icon = null;
+
   if (entityType) {
     Icon = getIconForEntity[entityType];
   }
+
   return Icon ? (
     <Icon {...props} pluginImages={pluginImages} />
   ) : (
@@ -50,6 +53,7 @@ export default function LogEntityLink(props: LogItemProps) {
   const pluginImages = getPluginImagesFromPlugins(plugins);
 
   const plugin = props.iconId ? pluginGroups[props.iconId] : undefined;
+
   return (
     <div>
       {props.source && (
@@ -74,7 +78,6 @@ export default function LogEntityLink(props: LogItemProps) {
             type={props.source.type}
             uiComponent={DebuggerLinkUI.ENTITY_NAME}
           />
-          :
         </EntityLinkWrapper>
       )}
     </div>

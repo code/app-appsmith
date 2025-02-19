@@ -8,14 +8,12 @@ import {
 } from "actions/jsActionActions";
 import { updateJSCollectionBodySuccess } from "actions/jsPaneActions";
 import type { JSCollection } from "entities/JSCollection";
-import type {
-  BufferedReduxAction,
-  ReduxAction,
-} from "@appsmith/constants/ReduxActionConstants";
+import type { ReduxAction } from "actions/ReduxActionTypes";
 import {
   ReduxActionErrorTypes,
   ReduxActionTypes,
-} from "@appsmith/constants/ReduxActionConstants";
+} from "ee/constants/ReduxActionConstants";
+import type { BufferedReduxAction } from "actions/EvaluationReduxActionTypes";
 
 describe("getAffectedJSObjectIdsFromAction", () => {
   const jsObject1 = { id: "1234" } as JSCollection;
@@ -26,6 +24,7 @@ describe("getAffectedJSObjectIdsFromAction", () => {
     const result = getAffectedJSObjectIdsFromAction(
       null as unknown as ReduxAction<unknown>,
     );
+
     expect(result).toEqual({ ids: [], isAllAffected: false });
   });
   test("should return a default response for a non JS action and non Buffered redux action ", () => {
@@ -34,6 +33,7 @@ describe("getAffectedJSObjectIdsFromAction", () => {
       payload: {},
     };
     const result = getAffectedJSObjectIdsFromAction(action);
+
     expect(result).toEqual({ ids: [], isAllAffected: false });
   });
 
@@ -44,6 +44,7 @@ describe("getAffectedJSObjectIdsFromAction", () => {
         payload: {},
       };
       const result = getAffectedJSObjectIdsFromAction(action);
+
       expect(result).toEqual({ ids: [], isAllAffected: false });
     });
     test("should return the buffered action's ids ", () => {
@@ -53,6 +54,7 @@ describe("getAffectedJSObjectIdsFromAction", () => {
         payload: {},
       };
       const result = getAffectedJSObjectIdsFromAction(action);
+
       expect(result).toEqual({ ids: ["1234", "5678"], isAllAffected: false });
     });
     test("should return the buffered action's isAllAffected property", () => {
@@ -62,6 +64,7 @@ describe("getAffectedJSObjectIdsFromAction", () => {
         payload: {},
       };
       const result = getAffectedJSObjectIdsFromAction(action);
+
       expect(result).toEqual({ isAllAffected: true, ids: [] });
     });
   });
@@ -79,6 +82,7 @@ describe("getAffectedJSObjectIdsFromAction", () => {
       const result = getAffectedJSObjectIdsFromAction(
         action(input as JSCollection & JSCollection[] & { data: JSCollection }),
       );
+
       expect(result).toEqual({ ids: expected, isAllAffected: false });
     },
   );
@@ -90,6 +94,7 @@ describe("getAffectedJSObjectIdsFromAction", () => {
       const result = getAffectedJSObjectIdsFromAction({
         type: actionType,
       } as ReduxAction<unknown>);
+
       expect(result).toEqual({ isAllAffected: true, ids: [] });
     });
   });

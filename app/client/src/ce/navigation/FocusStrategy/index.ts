@@ -1,5 +1,4 @@
-import type { IDEType } from "@appsmith/entities/IDE/constants";
-import { IDE_TYPE } from "@appsmith/entities/IDE/constants";
+import { IDE_TYPE, type IDEType } from "ee/IDE/Interfaces/IDETypes";
 import { AppIDEFocusStrategy } from "./AppIDEFocusStrategy";
 import { NoIDEFocusStrategy } from "./NoIDEFocusStrategy";
 

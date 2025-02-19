@@ -2,14 +2,14 @@ import clsx from "clsx";
 import {
   getTypographyClassName,
   type TYPOGRAPHY_FONT_WEIGHTS,
-} from "@design-system/theming";
+} from "@appsmith/wds-theming";
 import type { Ref } from "react";
 import React, { forwardRef } from "react";
 
 import type { TextProps } from "./types";
 import styles from "./styles.module.css";
 
-const _Text = (props: TextProps, ref: Ref<HTMLParagraphElement>) => {
+const _Text = (props: TextProps, ref: Ref<HTMLDivElement>) => {
   const {
     children,
     className,
@@ -22,6 +22,7 @@ const _Text = (props: TextProps, ref: Ref<HTMLParagraphElement>) => {
     style,
     textAlign = "start",
     title,
+    wordBreak = "break-all",
     ...rest
   } = props;
 
@@ -42,7 +43,9 @@ const _Text = (props: TextProps, ref: Ref<HTMLParagraphElement>) => {
       style={{
         fontWeight: getFontWeight(fontWeight, isBold),
         fontStyle: isItalic ? "italic" : "normal",
+        wordBreak,
         textAlign,
+        whiteSpace: "pre-wrap",
         ...style,
       }}
       {...rest}

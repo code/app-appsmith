@@ -4,7 +4,7 @@ import {
   layoutConfigurations,
   MAIN_CONTAINER_WIDGET_ID,
 } from "constants/WidgetConstants";
-import type { CanvasWidgetsReduxState } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type { SupportedLayouts } from "reducers/entityReducers/pageListReducer";
 import { HORIZONTAL_RESIZE_MIN_LIMIT } from "reflow/reflowTypes";
 import {
@@ -102,6 +102,7 @@ function convertAutoWidgetToFixed(
   isMobile: boolean,
 ): CanvasWidgetsReduxState {
   const currWidget = { ...widgets[widgetId] };
+
   if (!currWidget) return widgets;
 
   let currWidgets = { ...widgets };
@@ -139,6 +140,7 @@ function getFixedCanvasWidget(
   isMobile: boolean,
 ): CanvasWidgetsReduxState {
   const canvasWidget = { ...widgets[canvasId] };
+
   if (
     !canvasWidget ||
     !canvasWidget.children ||

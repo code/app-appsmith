@@ -3,7 +3,7 @@ import * as _ from "../../../../../support/Objects/ObjectsCore";
 
 describe(
   "Linting warning validation with text widget",
-  { tags: ["@tag.Widget", "@tag.Text"] },
+  { tags: ["@tag.Widget", "@tag.Text", "@tag.Binding"] },
   function () {
     before(() => {
       _.agHelper.AddDsl("textLintErrorDsl");
@@ -44,15 +44,7 @@ describe(
         .should("be.visible")
         .contains("'lintErrror' is not defined.");
 
-      cy.get(commonlocators.debugger)
-        .should("be.visible")
-        .click({ force: true });
-
-      cy.get(commonlocators.errorTab)
-        .should("be.visible")
-        .click({ force: true });
-
-      cy.get(commonlocators.debugErrorMsg).should("have.length", 3);
+      _.debuggerHelper.AssertErrorCount(3);
     });
   },
 );

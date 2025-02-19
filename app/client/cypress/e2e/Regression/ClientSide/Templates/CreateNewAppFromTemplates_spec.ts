@@ -8,7 +8,18 @@ import reconnectDatasourceLocators from "../../../../locators/ReconnectLocators.
 
 describe(
   "Create new application from template",
-  { tags: ["@tag.excludeForAirgap", "@tag.Workspace", "@tag.Templates"] },
+  {
+    tags: [
+      "@tag.excludeForAirgap",
+      "@tag.Workspace",
+      "@tag.Templates",
+      "@tag.Sanity",
+      "@tag.Git",
+      "@tag.ImportExport",
+      "@tag.Fork",
+      "@tag.AccessControl",
+    ],
+  },
   function () {
     beforeEach(() => {
       homePage.NavigateToHome();

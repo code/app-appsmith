@@ -1,12 +1,13 @@
 import type { JSAction } from "entities/JSCollection";
-import { JSResponseState } from "./JSResponseView";
 
-export const isHtml = (str: string) => {
-  const doc = new DOMParser().parseFromString(str, "text/html");
-  return Array.from(doc.body.childNodes).some(
-    (node: any) => node.nodeType === 1,
-  );
-};
+export enum JSResponseState {
+  IsExecuting = "IsExecuting",
+  IsDirty = "IsDirty",
+  IsUpdating = "IsUpdating",
+  NoResponse = "NoResponse",
+  ShowResponse = "ShowResponse",
+  NoReturnValue = "NoReturnValue",
+}
 
 /**
  * Returns state of the JSResponseview editor component
@@ -22,17 +23,23 @@ export function getJSResponseViewState(
   isDirty: Record<string, boolean>,
   isExecuting: Record<string, boolean>,
   isSaving: boolean,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   responses: Record<string, any>,
 ): JSResponseState {
   if (!currentFunction) return JSResponseState.NoResponse;
+
   if (isExecuting[currentFunction.id] && isSaving)
     return JSResponseState.IsUpdating;
+
   if (isExecuting[currentFunction.id]) return JSResponseState.IsExecuting;
+
   if (
     !responses.hasOwnProperty(currentFunction.id) &&
     !isExecuting.hasOwnProperty(currentFunction.id)
   )
     return JSResponseState.NoResponse;
+
   if (
     responses.hasOwnProperty(currentFunction.id) &&
     isDirty[currentFunction.id]

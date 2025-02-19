@@ -18,12 +18,12 @@ import type {
   AutocompletionDefinitions,
 } from "WidgetProvider/constants";
 import { FILL_WIDGET_MIN_WIDTH } from "constants/minWidthConstants";
-import { klona as clone } from "klona/full";
 import { ResponsiveBehavior } from "layoutSystems/common/utils/constants";
 import { BlueprintOperationTypes } from "WidgetProvider/constants";
 import IconSVG from "../icon.svg";
 import ThumbnailSVG from "../thumbnail.svg";
 import { WIDGET_TAGS, layoutConfigurations } from "constants/WidgetConstants";
+import { klonaFullWithTelemetry } from "utils/helpers";
 
 class ButtonGroupWidget extends BaseWidget<
   ButtonGroupWidgetProps,
@@ -65,6 +65,7 @@ class ButtonGroupWidget extends BaseWidget<
           placement: "CENTER",
           isVisible: true,
           isDisabled: false,
+          disabledWhenInvalid: false,
           index: 0,
           menuItems: {},
         },
@@ -77,6 +78,7 @@ class ButtonGroupWidget extends BaseWidget<
           widgetId: "",
           isVisible: true,
           isDisabled: false,
+          disabledWhenInvalid: false,
           index: 1,
           menuItems: {},
         },
@@ -89,6 +91,7 @@ class ButtonGroupWidget extends BaseWidget<
           widgetId: "",
           isVisible: true,
           isDisabled: false,
+          disabledWhenInvalid: false,
           index: 2,
           menuItems: {
             menuItem1: {
@@ -99,6 +102,7 @@ class ButtonGroupWidget extends BaseWidget<
               onClick: "",
               isVisible: true,
               isDisabled: false,
+              disabledWhenInvalid: false,
               index: 0,
             },
             menuItem2: {
@@ -109,6 +113,7 @@ class ButtonGroupWidget extends BaseWidget<
               onClick: "",
               isVisible: true,
               isDisabled: false,
+              disabledWhenInvalid: false,
               index: 1,
             },
             menuItem3: {
@@ -123,6 +128,7 @@ class ButtonGroupWidget extends BaseWidget<
               onClick: "",
               isVisible: true,
               isDisabled: false,
+              disabledWhenInvalid: false,
               index: 2,
             },
           },
@@ -133,7 +139,13 @@ class ButtonGroupWidget extends BaseWidget<
           {
             type: BlueprintOperationTypes.MODIFY_PROPS,
             fn: (widget: WidgetProps & { children?: WidgetProps[] }) => {
-              const groupButtons = clone(widget.groupButtons);
+              const groupButtons = klonaFullWithTelemetry(
+                widget.groupButtons,
+                "ButtonGroupWidget.groupButtons",
+              );
+
+              // TODO: Fix this the next time the file is edited
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const dynamicBindingPathList: any[] = get(
                 widget,
                 "dynamicBindingPathList",
@@ -184,10 +196,12 @@ class ButtonGroupWidget extends BaseWidget<
           configuration: (props: ButtonGroupWidgetProps) => {
             let minWidth = 120;
             const buttonLength = Object.keys(props.groupButtons).length;
+
             if (props.orientation === "horizontal") {
               // 120 is the width of the button, 8 is widget padding, 1 is the gap between buttons
               minWidth = 120 * buttonLength + 8 + (buttonLength - 1) * 1;
             }
+
             return {
               minWidth: `${minWidth}px`,
               minHeight: "40px",
@@ -207,10 +221,12 @@ class ButtonGroupWidget extends BaseWidget<
       widgetSize: (props: ButtonGroupWidgetProps) => {
         let minWidth = 120;
         const buttonLength = Object.keys(props.groupButtons).length;
+
         if (props.orientation === "horizontal") {
           // 120 is the width of the button, 8 is widget padding, 1 is the gap between buttons
           minWidth = 120 * buttonLength + 8 + (buttonLength - 1) * 1;
         }
+
         return {
           maxHeight: {},
           maxWidth: {},
@@ -248,6 +264,8 @@ class ButtonGroupWidget extends BaseWidget<
               titlePropertyName: "label",
               panelIdPropertyName: "id",
               updateHook: (
+                // TODO: Fix this the next time the file is edited
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 props: any,
                 propertyPath: string,
                 propertyValue: string,
@@ -300,6 +318,7 @@ class ButtonGroupWidget extends BaseWidget<
                           `${propertyPath.split(".", 2).join(".")}.buttonType`,
                           "",
                         );
+
                         return buttonType !== "MENU";
                       },
                       dependencies: ["groupButtons"],
@@ -314,6 +333,8 @@ class ButtonGroupWidget extends BaseWidget<
                         titlePropertyName: "label",
                         panelIdPropertyName: "id",
                         updateHook: (
+                          // TODO: Fix this the next time the file is edited
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           props: any,
                           propertyPath: string,
                           propertyValue: string,
@@ -503,6 +524,22 @@ class ButtonGroupWidget extends BaseWidget<
                   ],
                 },
                 {
+                  sectionName: "Form settings",
+                  children: [
+                    {
+                      propertyName: "disabledWhenInvalid",
+                      label: "Disable when form is invalid",
+                      helpText:
+                        "Disables this button if the form is invalid, if this button exists directly within a Form widget",
+                      controlType: "SWITCH",
+                      isJSConvertible: true,
+                      isBindProperty: true,
+                      isTriggerProperty: false,
+                      validation: { type: ValidationTypes.BOOLEAN },
+                    },
+                  ],
+                },
+                {
                   sectionName: "Events",
                   hidden: (
                     props: ButtonGroupWidgetProps,
@@ -513,6 +550,7 @@ class ButtonGroupWidget extends BaseWidget<
                       `${propertyPath}.buttonType`,
                       "",
                     );
+
                     return buttonType === "MENU";
                   },
                   children: [
@@ -809,6 +847,7 @@ class ButtonGroupWidget extends BaseWidget<
         buttonVariant={this.props.buttonVariant}
         groupButtons={this.props.groupButtons}
         isDisabled={this.props.isDisabled}
+        isFormValid={this.props.isFormValid}
         minHeight={this.isAutoLayoutMode ? this.props.minHeight : undefined}
         minPopoverWidth={minPopoverWidth}
         orientation={this.props.orientation}
@@ -823,6 +862,7 @@ class ButtonGroupWidget extends BaseWidget<
 export interface ButtonGroupWidgetProps extends WidgetProps {
   orientation: string;
   isDisabled: boolean;
+  isFormValid?: boolean;
   borderRadius?: string;
   boxShadow?: string;
   buttonVariant: ButtonVariant;
@@ -834,6 +874,7 @@ export interface ButtonGroupWidgetProps extends WidgetProps {
       index: number;
       isVisible?: boolean;
       isDisabled?: boolean;
+      disabledWhenInvalid?: boolean;
       label?: string;
       buttonType?: string;
       buttonColor?: string;
@@ -849,6 +890,7 @@ export interface ButtonGroupWidgetProps extends WidgetProps {
           index: number;
           isVisible?: boolean;
           isDisabled?: boolean;
+          disabledWhenInvalid?: boolean;
           label?: string;
           backgroundColor?: string;
           textColor?: string;

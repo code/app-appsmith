@@ -1,5 +1,6 @@
 package com.appsmith.server.applications.imports;
 
+import com.appsmith.external.git.constants.ce.RefType;
 import com.appsmith.external.models.Datasource;
 import com.appsmith.external.models.DatasourceStorageDTO;
 import com.appsmith.server.applications.base.ApplicationService;
@@ -27,6 +28,7 @@ import com.appsmith.server.imports.importable.ImportableService;
 import com.appsmith.server.imports.internal.artifactbased.ArtifactBasedImportServiceCE;
 import com.appsmith.server.layouts.UpdateLayoutService;
 import com.appsmith.server.migrations.ApplicationVersion;
+import com.appsmith.server.migrations.JsonSchemaMigration;
 import com.appsmith.server.newactions.base.NewActionService;
 import com.appsmith.server.services.ApplicationPageService;
 import com.appsmith.server.solutions.ActionPermission;
@@ -51,8 +53,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.appsmith.server.constants.FieldName.PUBLISHED;
+import static com.appsmith.server.constants.FieldName.UNPUBLISHED;
 import static com.appsmith.server.helpers.ImportExportUtils.setPropertiesToExistingApplication;
 import static com.appsmith.server.helpers.ImportExportUtils.setPublishedApplicationProperties;
+import static org.springframework.util.StringUtils.hasText;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -69,6 +74,7 @@ public class ApplicationImportServiceCEImpl
     private final ApplicationPermission applicationPermission;
     private final PagePermission pagePermission;
     private final ActionPermission actionPermission;
+    private final JsonSchemaMigration jsonSchemaMigration;
     private final ImportableService<Theme> themeImportableService;
     private final ImportableService<NewPage> newPageImportableService;
     private final ImportableService<CustomJSLib> customJSLibImportableService;
@@ -310,10 +316,8 @@ public class ApplicationImportServiceCEImpl
         }
 
         if (applicationJson.getCustomJSLibList() != null) {
-            List<CustomJSLib> importedCustomJSLibList = applicationJson.getCustomJSLibList().stream()
-                    .peek(customJSLib -> customJSLib.setGitSyncId(
-                            null)) // setting this null so that this custom js lib can be imported again
-                    .collect(Collectors.toList());
+            List<CustomJSLib> importedCustomJSLibList =
+                    applicationJson.getCustomJSLibList().stream().collect(Collectors.toList());
             applicationJson.setCustomJSLibList(importedCustomJSLibList);
         }
     }
@@ -359,11 +363,18 @@ public class ApplicationImportServiceCEImpl
                     application.setWorkspaceId(importingMetaDTO.getWorkspaceId());
                     application.setIsPublic(null);
                     application.setPolicies(null);
-                    Map<String, List<ApplicationPage>> mapOfApplicationPageList = Map.of(
-                            FieldName.PUBLISHED,
-                            application.getPublishedPages(),
-                            FieldName.UNPUBLISHED,
-                            application.getPages());
+
+                    List<ApplicationPage> unPublishedPages = CollectionUtils.isEmpty(application.getPages())
+                            ? new ArrayList<>()
+                            : application.getPages();
+
+                    List<ApplicationPage> publishedPages = CollectionUtils.isEmpty(application.getPublishedPages())
+                            ? new ArrayList<>()
+                            : application.getPublishedPages();
+
+                    Map<String, List<ApplicationPage>> mapOfApplicationPageList =
+                            Map.of(PUBLISHED, publishedPages, UNPUBLISHED, unPublishedPages);
+
                     mappedImportableResourcesDTO
                             .getResourceStoreFromArtifactExchangeJson()
                             .putAll(mapOfApplicationPageList);
@@ -585,8 +596,8 @@ public class ApplicationImportServiceCEImpl
             Mono<? extends Artifact> importableArtifactMono,
             ArtifactExchangeJson artifactExchangeJson) {
 
-        return importableArtifactMono.flatMapMany(importableContext -> {
-            Application application = (Application) importableContext;
+        return importableArtifactMono.flatMapMany(importableArtifact -> {
+            Application application = (Application) importableArtifact;
             ApplicationJson applicationJson = (ApplicationJson) artifactExchangeJson;
 
             List<Mono<Void>> pageDependentImportables = getPageDependentImportables(
@@ -621,13 +632,42 @@ public class ApplicationImportServiceCEImpl
     }
 
     @Override
-    public Mono<Set<String>> getDatasourceIdSetConsumedInArtifact(String defaultApplicationId) {
+    public Mono<Set<String>> getDatasourceIdSetConsumedInArtifact(String baseArtifactId) {
         return newActionService
-                .findAllByApplicationIdAndViewMode(defaultApplicationId, false, Optional.empty(), Optional.empty())
+                .findAllByApplicationIdAndViewMode(baseArtifactId, false, Optional.empty(), Optional.empty())
                 .filter(newAction -> StringUtils.hasText(
                         newAction.getUnpublishedAction().getDatasource().getId()))
                 .mapNotNull(newAction ->
                         newAction.getUnpublishedAction().getDatasource().getId())
                 .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Flux<String> getBranchedArtifactIdsByBranchedArtifactId(String branchedArtifactId) {
+        return applicationService.findAllBranchedApplicationIdsByBranchedApplicationId(branchedArtifactId, null);
+    }
+
+    @Override
+    public Mono<ApplicationJson> migrateArtifactExchangeJson(
+            String branchedArtifactId, ArtifactExchangeJson artifactExchangeJson) {
+        ApplicationJson applicationJson = (ApplicationJson) artifactExchangeJson;
+
+        if (!hasText(branchedArtifactId)) {
+            return jsonSchemaMigration.migrateApplicationJsonToLatestSchema(applicationJson, null, null, null);
+        }
+
+        return applicationService.findById(branchedArtifactId).flatMap(application -> {
+            String baseArtifactId = application.getBaseId();
+            String refName = null;
+            RefType refType = null;
+
+            if (application.getGitArtifactMetadata() != null) {
+                refName = application.getGitArtifactMetadata().getRefName();
+                refType = application.getGitArtifactMetadata().getRefType();
+            }
+
+            return jsonSchemaMigration.migrateApplicationJsonToLatestSchema(
+                    applicationJson, baseArtifactId, refName, refType);
+        });
     }
 }

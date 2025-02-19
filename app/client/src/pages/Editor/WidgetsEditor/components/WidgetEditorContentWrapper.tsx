@@ -1,19 +1,17 @@
 import React, { type ReactNode, useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  combinedPreviewModeSelector,
-  getIsAutoLayout,
-} from "selectors/editorSelectors";
+import { getIsAutoLayout } from "selectors/editorSelectors";
 import { setCanvasSelectionFromEditor } from "actions/canvasSelectionActions";
 import { useAllowEditorDragToSelect } from "utils/hooks/useAllowEditorDragToSelect";
 import { useAutoHeightUIState } from "utils/hooks/autoHeightUIHooks";
 import { getSelectedAppTheme } from "selectors/appThemingSelectors";
+import { selectCombinedPreviewMode } from "selectors/gitModSelectors";
 
 export const WidgetEditorContentWrapper = (props: { children: ReactNode }) => {
   const allowDragToSelect = useAllowEditorDragToSelect();
   const { isAutoHeightWithLimitsChanging } = useAutoHeightUIState();
   const dispatch = useDispatch();
-  const isCombinedPreviewMode = useSelector(combinedPreviewModeSelector);
+  const isCombinedPreviewMode = useSelector(selectCombinedPreviewMode);
 
   const handleWrapperClick = useCallback(
     (e) => {
@@ -22,6 +20,7 @@ export const WidgetEditorContentWrapper = (props: { children: ReactNode }) => {
       // Also, the nodeName is available only for the konva event, so standard type definition
       // for onClick handlers don't work. Hence leaving the event type as any.
       const isCanvasWrapperClicked = e.target?.nodeName === "CANVAS";
+
       // Making sure that we don't deselect the widget
       // after we are done dragging the limits in auto height with limits
       if (
@@ -42,11 +41,13 @@ export const WidgetEditorContentWrapper = (props: { children: ReactNode }) => {
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
+
       if (allowDragToSelect) {
         const startPoints = {
           x: e.clientX,
           y: e.clientY,
         };
+
         dispatch(setCanvasSelectionFromEditor(true, startPoints));
       }
     },
@@ -62,6 +63,7 @@ export const WidgetEditorContentWrapper = (props: { children: ReactNode }) => {
     }),
     [fontFamily, isAutoLayout],
   );
+
   return (
     <div
       className="relative flex flex-row h-full w-full overflow-hidden"

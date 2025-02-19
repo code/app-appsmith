@@ -1,18 +1,53 @@
 import type { ReactNode } from "react";
-import React from "react";
-import { Menu, MenuItem, MenuContent, MenuTrigger } from "design-system";
+import React, { useCallback } from "react";
+import { Menu, MenuItem, MenuContent, MenuTrigger } from "@appsmith/ads";
 import { useSelector, useDispatch } from "react-redux";
-import { getIsGitConnected } from "selectors/gitSyncSelectors";
 import { setIsGitSyncModalOpen } from "actions/gitSyncActions";
 import { GitSyncModalTab } from "entities/GitSync";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import {
   CONNECT_TO_GIT_OPTION,
   CURRENT_DEPLOY_PREVIEW_OPTION,
-} from "@appsmith/constants/messages";
-import { Button } from "design-system";
-import { KBEditorMenuItem } from "@appsmith/pages/Editor/KnowledgeBase/KBEditorMenuItem";
+} from "ee/constants/messages";
+import { Button } from "@appsmith/ads";
+import { KBEditorMenuItem } from "ee/pages/Editor/KnowledgeBase/KBEditorMenuItem";
 import { useHasConnectToGitPermission } from "pages/Editor/gitSync/hooks/gitPermissionHooks";
+import { getIsAnvilEnabledInCurrentApplication } from "layoutSystems/anvil/integrations/selectors";
+import {
+  useGitConnected,
+  useGitModEnabled,
+} from "pages/Editor/gitSync/hooks/modHooks";
+import { GitDeployMenuItems as GitDeployMenuItemsNew } from "git";
+
+function GitDeployMenuItems() {
+  const isGitModEnabled = useGitModEnabled();
+
+  const dispatch = useDispatch();
+  const goToGitConnectionPopup = useCallback(() => {
+    AnalyticsUtil.logEvent("GS_CONNECT_GIT_CLICK", {
+      source: "Deploy button",
+    });
+
+    dispatch(
+      setIsGitSyncModalOpen({
+        isOpen: true,
+        tab: GitSyncModalTab.GIT_CONNECTION,
+      }),
+    );
+  }, [dispatch]);
+
+  return isGitModEnabled ? (
+    <GitDeployMenuItemsNew />
+  ) : (
+    <MenuItem
+      className="t--connect-to-git-btn"
+      onClick={goToGitConnectionPopup}
+      startIcon="git-branch"
+    >
+      {CONNECT_TO_GIT_OPTION()}
+    </MenuItem>
+  );
+}
 
 interface Props {
   trigger: ReactNode;
@@ -20,21 +55,12 @@ interface Props {
 }
 
 export const DeployLinkButton = (props: Props) => {
-  const dispatch = useDispatch();
-  const isGitConnected = useSelector(getIsGitConnected);
+  const isGitConnected = useGitConnected();
   const isConnectToGitPermitted = useHasConnectToGitPermission();
-
-  const goToGitConnectionPopup = () => {
-    AnalyticsUtil.logEvent("GS_CONNECT_GIT_CLICK", {
-      source: "Deploy button",
-    });
-    dispatch(
-      setIsGitSyncModalOpen({
-        isOpen: true,
-        tab: GitSyncModalTab.GIT_CONNECTION,
-      }),
-    );
-  };
+  // We check if the current application is an Anvil application.
+  // If it is an Anvil application, we remove the Git features from the deploy button
+  // as they donot yet work correctly with Anvil.
+  const isAnvilEnabled = useSelector(getIsAnvilEnabledInCurrentApplication);
 
   return (
     <Menu>
@@ -48,14 +74,8 @@ export const DeployLinkButton = (props: Props) => {
         />
       </MenuTrigger>
       <MenuContent>
-        {!isGitConnected && isConnectToGitPermitted && (
-          <MenuItem
-            className="t--connect-to-git-btn"
-            onClick={goToGitConnectionPopup}
-            startIcon="git-branch"
-          >
-            {CONNECT_TO_GIT_OPTION()}
-          </MenuItem>
+        {!isGitConnected && isConnectToGitPermitted && !isAnvilEnabled && (
+          <GitDeployMenuItems />
         )}
         <MenuItem
           className="t--current-deployed-preview-btn"

@@ -6,19 +6,19 @@ import type {
   BatchUpdateWidgetMetaPropertyPayload,
 } from "actions/metaActions";
 
-import type { ReduxAction } from "@appsmith/constants/ReduxActionConstants";
+import type { ReduxAction } from "actions/ReduxActionTypes";
 import {
   ReduxActionTypes,
   WidgetReduxActionTypes,
-} from "@appsmith/constants/ReduxActionConstants";
-import produce from "immer";
-import type { EvalMetaUpdates } from "@appsmith/workers/common/DataTreeEvaluator/types";
+} from "ee/constants/ReduxActionConstants";
+import { create } from "mutative";
+import type { EvalMetaUpdates } from "ee/workers/common/DataTreeEvaluator/types";
 import {
   getMetaWidgetResetObj,
   getNextMetaStateWithUpdates,
   setMetaValuesOnResetFromEval,
 } from "./metaReducerUtils";
-import type { WidgetEntityConfig } from "@appsmith/entities/DataTree/types";
+import type { WidgetEntityConfig } from "ee/entities/DataTree/types";
 
 export type WidgetMetaState = Record<string, unknown>;
 export type MetaState = Record<string, WidgetMetaState>;
@@ -38,12 +38,13 @@ export const metaReducer = createReducer(initialState, {
     state: MetaState,
     action: ReduxAction<UpdateWidgetMetaPropertyPayload>,
   ) => {
-    const nextState = produce(state, (draftMetaState) => {
+    const nextState = create(state, (draftMetaState) => {
       set(
         draftMetaState,
         `${action.payload.widgetId}.${action.payload.propertyName}`,
         action.payload.propertyValue,
       );
+
       return draftMetaState;
     });
 
@@ -53,11 +54,13 @@ export const metaReducer = createReducer(initialState, {
     state: MetaState,
     action: ReduxAction<BatchUpdateWidgetMetaPropertyPayload>,
   ) => {
-    const nextState = produce(state, (draftMetaState) => {
+    const nextState = create(state, (draftMetaState) => {
       const { batchMetaUpdates } = action.payload;
+
       batchMetaUpdates.forEach(({ propertyName, propertyValue, widgetId }) => {
         set(draftMetaState, `${widgetId}.${propertyName}`, propertyValue);
       });
+
       return draftMetaState;
     });
 
@@ -67,12 +70,13 @@ export const metaReducer = createReducer(initialState, {
     state: MetaState,
     action: ReduxAction<UpdateWidgetMetaPropertyPayload>,
   ) => {
-    const nextState = produce(state, (draftMetaState) => {
+    const nextState = create(state, (draftMetaState) => {
       set(
         draftMetaState,
         `${action.payload.widgetId}.${action.payload.propertyName}`,
         action.payload.propertyValue,
       );
+
       return draftMetaState;
     });
 
@@ -83,7 +87,10 @@ export const metaReducer = createReducer(initialState, {
     action: ReduxAction<TableFilterPanePositionConfig>,
   ) => {
     const next = { ...state };
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let widgetMetaProps: Record<string, any> = next[action.payload.widgetId];
+
     if (widgetMetaProps === undefined) {
       widgetMetaProps = {
         isMoved: true,
@@ -96,7 +103,9 @@ export const metaReducer = createReducer(initialState, {
         position: { ...action.payload.position },
       };
     }
+
     next[action.payload.widgetId] = widgetMetaProps;
+
     return next;
   },
   [WidgetReduxActionTypes.WIDGET_DELETE]: (
@@ -104,7 +113,9 @@ export const metaReducer = createReducer(initialState, {
     action: ReduxAction<{ widgetId: string }>,
   ) => {
     const next = { ...state };
+
     delete next[action.payload.widgetId];
+
     return next;
   },
   [ReduxActionTypes.RESET_WIDGET_META]: (
@@ -123,6 +134,7 @@ export const metaReducer = createReducer(initialState, {
         ),
       };
     }
+
     return state;
   },
   [ReduxActionTypes.RESET_WIDGET_META_UPDATES]: (
@@ -138,11 +150,13 @@ export const metaReducer = createReducer(initialState, {
     action: ReduxAction<{ widgetIdsToClear: string[] }>,
   ) => {
     const next = { ...state };
+
     for (const metaWidgetId of action.payload.widgetIdsToClear) {
       if (metaWidgetId && next[metaWidgetId]) {
         delete next[metaWidgetId];
       }
     }
+
     return next;
   },
   [ReduxActionTypes.FETCH_PAGE_SUCCESS]: () => {

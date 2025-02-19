@@ -1,82 +1,29 @@
-.formField {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
+/**
+ * Reason for using div.selectInputGroup instead of just .selectInputGroup is to increase the specificity of the selector
+ * Also, we are removing the padding-inline from selectInputGroup and adding it to selectTriggerButton
+ * This is done to ensure that width of the select popover is same as the width of the select trigger button. Otherwise,
+ * the width of the popover will be less than the width of the trigger button because of the padding-inline by .inputGroup .
+ */
+div.selectInputGroup {
+  padding-inline: 0;
 }
 
-.textField {
+button.selectTriggerButton {
   display: flex;
-  position: relative;
-  padding: 0;
-  border: none;
   align-items: center;
-  border-radius: var(--border-radius-elevation-3);
-  background-color: var(--color-bg-neutral-subtle);
-  max-inline-size: 100%;
-  padding-inline-start: var(--inner-spacing-2);
-  padding-inline-end: calc(var(--inner-spacing-3) + var(--icon-size-2));
-  padding-block: var(--inner-spacing-3);
-  box-shadow: inset 0 0 0 var(--border-width-1)
-    var(--color-bd-on-neutral-subtle);
-  cursor: pointer;
+  padding-inline: var(--inner-spacing-2);
 }
 
-.formField[data-invalid] .textField {
-  box-shadow: 0 0 0 var(--border-width-1) var(--color-bd-negative);
+.selectTriggerButton:has(> [data-select-text]) {
+  block-size: var(--body-line-height);
 }
 
-.formField[data-size="small"] .textField {
-  padding-block: var(--inner-spacing-2);
-}
-
-.textField[data-focus-visible] {
-  box-shadow:
-    0 0 0 2px var(--color-bg),
-    0 0 0 4px var(--color-bd-focus);
-}
-
-.textField[data-hovered] {
-  background-color: var(--color-bg-neutral-subtle-hover);
-  box-shadow: inset 0 0 0 var(--border-width-1)
-    var(--color-bd-on-neutral-subtle-hover);
-}
-
-.textField [data-icon] {
-  position: absolute;
-  right: var(--inner-spacing-2);
-}
-
-.necessityIndicator {
-  color: var(--color-fg-negative);
-  margin-inline-start: var(--inner-spacing-1);
-}
-
-.errorText {
-  margin-block-start: var(--inner-spacing-3);
-  color: var(--color-fg-negative);
-}
-
-.description {
-  margin-block-start: var(--inner-spacing-3);
-  color: var(--color-fg-neutral);
-}
-
-.fieldValue {
-  text-align: left;
+.selectTriggerButton [data-select-text] {
+  display: flex;
+  align-items: center;
   flex: 1;
 }
 
-.fieldValue [data-icon] {
-  display: none;
-}
-
-.listBox {
-  min-inline-size: var(--trigger-width);
-}
-
-/** If at least one select item has an icon, we need to add extra padding for items that doesn't have an icon. */
-.listBox:has([data-icon]) [role="option"]:not(:has([data-icon])) {
-  padding-inline-start: calc(
-    var(--icon-size-2) + var(--inner-spacing-3) + var(--inner-spacing-2)
-  );
+.selectTriggerButton [data-select-text][data-placeholder] {
+  color: var(--color-fg-neutral-subtle);
 }

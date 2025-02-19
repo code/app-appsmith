@@ -1,11 +1,10 @@
 import React from "react";
 import type { WrappedFieldMetaProps, WrappedFieldInputProps } from "redux-form";
 import { Field } from "redux-form";
-import type { InputType } from "design-system-old";
-import { Input, NumberInput } from "design-system";
+import { Input, NumberInput } from "@appsmith/ads";
 
 import type { Intent } from "constants/DefaultTheme";
-import { SettingSubtype } from "@appsmith/pages/AdminSettings/config/types";
+import { SettingSubtype } from "ee/pages/AdminSettings/config/types";
 import { omit } from "lodash";
 
 const renderComponent = (
@@ -16,6 +15,7 @@ const renderComponent = (
 ) => {
   const value = componentProps.input.value || componentProps.defaultValue || "";
   const showError = componentProps.meta.touched && !componentProps.meta.active;
+
   return componentProps.type === SettingSubtype.NUMBER ? (
     <NumberInput
       {...omit(componentProps, "type")}
@@ -30,14 +30,17 @@ const renderComponent = (
   ) : (
     <Input
       {...componentProps.input}
-      {...componentProps}
+      // type prop is omitted as textarea component doesn't support that
+      {...(componentProps.type === "textarea"
+        ? omit(componentProps, "type")
+        : componentProps)}
       errorMessage={
         !componentProps.hideErrorMessage &&
         showError &&
         componentProps.meta.error
       }
       isDisabled={componentProps.disabled}
-      renderAs={"input"}
+      renderAs={componentProps.type === "textarea" ? "textarea" : "input"}
       size="md"
       value={value}
     />
@@ -48,7 +51,7 @@ export interface FormTextFieldProps {
   name: string;
   placeholder: string;
   description?: string;
-  type?: InputType;
+  type?: "text" | "password" | "number" | "email" | "tel" | "textarea";
   label?: React.ReactNode;
   intent?: Intent;
   disabled?: boolean;
@@ -56,7 +59,11 @@ export interface FormTextFieldProps {
   hideErrorMessage?: boolean;
   isRequired?: boolean;
   defaultValue?: string;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   format?: (value: any) => any;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parse?: (value: any) => any;
 }
 

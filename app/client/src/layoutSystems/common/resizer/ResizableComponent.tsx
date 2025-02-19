@@ -1,4 +1,4 @@
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import { batchUpdateMultipleWidgetProperties } from "actions/controlActions";
 import { focusWidget } from "actions/widgetActions";
 import { EditorContext } from "components/editorComponents/EditorContextProvider";
@@ -17,10 +17,7 @@ import { FixedLayoutResizable } from "layoutSystems/fixedlayout/common/resizer/F
 import { SelectionRequestType } from "sagas/WidgetSelectUtils";
 import { getIsAutoLayout } from "selectors/canvasSelectors";
 import { getIsAppSettingsPaneWithNavigationTabOpen } from "selectors/appSettingsPaneSelectors";
-import {
-  combinedPreviewModeSelector,
-  snipingModeSelector,
-} from "selectors/editorSelectors";
+import { snipingModeSelector } from "selectors/editorSelectors";
 import {
   getParentToOpenSelector,
   isWidgetFocused,
@@ -28,7 +25,7 @@ import {
   isMultiSelectedWidget,
   isWidgetSelected,
 } from "selectors/widgetSelectors";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import { ResponsiveBehavior } from "layoutSystems/common/utils/constants";
 import {
   getWidgetHeight,
@@ -59,7 +56,7 @@ import {
   TopRightHandleStyles,
   VisibilityContainer,
 } from "layoutSystems/common/resizer/ResizeStyledComponents";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import type { UIElementSize } from "layoutSystems/common/resizer/ResizableUtils";
 import {
   computeFinalRowCols,
@@ -69,6 +66,7 @@ import {
   getAltBlockWidgetSelection,
   getWidgetSelectionBlock,
 } from "selectors/ui";
+import { selectCombinedPreviewMode } from "selectors/gitModSelectors";
 
 export type ResizableComponentProps = WidgetProps & {
   paddingOffset: number;
@@ -83,7 +81,7 @@ export const ResizableComponent = memo(function ResizableComponent(
   const isAutoLayout = useSelector(getIsAutoLayout);
   const Resizable = isAutoLayout ? AutoLayoutResizable : FixedLayoutResizable;
   const isSnipingMode = useSelector(snipingModeSelector);
-  const isPreviewMode = useSelector(combinedPreviewModeSelector);
+  const isPreviewMode = useSelector(selectCombinedPreviewMode);
   const isWidgetSelectionBlock = useSelector(getWidgetSelectionBlock);
   const isAltWidgetSelectionBlock = useSelector(getAltBlockWidgetSelection);
   const isAppSettingsPaneWithNavigationTabOpen: boolean = useSelector(
@@ -201,7 +199,9 @@ export const ResizableComponent = memo(function ResizableComponent(
       [leftColumnMap]: leftColumn,
       [rightColumnMap]: rightColumn,
       [topRowMap]: topRow,
-    } = props as any;
+    } = // TODO: Fix this the next time the file is edited
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      props as any;
 
     // Get the updated Widget rows and columns props
     // False, if there is collision
@@ -236,6 +236,7 @@ export const ResizableComponent = memo(function ResizableComponent(
           snapRowSpace: props.parentRowSpace,
         });
     }
+
     // Tell the Canvas that we've stopped resizing
     // Put it later in the stack so that other updates like click, are not propagated to the parent container
     setTimeout(() => {
@@ -264,6 +265,7 @@ export const ResizableComponent = memo(function ResizableComponent(
         !isLastSelected &&
         selectWidget(SelectionRequestType.One, [props.widgetId]);
     }
+
     // Property pane closes after a resize/drag
     showPropertyPane && showPropertyPane();
     AnalyticsUtil.logEvent("WIDGET_RESIZE_END", {
@@ -283,6 +285,7 @@ export const ResizableComponent = memo(function ResizableComponent(
       selectWidget(SelectionRequestType.One, [props.widgetId]);
     // Make sure that this tableFilterPane should close
     showTableFilterPane && showTableFilterPane();
+
     // If resizing a fill widget "horizontally", then convert it to a hug widget.
     if (
       props.isFlexChild &&
@@ -301,6 +304,7 @@ export const ResizableComponent = memo(function ResizableComponent(
           },
         ]),
       );
+
     AnalyticsUtil.logEvent("WIDGET_RESIZE_START", {
       widgetName: props.widgetName,
       widgetType: props.type,
@@ -318,6 +322,7 @@ export const ResizableComponent = memo(function ResizableComponent(
       bottomLeft: BottomLeftHandleStyles,
     };
     const handlesToOmit = get(props, "disabledResizeHandles", []);
+
     return omit(allHandles, handlesToOmit);
   }, [props]);
   const isAutoCanvasResizing = useSelector(
@@ -371,6 +376,7 @@ export const ResizableComponent = memo(function ResizableComponent(
   let maxHeightInPx =
     WidgetHeightLimits.MAX_HEIGHT_IN_ROWS *
     GridDefaults.DEFAULT_GRID_ROW_HEIGHT; // Maximum possible height
+
   // If the widget has auto height with limits, we need to respect the set limits.
   if (isAutoHeightEnabledForWidgetWithLimits(props)) {
     maxHeightInPx =

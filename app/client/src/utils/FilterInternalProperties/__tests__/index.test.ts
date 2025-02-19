@@ -2,15 +2,15 @@ import { filterInternalProperties } from "..";
 import {
   ENTITY_TYPE,
   EvaluationSubstitutionType,
-} from "entities/DataTree/dataTreeFactory";
+} from "ee/entities/DataTree/types";
 import type {
   DataTreeEntityConfig,
   DataTreeEntityObject,
   WidgetEntityConfig,
-} from "@appsmith/entities/DataTree/types";
+} from "ee/entities/DataTree/types";
 import { registerWidgets } from "WidgetProvider/factory/registrationHelper";
 import InputWidget from "widgets/InputWidgetV2";
-import type { JSCollectionData } from "@appsmith/reducers/entityReducers/jsActionsReducer";
+import type { JSCollectionData } from "ee/reducers/entityReducers/jsActionsReducer";
 
 describe("filterInternalProperties tests", () => {
   beforeAll(() => {

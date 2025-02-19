@@ -10,8 +10,8 @@ import {
 } from "selectors/appThemingSelectors";
 import { useSelector } from "react-redux";
 import BetaCard from "components/editorComponents/BetaCard";
-import { SectionTitle } from "../AppSettingsPane/AppSettings";
-import { THEME_SETTINGS_SECTION_CONTENT_HEADER } from "@appsmith/constants/messages";
+import { SectionTitle } from "pages/AppIDE/components/AppSettings/AppSettings";
+import { THEME_SETTINGS_SECTION_CONTENT_HEADER } from "ee/constants/messages";
 
 export function ThemePropertyPane() {
   const themingStack = useSelector(getAppThemingStack);

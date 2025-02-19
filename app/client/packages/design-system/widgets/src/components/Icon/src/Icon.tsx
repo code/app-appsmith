@@ -1,71 +1,51 @@
-import type { Ref } from "react";
+import clsx from "clsx";
+import type { Component, Ref } from "react";
 import React, { Suspense, forwardRef, lazy, useMemo } from "react";
-import { useThemeContext } from "@design-system/theming";
-import { Icon as HeadlessIcon } from "@design-system/headless";
 
 import { ICONS } from "./icons";
 import styles from "./styles.module.css";
 import type { IconProps } from "./types";
 import { FallbackIcon } from "./FallbackIcon";
 
-const _Icon = (props: IconProps, ref: Ref<SVGSVGElement>) => {
-  const { filled: filledProp, icon, name, size = "medium", ...rest } = props;
-  const theme = useThemeContext();
-  const filled = theme.iconStyle === "filled" || filledProp;
+const _Icon = (props: IconProps, ref: Ref<Component>) => {
+  const { className, color, name, size = "medium", ...rest } = props;
 
   const Icon = useMemo(() => {
-    let Icon: React.ComponentType | null;
+    const pascalName = ICONS[name];
 
-    if (icon !== undefined) {
-      Icon = icon as React.ComponentType;
-    } else if (name !== undefined) {
-      const pascalName = ICONS[name];
+    return lazy(async () =>
+      import("@tabler/icons-react").then((module) => {
+        if (pascalName in module) {
+          return {
+            default: module[pascalName] as React.ComponentType<{
+              className?: string;
+            }>,
+          };
+        }
 
-      Icon = lazy(async () =>
-        import("@tabler/icons-react").then((module) => {
-          if (Boolean(filled)) {
-            const filledVariant = `${pascalName}Filled`;
-
-            if (filledVariant in module) {
-              return {
-                default: module[filledVariant] as React.ComponentType,
-              };
-            }
-          }
-
-          if (pascalName in module) {
-            return {
-              default: module[pascalName] as React.ComponentType,
-            };
-          }
-
-          return { default: FallbackIcon };
-        }),
-      );
-    } else {
-      Icon = FallbackIcon;
-    }
-    return Icon;
-  }, [name, icon, filled]);
+        return { default: FallbackIcon };
+      }),
+    );
+  }, [name]);
 
   return (
     <Suspense
       fallback={
         <FallbackIcon
-          className={styles.icon}
+          className={clsx(styles.icon, className)}
           data-size={Boolean(size) ? size : undefined}
           {...rest}
         />
       }
     >
-      <HeadlessIcon
-        className={styles.icon}
+      <Icon
+        className={clsx(styles.icon, className)}
+        data-color={color ? color : undefined}
+        data-icon=""
         data-size={Boolean(size) ? size : undefined}
         ref={ref}
         {...rest}
-      >
-        <Icon />
-      </HeadlessIcon>
+      />
     </Suspense>
   );
 };

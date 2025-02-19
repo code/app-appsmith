@@ -1,14 +1,13 @@
-import type {
-  ReduxAction,
-  ReduxActionType,
-} from "@appsmith/constants/ReduxActionConstants";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
-import type { UpdateWidgetsPayload } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { ReduxAction, ReduxActionType } from "./ReduxActionTypes";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
+import type { UpdateWidgetsPayload } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type { DynamicPath } from "utils/DynamicBindingUtils";
 
 export const updateWidgetPropertyRequest = (
   widgetId: string,
   propertyPath: string,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   propertyValue: any,
 ): ReduxAction<UpdateWidgetPropertyRequestPayload> => {
   return {
@@ -113,6 +112,8 @@ export const updateMultipleMetaWidgetPropertiesAction = (
 export interface UpdateWidgetPropertyRequestPayload {
   widgetId: string;
   propertyPath: string;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   propertyValue: any;
 }
 

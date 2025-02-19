@@ -1,14 +1,14 @@
-import type { ReduxAction } from "@appsmith/constants/ReduxActionConstants";
+import type { ReduxAction } from "actions/ReduxActionTypes";
 import {
   ReduxActionErrorTypes,
   ReduxActionTypes,
-} from "@appsmith/constants/ReduxActionConstants";
+} from "ee/constants/ReduxActionConstants";
 import { createReducer } from "utils/ReducerUtils";
-import type { TenantReduxState } from "@appsmith/reducers/tenantReducer";
-import { tenantConfigConnection } from "@appsmith/constants/tenantConstants";
+import type { OrganizationReduxState } from "ee/reducers/organizationReducer";
+import { organizationConfigConnection } from "ee/constants/organizationConstants";
 
 export const initialState: SettingsReduxState = {
-  isLoading: false,
+  isLoading: true,
   isSaving: false,
   isRestarting: false,
   showReleaseNotes: false,
@@ -43,16 +43,24 @@ export const handlers = {
       ...action.payload,
     },
   }),
-  [ReduxActionTypes.FETCH_CURRENT_TENANT_CONFIG_SUCCESS]: (
-    state: SettingsReduxState & TenantReduxState<any>,
-    action: ReduxAction<TenantReduxState<any>>,
+  [ReduxActionTypes.FETCH_CURRENT_ORGANIZATION_CONFIG_SUCCESS]: (
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    state: SettingsReduxState & OrganizationReduxState<any>,
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    action: ReduxAction<OrganizationReduxState<any>>,
   ) => {
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const configs: any = {};
-    tenantConfigConnection.forEach((key: string) => {
-      if (action.payload?.tenantConfiguration?.hasOwnProperty(key)) {
-        configs[key] = action.payload?.tenantConfiguration?.[key];
+
+    organizationConfigConnection.forEach((key: string) => {
+      if (action.payload?.organizationConfiguration?.hasOwnProperty(key)) {
+        configs[key] = action.payload?.organizationConfiguration?.[key];
       }
     });
+
     return {
       ...state,
       isLoading: false,
@@ -62,16 +70,24 @@ export const handlers = {
       },
     };
   },
-  [ReduxActionTypes.UPDATE_TENANT_CONFIG_SUCCESS]: (
-    state: SettingsReduxState & TenantReduxState<any>,
-    action: ReduxAction<TenantReduxState<any>>,
+  [ReduxActionTypes.UPDATE_ORGANIZATION_CONFIG_SUCCESS]: (
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    state: SettingsReduxState & OrganizationReduxState<any>,
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    action: ReduxAction<OrganizationReduxState<any>>,
   ) => {
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const configs: any = {};
-    tenantConfigConnection.forEach((key: string) => {
-      if (action.payload?.tenantConfiguration?.hasOwnProperty(key)) {
-        configs[key] = action.payload?.tenantConfiguration?.[key];
+
+    organizationConfigConnection.forEach((key: string) => {
+      if (action.payload?.organizationConfiguration?.hasOwnProperty(key)) {
+        configs[key] = action.payload?.organizationConfiguration?.[key];
       }
     });
+
     return {
       ...state,
       isLoading: false,

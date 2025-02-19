@@ -1,6 +1,14 @@
 import React from "react";
 import type { Meta, StoryObj } from "@storybook/react";
-import { Select, Button, Flex, SIZES } from "@design-system/widgets";
+import {
+  Select,
+  Button,
+  Flex,
+  SIZES,
+  ListBoxItem,
+  type SelectProps,
+} from "@appsmith/wds";
+
 import { selectItems, selectItemsWithIcons } from "./selectData";
 
 /**
@@ -8,7 +16,14 @@ import { selectItems, selectItemsWithIcons } from "./selectData";
  */
 const meta: Meta<typeof Select> = {
   component: Select,
-  title: "Design-system/Widgets/Select",
+  title: "WDS/Widgets/Select",
+  args: {
+    children: selectItems.map((item) => (
+      <ListBoxItem key={item.id} textValue={item.label}>
+        {item.label}
+      </ListBoxItem>
+    )),
+  },
 };
 
 export default meta;
@@ -16,13 +31,13 @@ type Story = StoryObj<typeof Select>;
 
 export const Main: Story = {
   args: {
-    items: selectItems,
+    label: "Label",
+    children: selectItems.map((item) => (
+      <ListBoxItem key={item.id} textValue={item.label}>
+        {item.label}
+      </ListBoxItem>
+    )),
   },
-  render: (args) => (
-    <Flex width="sizing-60">
-      <Select {...args} />
-    </Flex>
-  ),
 };
 
 /**
@@ -32,14 +47,18 @@ export const Sizes: Story = {
   render: () => (
     <Flex direction="column" gap="spacing-4" width="sizing-60">
       {Object.keys(SIZES)
-        .filter((size) => !["large"].includes(size))
+        .filter(
+          (size): size is NonNullable<SelectProps["size"]> =>
+            !["xSmall", "large"].includes(size),
+        )
         .map((size) => (
-          <Select
-            items={selectItems}
-            key={size}
-            placeholder={size}
-            size={size}
-          />
+          <Select key={size} label={size} placeholder={size} size={size}>
+            {selectItems.map((item) => (
+              <ListBoxItem key={item.id} textValue={item.label}>
+                {item.label}
+              </ListBoxItem>
+            ))}
+          </Select>
         ))}
     </Flex>
   ),
@@ -49,7 +68,13 @@ export const Loading: Story = {
   args: {
     placeholder: "Loading",
     isLoading: true,
-    items: selectItems,
+  },
+};
+
+export const Disabled: Story = {
+  args: {
+    placeholder: "Disabled",
+    isDisabled: true,
   },
 };
 
@@ -61,13 +86,14 @@ export const Validation: Story = {
         alert("Form submitted");
       }}
     >
-      <Flex direction="column" gap="spacing-2" width="sizing-60">
-        <Select
-          description="description"
-          isRequired
-          items={selectItems}
-          label="Validation"
-        />
+      <Flex direction="column" gap="spacing-5" width="sizing-60">
+        <Select errorMessage="There is an error" isRequired label="Validation">
+          {selectItems.map((item) => (
+            <ListBoxItem key={item.id} textValue={item.label}>
+              {item.label}
+            </ListBoxItem>
+          ))}
+        </Select>
         <Button type="submit">Submit</Button>
       </Flex>
     </form>
@@ -79,13 +105,16 @@ export const ContextualHelp: Story = {
     label: "Label",
     placeholder: "Contextual Help Text",
     contextualHelp: "This is a contextual help text",
-    items: selectItems,
   },
 };
 
 export const WithIcons: Story = {
   args: {
     label: "With icons",
-    items: selectItemsWithIcons,
+    children: selectItemsWithIcons.map((item) => (
+      <ListBoxItem icon={item.icon} key={item.id} textValue={item.label}>
+        {item.label}
+      </ListBoxItem>
+    )),
   },
 };

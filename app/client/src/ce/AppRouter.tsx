@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect } from "react";
 import history from "utils/history";
-import AppHeader from "@appsmith/pages/common/AppHeader";
+import AppHeader from "ee/pages/common/AppHeader";
 import { Redirect, Route, Router, Switch } from "react-router-dom";
 import {
   ADMIN_SETTINGS_CATEGORY_PATH,
@@ -32,7 +32,7 @@ import {
 } from "constants/routes";
 import WorkspaceLoader from "pages/workspace/loader";
 import ApplicationListLoader from "pages/Applications/loader";
-import EditorLoader from "pages/Editor/loader";
+import AppIDE from "pages/AppIDE/AppIDELoader";
 import AppViewerLoader from "pages/AppViewer/loader";
 import LandingScreen from "../LandingScreen";
 import UserAuth from "pages/UserAuth";
@@ -49,18 +49,18 @@ import UserProfile from "pages/UserProfile";
 import Setup from "pages/setup";
 import SettingsLoader from "pages/AdminSettings/loader";
 import SignupSuccess from "pages/setup/SignupSuccess";
-import type { ERROR_CODES } from "@appsmith/constants/ApiConstants";
+import type { ERROR_CODES } from "ee/constants/ApiConstants";
 import TemplatesListLoader from "pages/Templates/loader";
 import { getCurrentUser as getCurrentUserSelector } from "selectors/usersSelectors";
-import { getTenantPermissions } from "@appsmith/selectors/tenantSelectors";
+import { getOrganizationPermissions } from "ee/selectors/organizationSelectors";
 import useBrandingTheme from "utils/hooks/useBrandingTheme";
 import RouteChangeListener from "RouteChangeListener";
 import { initCurrentPage } from "../actions/initActions";
 import Walkthrough from "components/featureWalkthrough";
 import ProductAlertBanner from "components/editorComponents/ProductAlertBanner";
-import { getAdminSettingsPath } from "@appsmith/utils/BusinessFeatures/adminSettingsHelpers";
+import { getAdminSettingsPath } from "ee/utils/BusinessFeatures/adminSettingsHelpers";
 import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
-import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
+import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
 import CustomWidgetBuilderLoader from "pages/Editor/CustomWidgetBuilder/loader";
 import { getIsConsolidatedPageLoading } from "selectors/ui";
 import { useFeatureFlagOverride } from "utils/hooks/useFeatureFlagOverride";
@@ -71,8 +71,9 @@ export const loadingIndicator = <PageLoadingBar />;
 
 export function Routes() {
   const user = useSelector(getCurrentUserSelector);
-  const tenantPermissions = useSelector(getTenantPermissions);
+  const organizationPermissions = useSelector(getOrganizationPermissions);
   const isFeatureEnabled = useFeatureFlag(FEATURE_FLAG.license_gac_enabled);
+
   useFeatureFlagOverride();
 
   return (
@@ -101,7 +102,7 @@ export function Routes() {
             : getAdminSettingsPath(
                 isFeatureEnabled,
                 user?.isSuperUser || false,
-                tenantPermissions,
+                organizationPermissions,
               )
         }
       />
@@ -115,7 +116,7 @@ export function Routes() {
         exact
         path={CUSTOM_WIDGETS_DEPRECATED_EDITOR_ID_PATH}
       />
-      <SentryRoute component={EditorLoader} path={BUILDER_PATH_DEPRECATED} />
+      <SentryRoute component={AppIDE} path={BUILDER_PATH_DEPRECATED} />
       <SentryRoute component={AppViewerLoader} path={VIEWER_PATH_DEPRECATED} />
       <SentryRoute
         component={CustomWidgetBuilderLoader}
@@ -132,8 +133,8 @@ export function Routes() {
        * Be sure to check if it is sync with the order of checks in getUpdatedRoute helper method
        * Context: https://github.com/appsmithorg/appsmith/pull/19833
        */}
-      <SentryRoute component={EditorLoader} path={BUILDER_PATH} />
-      <SentryRoute component={EditorLoader} path={BUILDER_CUSTOM_PATH} />
+      <SentryRoute component={AppIDE} path={BUILDER_PATH} />
+      <SentryRoute component={AppIDE} path={BUILDER_CUSTOM_PATH} />
       <SentryRoute component={AppViewerLoader} path={VIEWER_PATH} />
       <SentryRoute component={AppViewerLoader} path={VIEWER_CUSTOM_PATH} />
       {/*
@@ -159,10 +160,12 @@ export default function AppRouter() {
   useBrandingTheme();
 
   const isLoading = isConsolidatedPageLoading;
-  // hide the top loader once the tenant is loaded
+
+  // hide the top loader once the organization is loaded
   useEffect(() => {
     if (!isLoading) {
       const loader = document.getElementById("loader") as HTMLDivElement;
+
       if (loader) {
         loader.style.width = "100vw";
         setTimeout(() => {

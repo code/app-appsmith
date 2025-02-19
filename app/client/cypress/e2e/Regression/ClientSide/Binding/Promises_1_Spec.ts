@@ -64,7 +64,7 @@ describe("Validate basic Promises", { tags: ["@tag.Binding"] }, () => {
     deployMode.NavigateBacktoEditor();
     agHelper.AddDsl("promisesBtnImgDsl", locators._buttonByText("Submit"));
     apiPage.CreateAndFillApi(
-      "https://picsum.photos/200/300",
+      "http://host.docker.internal:4200/453-200x300.jpg",
       "RandomImy",
       30000,
     );
@@ -172,7 +172,7 @@ return WhatTrumpThinks.run().then((res) => { showAlert("Today's Trump quote for 
     );
     agHelper.ValidateToastMessage(
       "will be executed automatically on page load",
-    ); //Validating 'Run API on Page Load' is set once api response is mapped
+    ); //Validating 'Run the API on Page Load' is set once api response is mapped
     EditorNavigation.SelectEntityByName("Button1", EntityType.Widget);
     propPane.EnterJSContext(
       "onClick",

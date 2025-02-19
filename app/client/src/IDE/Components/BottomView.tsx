@@ -3,9 +3,10 @@ import styled from "styled-components";
 import Resizer, {
   ResizerCSS,
 } from "components/editorComponents/Debugger/Resizer";
-import { CodeEditorWithGutterStyles } from "pages/Editor/JSEditor/constants";
-import { ViewHideBehaviour, ViewDisplayMode } from "IDE/Interfaces/View";
-import { Button } from "design-system";
+import { CodeEditorWithGutterStyles } from "pages/Editor/JSEditor/styledComponents";
+import { ViewDisplayMode, ViewHideBehaviour } from "../Interfaces/View";
+import { Button } from "@appsmith/ads";
+import classNames from "classnames";
 
 const VIEW_MIN_HEIGHT = 38;
 
@@ -27,6 +28,7 @@ const Container = styled.div<{ displayMode: ViewDisplayMode }>`
 
 const ViewWrapper = styled.div`
   height: 100%;
+
   &&& {
     ul.ads-v2-tabs__list {
       margin: 0 var(--ads-v2-spaces-8);
@@ -37,6 +39,8 @@ const ViewWrapper = styled.div`
   & {
     .ads-v2-tabs__list {
       padding: var(--ads-v2-spaces-1) var(--ads-v2-spaces-7);
+      padding-left: var(--ads-v2-spaces-3);
+      user-select: none;
     }
   }
 
@@ -68,7 +72,7 @@ interface Props {
 const ViewHideButton = styled(Button)`
   &.view-hide-button {
     position: absolute;
-    top: 3px;
+    top: 2px;
     right: 0;
     padding: 9px 11px;
   }
@@ -112,11 +116,14 @@ const ViewHide = (props: ViewHideProps) => {
 
 const BottomView = (props: Props) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const { className = "" } = props;
 
   // Handle the height of the view when toggling the hidden state
   useEffect(() => {
     const panel = panelRef.current;
+
     if (!panel) return;
+
     if (props.hidden) {
       panel.style.height = MIN_HEIGHT[props.behaviour];
     } else {
@@ -126,7 +133,10 @@ const BottomView = (props: Props) => {
 
   return (
     <Container
-      className={`select-text ${props.className || ""}`}
+      className={classNames("select-text", {
+        [className]: true,
+        "t--ide-bottom-view": !props.hidden,
+      })}
       displayMode={props.displayMode || ViewDisplayMode.BLOCK}
       ref={panelRef}
     >

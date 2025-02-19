@@ -37,17 +37,18 @@ public interface CustomNewActionRepositoryCE extends AppsmithRepository<NewActio
 
     Flux<NewAction> findByApplicationId(String applicationId, AclPermission aclPermission, Sort sort);
 
+    Flux<NewAction> findPublishedActionsByPageIdAndExcludedPluginType(
+            String pageId, List<String> pluginTypes, AclPermission aclPermission, Sort sort);
+
+    Flux<NewAction> findPublishedActionsByAppIdAndExcludedPluginType(
+            String appId, List<String> pluginTypes, AclPermission aclPermission, Sort sort);
+
     Flux<NewAction> findByApplicationId(
             String applicationId, Optional<AclPermission> aclPermission, Optional<Sort> sort);
 
     Flux<NewAction> findByApplicationIdAndViewMode(String applicationId, Boolean viewMode, AclPermission aclPermission);
 
     Mono<Long> countByDatasourceId(String datasourceId);
-
-    Mono<NewAction> findByBranchNameAndDefaultActionId(
-            String branchName, String defaultActionId, Boolean viewMode, AclPermission permission);
-
-    Flux<NewAction> findByDefaultApplicationId(String defaultApplicationId, Optional<AclPermission> permission);
 
     Flux<NewAction> findByPageIds(List<String> pageIds, AclPermission permission);
 
@@ -74,4 +75,16 @@ public interface CustomNewActionRepositoryCE extends AppsmithRepository<NewActio
 
     Flux<NewAction> findAllPublishedActionsByContextIdAndContextType(
             String contextId, CreatorContextType contextType, AclPermission permission, boolean includeJs);
+
+    Flux<NewAction> findAllByApplicationIds(List<String> branchedArtifactIds, List<String> includedFields);
+
+    // @Meta(cursorBatchSize = 10000)
+    // TODO Implement cursor with batch size
+    Flux<NewAction> findByApplicationId(String applicationId);
+
+    // @Meta(cursorBatchSize = 10000)
+    // TODO Implement cursor with batch size
+    Flux<NewAction> findAllByIdIn(Iterable<String> ids);
+
+    Mono<Long> countByDeletedAtNull();
 }

@@ -1,6 +1,8 @@
 package com.appsmith.server.services.ce;
 
 import com.appsmith.external.exceptions.ErrorDTO;
+import com.appsmith.external.git.constants.ce.RefType;
+import com.appsmith.external.helpers.ObservationHelper;
 import com.appsmith.external.models.CreatorContextType;
 import com.appsmith.external.models.Datasource;
 import com.appsmith.server.actioncollections.base.ActionCollectionService;
@@ -8,6 +10,7 @@ import com.appsmith.server.applications.base.ApplicationService;
 import com.appsmith.server.datasources.base.DatasourceService;
 import com.appsmith.server.domains.Application;
 import com.appsmith.server.domains.ApplicationMode;
+import com.appsmith.server.domains.GitArtifactMetadata;
 import com.appsmith.server.domains.NewPage;
 import com.appsmith.server.domains.Plugin;
 import com.appsmith.server.dtos.ApplicationPagesDTO;
@@ -21,27 +24,40 @@ import com.appsmith.server.jslibs.base.CustomJSLibService;
 import com.appsmith.server.newactions.base.NewActionService;
 import com.appsmith.server.newpages.base.NewPageService;
 import com.appsmith.server.plugins.base.PluginService;
+import com.appsmith.server.repositories.CacheableRepositoryHelper;
 import com.appsmith.server.services.ApplicationPageService;
 import com.appsmith.server.services.MockDataService;
+import com.appsmith.server.services.OrganizationService;
 import com.appsmith.server.services.ProductAlertService;
 import com.appsmith.server.services.SessionUserService;
-import com.appsmith.server.services.TenantService;
 import com.appsmith.server.services.UserDataService;
 import com.appsmith.server.services.UserService;
 import com.appsmith.server.themes.base.ThemeService;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.tracing.Span;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import reactor.core.observability.micrometer.Micrometer;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -50,30 +66,31 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.appsmith.external.constants.PluginConstants.PLUGINS_THAT_ALLOW_QUERY_CREATION_WITHOUT_DATASOURCE;
+import static com.appsmith.external.constants.spans.ApplicationSpan.APPLICATION_ID_FETCH_REDIS_SPAN;
+import static com.appsmith.external.constants.spans.ApplicationSpan.APPLICATION_ID_UPDATE_REDIS_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.ACTIONS_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.ACTION_COLLECTIONS_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.APPLICATION_ID_SPAN;
-import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.CONSOLIDATED_API_PREFIX;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.CURRENT_PAGE_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.CURRENT_THEME_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.CUSTOM_JS_LIB_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.DATASOURCES_SPAN;
-import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.EDIT;
+import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.ETAG_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.FEATURE_FLAG_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.FORM_CONFIG_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.MOCK_DATASOURCES_SPAN;
+import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.ORGANIZATION_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.PAGES_DSL_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.PAGES_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.PLUGINS_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.PRODUCT_ALERT_SPAN;
-import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.TENANT_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.THEMES_SPAN;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.USER_PROFILE_SPAN;
-import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.VIEW;
 import static com.appsmith.external.constants.spans.ConsolidatedApiSpanNames.WORKSPACE_SPAN;
 import static com.appsmith.server.constants.ce.FieldNameCE.APPLICATION_ID;
 import static com.appsmith.server.constants.ce.FieldNameCE.APP_MODE;
 import static com.appsmith.server.constants.ce.FieldNameCE.WORKSPACE_ID;
+import static com.appsmith.server.helpers.ObservationUtils.getQualifiedSpanName;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Slf4j
@@ -87,7 +104,7 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
     private final SessionUserService sessionUserService;
     private final UserService userService;
     private final UserDataService userDataService;
-    private final TenantService tenantService;
+    private final OrganizationService organizationService;
     private final ProductAlertService productAlertService;
     private final NewPageService newPageService;
     private final NewActionService newActionService;
@@ -100,12 +117,14 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
     private final DatasourceService datasourceService;
     private final MockDataService mockDataService;
     private final ObservationRegistry observationRegistry;
+    private final CacheableRepositoryHelper cacheableRepositoryHelper;
+    private final ObservationHelper observationHelper;
 
-    <T> ResponseDTO<T> getSuccessResponse(T data) {
+    protected <T> ResponseDTO<T> getSuccessResponse(T data) {
         return new ResponseDTO<>(HttpStatus.OK.value(), data, null);
     }
 
-    private <T> Mono<ResponseDTO<T>> getErrorResponseMono(Throwable error) {
+    protected <T> Mono<ResponseDTO<T>> getErrorResponseMono(Throwable error) {
         if (error instanceof AppsmithException appsmithException) {
             return Mono.just(new ResponseDTO<>(
                     appsmithException.getHttpStatus(),
@@ -120,12 +139,8 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
                 INTERNAL_SERVER_ERROR_STATUS, new ErrorDTO(INTERNAL_SERVER_ERROR_CODE, error.getMessage())));
     }
 
-    private <T> Mono<ResponseDTO<T>> toResponseDTO(Mono<T> mono) {
+    protected <T> Mono<ResponseDTO<T>> toResponseDTO(Mono<T> mono) {
         return mono.map(this::getSuccessResponse).onErrorResume(this::getErrorResponseMono);
-    }
-
-    public static String getQualifiedSpanName(String spanName, ApplicationMode mode) {
-        return CONSOLIDATED_API_PREFIX + (ApplicationMode.PUBLISHED.equals(mode) ? VIEW : EDIT) + spanName;
     }
 
     /**
@@ -137,16 +152,29 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
      */
     @Override
     public Mono<ConsolidatedAPIResponseDTO> getConsolidatedInfoForPageLoad(
-            String defaultPageId, String applicationId, String branchName, ApplicationMode mode) {
+            String basePageId, String baseApplicationId, RefType refType, String refName, ApplicationMode mode) {
 
-        /* if either of pageId or applicationId are provided then application mode must also be provided */
-        if (mode == null && (!isBlank(defaultPageId) || !isBlank(applicationId))) {
+        /* if either of pageId or defaultApplicationId are provided then application mode must also be provided */
+        if (mode == null && (!isBlank(basePageId) || !isBlank(baseApplicationId))) {
             return Mono.error(new AppsmithException(AppsmithError.INVALID_PARAMETER, APP_MODE));
         }
 
         /* This object will serve as a container to hold the response of this method*/
         ConsolidatedAPIResponseDTO consolidatedAPIResponseDTO = new ConsolidatedAPIResponseDTO();
 
+        List<Mono<?>> fetches =
+                getAllFetchableMonos(consolidatedAPIResponseDTO, basePageId, baseApplicationId, refType, refName, mode);
+
+        return Mono.when(fetches).thenReturn(consolidatedAPIResponseDTO);
+    }
+
+    protected List<Mono<?>> getAllFetchableMonos(
+            ConsolidatedAPIResponseDTO consolidatedAPIResponseDTO,
+            String basePageId,
+            String baseApplicationId,
+            RefType refType,
+            String refName,
+            ApplicationMode mode) {
         final List<Mono<?>> fetches = new ArrayList<>();
 
         /* Get user profile data */
@@ -154,6 +182,7 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
                 .getCurrentUser()
                 .flatMap(userService::buildUserProfileDTO)
                 .as(this::toResponseDTO)
+                .doOnError(e -> log.error("Error fetching user profile", e))
                 .doOnSuccess(consolidatedAPIResponseDTO::setUserProfile)
                 .name(getQualifiedSpanName(USER_PROFILE_SPAN, mode))
                 .tap(Micrometer.observation(observationRegistry)));
@@ -162,18 +191,20 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
         Mono<ResponseDTO<Map<String, Boolean>>> featureFlagsForCurrentUserResponseDTOMonoCache = userDataService
                 .getFeatureFlagsForCurrentUser()
                 .as(this::toResponseDTO)
+                .doOnError(e -> log.error("Error fetching feature flags", e))
                 .doOnSuccess(consolidatedAPIResponseDTO::setFeatureFlags)
                 .name(getQualifiedSpanName(FEATURE_FLAG_SPAN, mode))
                 .tap(Micrometer.observation(observationRegistry))
                 .cache();
         fetches.add(featureFlagsForCurrentUserResponseDTOMonoCache);
 
-        /* Get tenant config data */
-        fetches.add(tenantService
-                .getTenantConfiguration()
+        /* Get organization config data */
+        fetches.add(organizationService
+                .getOrganizationConfiguration()
                 .as(this::toResponseDTO)
-                .doOnSuccess(consolidatedAPIResponseDTO::setTenantConfig)
-                .name(getQualifiedSpanName(TENANT_SPAN, mode))
+                .doOnError(e -> log.error("Error fetching organization config", e))
+                .doOnSuccess(consolidatedAPIResponseDTO::setOrganizationConfig)
+                .name(getQualifiedSpanName(ORGANIZATION_SPAN, mode))
                 .tap(Micrometer.observation(observationRegistry)));
 
         /* Get any product alert info */
@@ -191,30 +222,27 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
                 .name(getQualifiedSpanName(PRODUCT_ALERT_SPAN, mode))
                 .tap(Micrometer.observation(observationRegistry)));
 
-        if (isBlank(defaultPageId) && isBlank(applicationId)) {
-            return Mono.when(fetches).thenReturn(consolidatedAPIResponseDTO);
+        if (isBlank(basePageId) && isBlank(baseApplicationId)) {
+            return fetches;
         }
 
         /* Get view mode - EDIT or PUBLISHED */
-        boolean isViewMode = ApplicationMode.PUBLISHED.equals(mode);
+        boolean isViewMode = isViewMode(mode);
 
-        /* Fetch application id if not provided */
-        Mono<String> applicationIdMonoCache;
-        if (isBlank(applicationId)) {
-            applicationIdMonoCache = newPageService
-                    .findRootApplicationIdFromNewPage(branchName, defaultPageId)
-                    .name(getQualifiedSpanName(APPLICATION_ID_SPAN, mode))
-                    .tap(Micrometer.observation(observationRegistry))
-                    .cache();
-        } else {
-            applicationIdMonoCache = Mono.just(applicationId).cache();
+        /* Fetch default application id if not provided */
+        if (isBlank(basePageId)) {
+            return fetches;
         }
 
-        // dslMigration-over-here using the branchName and defaultId
-        Mono<Application> branchedApplicationMonoCached = applicationIdMonoCache
-                .flatMap(defaultApplicationId -> applicationService.findByDefaultIdBranchNameAndApplicationMode(
-                        defaultApplicationId, branchName, mode))
-                .cache();
+        Mono<String> baseApplicationIdMono = getBaseApplicationIdMono(basePageId, baseApplicationId, mode, isViewMode);
+
+        Mono<Tuple2<Application, NewPage>> applicationAndPageTupleMono =
+                getApplicationAndPageTupleMono(basePageId, refType, refName, mode, baseApplicationIdMono, isViewMode);
+
+        Mono<NewPage> branchedPageMonoCached =
+                applicationAndPageTupleMono.map(Tuple2::getT2).cache();
+
+        Mono<Application> branchedApplicationMonoCached = getBranchedApplicationMono(mode, applicationAndPageTupleMono);
 
         Mono<List<NewPage>> pagesFromCurrentApplicationMonoCached = branchedApplicationMonoCached
                 .flatMap(branchedApplication ->
@@ -231,6 +259,7 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
                 })
                 .as(this::toResponseDTO)
                 .doOnSuccess(consolidatedAPIResponseDTO::setPages)
+                .doOnError(e -> log.error("Error fetching application pages", e))
                 .name(getQualifiedSpanName(PAGES_SPAN, mode))
                 .tap(Micrometer.observation(observationRegistry))
                 .cache();
@@ -238,36 +267,42 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
         fetches.add(applicationPagesDTOResponseDTOMonoCache);
 
         /* Get current theme */
-        fetches.add(applicationIdMonoCache
-                .flatMap(appId -> themeService.getApplicationTheme(appId, mode, branchName))
+        fetches.add(branchedApplicationMonoCached
+                .flatMap(branchedApplication -> themeService.getApplicationTheme(branchedApplication.getId(), mode))
                 .as(this::toResponseDTO)
+                .doOnError(e -> log.error("Error fetching current theme", e))
                 .doOnSuccess(consolidatedAPIResponseDTO::setCurrentTheme)
                 .name(getQualifiedSpanName(CURRENT_THEME_SPAN, mode))
                 .tap(Micrometer.observation(observationRegistry)));
 
         /* Get all themes */
-        fetches.add(applicationIdMonoCache
-                .flatMap(appId ->
-                        themeService.getApplicationThemes(appId, branchName).collectList())
+        fetches.add(branchedApplicationMonoCached
+                .flatMap(branchedApplication -> themeService
+                        .getApplicationThemes(branchedApplication.getId())
+                        .collectList())
                 .as(this::toResponseDTO)
+                .doOnError(e -> log.error("Error fetching themes", e))
                 .doOnSuccess(consolidatedAPIResponseDTO::setThemes)
                 .name(getQualifiedSpanName(THEMES_SPAN, mode))
                 .tap(Micrometer.observation(observationRegistry)));
 
         /* Get all custom JS libraries installed in the application */
-        fetches.add(applicationIdMonoCache
-                .flatMap(appId -> customJSLibService.getAllJSLibsInContext(
-                        appId, CreatorContextType.APPLICATION, branchName, isViewMode))
+        fetches.add(branchedApplicationMonoCached
+                .flatMap(branchedApplication -> customJSLibService.getAllJSLibsInContext(
+                        branchedApplication.getId(), CreatorContextType.APPLICATION, isViewMode))
                 .as(this::toResponseDTO)
+                .doOnError(e -> log.error("Error fetching custom JS libraries", e))
                 .doOnSuccess(consolidatedAPIResponseDTO::setCustomJSLibraries)
                 .name(getQualifiedSpanName(CUSTOM_JS_LIB_SPAN, mode))
                 .tap(Micrometer.observation(observationRegistry)));
 
-        if (!isBlank(defaultPageId)) {
+        if (!isBlank(basePageId)) {
             /* Get current page */
-            fetches.add(applicationPageService
-                    .getPageAndMigrateDslByBranchAndDefaultPageId(defaultPageId, branchName, isViewMode, true)
+            fetches.add(branchedPageMonoCached
+                    .flatMap(branchedPage -> applicationPageService.getPageAndMigrateDslByBranchedPageId(
+                            branchedPage.getId(), isViewMode, true))
                     .as(this::toResponseDTO)
+                    .doOnError(e -> log.error("Error fetching current page", e))
                     .doOnSuccess(consolidatedAPIResponseDTO::setPageWithMigratedDsl)
                     .name(getQualifiedSpanName(CURRENT_PAGE_SPAN, mode))
                     .tap(Micrometer.observation(observationRegistry)));
@@ -275,50 +310,58 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
 
         /* Fetch view specific data */
         if (isViewMode) {
-            /* Get list of all actions in view mode */
-            fetches.add(applicationIdMonoCache
-                    .flatMap(appId -> newActionService
-                            .getActionsForViewMode(appId, branchName)
-                            .collectList())
-                    .as(this::toResponseDTO)
-                    .doOnSuccess(consolidatedAPIResponseDTO::setPublishedActions)
-                    .name(getQualifiedSpanName(ACTIONS_SPAN, mode))
-                    .tap(Micrometer.observation(observationRegistry)));
+            /* Get list of all actions of the page in view mode */
+            if (!isBlank(basePageId)) {
+                // For a git connected application the desired branch name may differ from the base if no
+                // branch name is provided hence, we would still need to check this.
+                Mono<String> branchedPageIdMono = branchedPageMonoCached.map(NewPage::getId);
+                fetches.add(branchedPageIdMono
+                        .flatMap(branchedPageId -> newActionService
+                                .getActionsForViewModeByPageId(branchedPageId)
+                                .collectList())
+                        .as(this::toResponseDTO)
+                        .doOnError(e -> log.error("Error fetching actions for view mode", e))
+                        .doOnSuccess(consolidatedAPIResponseDTO::setPublishedActions)
+                        .name(getQualifiedSpanName(ACTIONS_SPAN, mode))
+                        .tap(Micrometer.observation(observationRegistry)));
+            }
 
             /* Get list of all action collections in view mode */
-            fetches.add(applicationIdMonoCache
-                    .flatMap(appId -> actionCollectionService
-                            .getActionCollectionsForViewMode(appId, branchName)
+            fetches.add(branchedApplicationMonoCached
+                    .flatMap(branchedApplication -> actionCollectionService
+                            .getActionCollectionsForViewMode(branchedApplication.getId())
                             .collectList())
                     .as(this::toResponseDTO)
+                    .doOnError(e -> log.error("Error fetching action collections for view mode", e))
                     .doOnSuccess(consolidatedAPIResponseDTO::setPublishedActionCollections)
                     .name(getQualifiedSpanName(ACTION_COLLECTIONS_SPAN, mode)));
 
         } else {
             /* Get all actions in edit mode */
-            fetches.add(applicationIdMonoCache
-                    .flatMap(appId -> {
+            fetches.add(branchedApplicationMonoCached
+                    .flatMap(branchedApplication -> {
                         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-                        params.add(APPLICATION_ID, appId);
+                        params.add(APPLICATION_ID, branchedApplication.getId());
                         return newActionService
-                                .getUnpublishedActions(params, branchName, false)
+                                .getUnpublishedActions(params, false)
                                 .collectList();
                     })
                     .as(this::toResponseDTO)
+                    .doOnError(e -> log.error("Error fetching unpublished actions", e))
                     .doOnSuccess(consolidatedAPIResponseDTO::setUnpublishedActions)
                     .name(getQualifiedSpanName(ACTIONS_SPAN, mode))
                     .tap(Micrometer.observation(observationRegistry)));
 
             /* Get all action collections in edit mode */
-            fetches.add(applicationIdMonoCache
-                    .flatMapMany(appId -> {
+            fetches.add(branchedApplicationMonoCached
+                    .flatMapMany(branchedApplication -> {
                         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-                        params.add(APPLICATION_ID, appId);
-                        return actionCollectionService.getPopulatedActionCollectionsByViewMode(
-                                params, false, branchName);
+                        params.add(APPLICATION_ID, branchedApplication.getId());
+                        return actionCollectionService.getPopulatedActionCollectionsByViewMode(params, false);
                     })
                     .collectList()
                     .as(this::toResponseDTO)
+                    .doOnError(e -> log.error("Error fetching unpublished action collections", e))
                     .doOnSuccess(consolidatedAPIResponseDTO::setUnpublishedActionCollections)
                     .name(getQualifiedSpanName(ACTION_COLLECTIONS_SPAN, mode))
                     .tap(Micrometer.observation(observationRegistry)));
@@ -329,6 +372,7 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
                     .flatMap(page -> applicationPageService.getPageDTOAfterMigratingDSL(page, false, true))
                     .collect(Collectors.toList())
                     .as(this::toResponseDTO)
+                    .doOnError(e -> log.error("Error fetching pages with migrated DSL", e))
                     .doOnSuccess(consolidatedAPIResponseDTO::setPagesWithMigratedDsl)
                     .name(getQualifiedSpanName(PAGES_DSL_SPAN, mode))
                     .tap(Micrometer.observation(observationRegistry)));
@@ -354,6 +398,7 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
                             ? Mono.empty()
                             : pluginService.getInWorkspace(workspaceId).collectList())
                     .as(this::toResponseDTO)
+                    .doOnError(e -> log.error("Error fetching plugins", e))
                     .doOnSuccess(consolidatedAPIResponseDTO::setPlugins)
                     .name(getQualifiedSpanName(PLUGINS_SPAN, mode))
                     .tap(Micrometer.observation(observationRegistry))
@@ -370,6 +415,7 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
                         return datasourceService.getAllWithStorages(params).collectList();
                     })
                     .as(this::toResponseDTO)
+                    .doOnError(e -> log.error("Error fetching datasources", e))
                     .doOnSuccess(consolidatedAPIResponseDTO::setDatasources)
                     .name(getQualifiedSpanName(DATASOURCES_SPAN, mode))
                     .tap(Micrometer.observation(observationRegistry))
@@ -414,6 +460,7 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
                         return pluginIdToFormConfigMap;
                     })
                     .as(this::toResponseDTO)
+                    .doOnError(e -> log.error("Error fetching plugin form configs", e))
                     .doOnSuccess(consolidatedAPIResponseDTO::setPluginFormConfigs)
                     .name(getQualifiedSpanName(FORM_CONFIG_SPAN, mode))
                     .tap(Micrometer.observation(observationRegistry)));
@@ -423,15 +470,252 @@ public class ConsolidatedAPIServiceCEImpl implements ConsolidatedAPIServiceCE {
                     .getMockDataSet()
                     .map(MockDataDTO::getMockdbs)
                     .as(this::toResponseDTO)
+                    .doOnError(e -> log.error("Error fetching mock datasources", e))
                     .doOnSuccess(consolidatedAPIResponseDTO::setMockDatasources)
                     .name(getQualifiedSpanName(MOCK_DATASOURCES_SPAN, mode))
                     .tap(Micrometer.observation(observationRegistry)));
         }
+        return fetches;
+    }
 
-        return Mono.when(fetches).thenReturn(consolidatedAPIResponseDTO);
+    protected Mono<String> getBaseApplicationIdMono(
+            String basePageId, String baseApplicationId, ApplicationMode mode, boolean isViewMode) {
+        Mono<String> baseApplicationIdMono = Mono.just("");
+        if (isViewMode) {
+            // Attempt to retrieve the application ID associated with the given base page ID from the cache.
+            baseApplicationIdMono = cacheableRepositoryHelper
+                    .fetchBaseApplicationId(basePageId, baseApplicationId)
+                    .switchIfEmpty(Mono.just(""))
+                    .cast(String.class);
+        }
+
+        baseApplicationIdMono = baseApplicationIdMono
+                .name(getQualifiedSpanName(APPLICATION_ID_FETCH_REDIS_SPAN, mode))
+                .tap(Micrometer.observation(observationRegistry))
+                .cache();
+        return baseApplicationIdMono;
+    }
+
+    protected boolean isViewMode(ApplicationMode mode) {
+        return ApplicationMode.PUBLISHED.equals(mode);
+    }
+
+    protected Mono<Application> getBranchedApplicationMono(
+            ApplicationMode mode, Mono<Tuple2<Application, NewPage>> applicationAndPageTupleMono) {
+        Mono<Application> branchedApplicationMonoCached =
+                applicationAndPageTupleMono.map(Tuple2::getT1).cache();
+
+        branchedApplicationMonoCached = branchedApplicationMonoCached
+                .name(getQualifiedSpanName(APPLICATION_ID_SPAN, mode))
+                .tap(Micrometer.observation(observationRegistry))
+                .cache();
+        return branchedApplicationMonoCached;
+    }
+
+    protected Mono<Tuple2<Application, NewPage>> getApplicationAndPageTupleMono(
+            String basePageId,
+            RefType refType,
+            String refName,
+            ApplicationMode mode,
+            Mono<String> baseApplicationIdMono,
+            boolean isViewMode) {
+        Mono<Tuple2<Application, NewPage>> applicationAndPageTupleMono = baseApplicationIdMono
+                .flatMap(cachedBaseApplicationId -> {
+                    Mono<Application> applicationMono;
+                    Mono<NewPage> branchedPageMonoCached;
+
+                    branchedPageMonoCached = newPageService
+                            .findByRefTypeAndRefNameAndBasePageIdAndApplicationMode(refType, refName, basePageId, mode)
+                            .cache();
+
+                    if (StringUtils.hasText(cachedBaseApplicationId)) {
+                        // Handle non-empty baseApplicationId
+                        applicationMono = applicationService.findByBaseIdBranchNameAndApplicationMode(
+                                cachedBaseApplicationId, refName, mode);
+                    } else {
+                        // Handle empty or null baseApplicationId
+                        applicationMono = branchedPageMonoCached.flatMap(branchedPage ->
+                                // Use the application ID to find the complete application details.
+                                applicationService
+                                        .findByBranchedApplicationIdAndApplicationMode(
+                                                branchedPage.getApplicationId(), mode)
+                                        .flatMap(application -> {
+                                            if (isViewMode) {
+                                                // Update the cache with the new application’s base ID for future
+                                                // queries.
+                                                return cacheableRepositoryHelper
+                                                        .fetchBaseApplicationId(basePageId, application.getBaseId())
+                                                        .thenReturn(application)
+                                                        .name(getQualifiedSpanName(
+                                                                APPLICATION_ID_UPDATE_REDIS_SPAN, mode))
+                                                        .tap(Micrometer.observation(observationRegistry));
+                                            }
+                                            return Mono.just(application);
+                                        }));
+                    }
+
+                    if (StringUtils.hasText(refName)) {
+
+                        // If in case the application is a non git connected application and the branch name url param
+                        // is present, then we must default to the app without any branches.
+                        return applicationMono.zipWith(branchedPageMonoCached).onErrorResume(error -> {
+                            // This situation would arise if page or application is not returned.
+                            // here we would land on error instead of empty because both apis which are being
+                            // called errors out on empty returns.
+
+                            log.info(
+                                    "application or page has for base pageId {} and refName {} has not been found.",
+                                    basePageId,
+                                    refName);
+                            if (error instanceof AppsmithException) {
+                                Mono<NewPage> basePageMono =
+                                        newPageService.findByRefTypeAndRefNameAndBasePageIdAndApplicationMode(
+                                                null, null, basePageId, mode);
+
+                                return basePageMono.flatMap(basePage -> {
+                                    if (StringUtils.hasText(basePage.getRefName())) {
+                                        // If the branch name is present then the application is git connected
+                                        // the error should be thrown.
+                                        // TODO: verify if branch name could be residue from old git connection
+                                        // Application metadata is absolute check for the same.
+                                        return Mono.error(error);
+                                    }
+
+                                    return applicationService
+                                            .findByBranchedApplicationIdAndApplicationMode(
+                                                    basePage.getApplicationId(), mode)
+                                            .zipWith(basePageMono)
+                                            .map(tuple2 -> {
+                                                log.info(
+                                                        "The refName url param should not be associated with application {} as this is not a git connected application",
+                                                        tuple2.getT1().getId());
+                                                return tuple2;
+                                            });
+                                });
+                            }
+
+                            return Mono.error(error);
+                        });
+                    }
+
+                    return applicationMono.zipWith(branchedPageMonoCached).flatMap(tuple2 -> {
+                        Application application = tuple2.getT1();
+                        NewPage branchedPage = tuple2.getT2();
+
+                        GitArtifactMetadata gitMetadata = application.getGitArtifactMetadata();
+
+                        boolean isNotAGitApp = gitMetadata == null;
+                        boolean isDefaultBranchNameAbsent =
+                                isNotAGitApp || !StringUtils.hasText(gitMetadata.getDefaultBranchName());
+                        boolean isBranchDefault = !isDefaultBranchNameAbsent
+                                && gitMetadata.getDefaultBranchName().equals(gitMetadata.getRefName());
+
+                        // This last check is specially for view mode, when a queried page which is not present
+                        // in default branch, and cacheable repository refers to the base application
+                        // from given page id. then the branched page may not belong to the base application
+                        // hence a validation is required.
+                        // This condition is always true for a non git app
+                        boolean isPageFromSameApplication = application.getId().equals(branchedPage.getApplicationId());
+
+                        if ((isNotAGitApp || isDefaultBranchNameAbsent || isBranchDefault)
+                                && (!isViewMode || isPageFromSameApplication)) {
+                            return applicationMono.zipWith(branchedPageMonoCached);
+                        }
+
+                        log.info(
+                                "ConsolidatedApi for page id {}, and application id {} has been queried without a branch url param",
+                                branchedPage.getId(),
+                                application.getId());
+
+                        // The git connected application has not been queried with branch param,
+                        // and the base branch is not same as the default branch.
+                        // we need to find return the default branch from here.
+
+                        String defaultBranchName = gitMetadata.getDefaultBranchName();
+
+                        return applicationService
+                                .findByBaseIdBranchNameAndApplicationMode(application.getId(), defaultBranchName, mode)
+                                .zipWith(newPageService.findByRefTypeAndRefNameAndBasePageIdAndApplicationMode(
+                                        RefType.branch, defaultBranchName, basePageId, mode));
+                    });
+                })
+                .cache();
+        return applicationAndPageTupleMono;
     }
 
     private boolean isPossibleToCreateQueryWithoutDatasource(Plugin plugin) {
         return PLUGINS_THAT_ALLOW_QUERY_CREATION_WITHOUT_DATASOURCE.contains(plugin.getPackageName());
+    }
+
+    @NotNull public String computeConsolidatedAPIResponseEtag(
+            ConsolidatedAPIResponseDTO consolidatedAPIResponseDTO, String defaultPageId, String applicationId) {
+        if (isBlank(defaultPageId) && isBlank(applicationId)) {
+            log.debug(
+                    "Skipping etag computation: Both defaultPageId '{}', and applicationId '{}' are blank",
+                    defaultPageId,
+                    applicationId);
+            return "";
+        }
+
+        Span computeEtagSpan = observationHelper.createSpan(ETAG_SPAN).start();
+
+        try {
+            String lastDeployedAt = consolidatedAPIResponseDTO.getPages() != null
+                    ? consolidatedAPIResponseDTO
+                            .getPages()
+                            .getData()
+                            .getApplication()
+                            .getLastDeployedAt()
+                            .toString()
+                    : null;
+
+            if (lastDeployedAt == null) {
+                log.debug(
+                        "Skipping etag computation: lastDeployedAt is null for applicationId '{}', pageId '{}'",
+                        applicationId,
+                        defaultPageId);
+                return "";
+            }
+
+            Object currentTheme = consolidatedAPIResponseDTO.getCurrentTheme() != null
+                    ? consolidatedAPIResponseDTO.getCurrentTheme()
+                    : "";
+            Object themes = consolidatedAPIResponseDTO.getThemes() != null
+                    ? consolidatedAPIResponseDTO.getThemes()
+                    : Collections.emptyList();
+
+            Map<String, Object> consolidateAPISignature = Map.of(
+                    "userProfile", consolidatedAPIResponseDTO.getUserProfile(),
+                    "featureFlags", consolidatedAPIResponseDTO.getFeatureFlags(),
+                    "organizationConfig", consolidatedAPIResponseDTO.getOrganizationConfig(),
+                    "productAlert", consolidatedAPIResponseDTO.getProductAlert(),
+                    "currentTheme", currentTheme,
+                    "themes", themes,
+                    "lastDeployedAt", lastDeployedAt);
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            // For deterministic map key ordering.
+            objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+            // For deterministic ordering of bean properties.
+            objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
+            objectMapper.registerModule(new JavaTimeModule());
+
+            String consolidateAPISignatureJSON = objectMapper.writeValueAsString(consolidateAPISignature);
+
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(consolidateAPISignatureJSON.getBytes(StandardCharsets.UTF_8));
+            String etag = Base64.getEncoder().encodeToString(hashBytes);
+
+            // Strong Etags are removed by nginx if gzip is enabled. Hence, we are using weak etags.
+            // Ref: https://github.com/kubernetes/ingress-nginx/issues/1390
+            // Weak Etag format is: W/"<etag>"
+            // Ref: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
+            return "W/\"" + etag + "\"";
+        } catch (Exception e) {
+            log.error("Error while computing etag for ConsolidatedAPIResponseDTO", e);
+            return "";
+        } finally {
+            observationHelper.endSpan(computeEtagSpan, true);
+        }
     }
 }

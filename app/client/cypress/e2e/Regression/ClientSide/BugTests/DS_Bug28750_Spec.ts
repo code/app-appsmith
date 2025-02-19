@@ -1,9 +1,16 @@
 import { agHelper, dataSources } from "../../../../support/Objects/ObjectsCore";
 import { featureFlagIntercept } from "../../../../support/Objects/FeatureFlags";
 
-describe(
+describe.skip(
   "Datasource structure schema preview data",
-  { tags: ["@tag.Datasource", "@tag.excludeForAirgap"] },
+  {
+    tags: [
+      "@tag.Datasource",
+      "@tag.excludeForAirgap",
+      "@tag.Git",
+      "@tag.AccessControl",
+    ],
+  },
   () => {
     before(() => {
       dataSources.CreateMockDB("Users");

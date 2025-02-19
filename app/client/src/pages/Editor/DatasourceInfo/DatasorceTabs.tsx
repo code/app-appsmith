@@ -1,30 +1,34 @@
 import React from "react";
 import { VIEW_MODE_TABS } from "constants/DatasourceEditorConstants";
-import { Tabs, Tab, TabsList, TabPanel } from "design-system";
+import { Tabs, Tab, TabsList, TabPanel } from "@appsmith/ads";
 import styled from "styled-components";
 import {
   DATASOURCE_CONFIGURATIONS_TAB,
   DATASOURCE_VIEW_DATA_TAB,
   createMessage,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 import { useDispatch, useSelector } from "react-redux";
 import { setDatasourceViewModeFlag } from "actions/datasourceActions";
 import DatasourceViewModeSchema from "./DatasourceViewModeSchema";
-import { getCurrentEnvironmentId } from "@appsmith/selectors/environmentSelectors";
-import { isEnvironmentValid } from "@appsmith/utils/Environments";
+import { getCurrentEnvironmentId } from "ee/selectors/environmentSelectors";
+import { isEnvironmentValid } from "ee/utils/Environments";
 import type { Datasource } from "entities/Datasource";
 import {
   isDatasourceAuthorizedForQueryCreation,
   isGoogleSheetPluginDS,
 } from "utils/editorContextUtils";
-import { getPlugin } from "@appsmith/selectors/entitiesSelector";
+import { getPlugin } from "ee/selectors/entitiesSelector";
 import GoogleSheetSchema from "./GoogleSheetSchema";
+import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
+import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
+import { getHasCreateDatasourceActionPermission } from "ee/utils/BusinessFeatures/permissionPageHelpers";
 
 const TabsContainer = styled(Tabs)`
   height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  max-height: unset;
 `;
 
 const TabListWrapper = styled(TabsList)`
@@ -70,38 +74,50 @@ const DatasourceTabs = (props: DatasourceTabProps) => {
           currentEnvironmentId,
         )
       : false;
+
+  const isFeatureEnabled = useFeatureFlag(FEATURE_FLAG.license_gac_enabled);
+
+  const canCreateDatasourceActions = getHasCreateDatasourceActionPermission(
+    isFeatureEnabled,
+    props.datasource?.userPermissions ?? [],
+  );
+
   return (
     <TabsContainer
       defaultValue={
-        isDatasourceValid || isPluginAuthorized
+        (isDatasourceValid || isPluginAuthorized) && canCreateDatasourceActions
           ? VIEW_MODE_TABS.VIEW_DATA
           : VIEW_MODE_TABS.CONFIGURATIONS
       }
     >
       <TabListWrapper className="t--datasource-tab-list">
-        <Tab value={VIEW_MODE_TABS.VIEW_DATA}>
-          {createMessage(DATASOURCE_VIEW_DATA_TAB)}
-        </Tab>
+        {canCreateDatasourceActions && (
+          <Tab value={VIEW_MODE_TABS.VIEW_DATA}>
+            {createMessage(DATASOURCE_VIEW_DATA_TAB)}
+          </Tab>
+        )}
         <Tab value={VIEW_MODE_TABS.CONFIGURATIONS}>
           {createMessage(DATASOURCE_CONFIGURATIONS_TAB)}
         </Tab>
       </TabListWrapper>
-      <TabPanelContainer
-        className="t--datasource-tab-container"
-        value={VIEW_MODE_TABS.VIEW_DATA}
-      >
-        {isGoogleSheetPlugin ? (
-          <GoogleSheetSchema
-            datasourceId={props.datasource.id}
-            pluginId={props.datasource?.pluginId}
-          />
-        ) : (
-          <DatasourceViewModeSchema
-            datasource={props.datasource}
-            setDatasourceViewModeFlag={setDatasourceViewModeFlagClick}
-          />
-        )}
-      </TabPanelContainer>
+      {canCreateDatasourceActions && (
+        <TabPanelContainer
+          className="t--datasource-tab-container"
+          value={VIEW_MODE_TABS.VIEW_DATA}
+        >
+          {isGoogleSheetPlugin ? (
+            <GoogleSheetSchema
+              datasourceId={props.datasource.id}
+              pluginId={props.datasource?.pluginId}
+            />
+          ) : (
+            <DatasourceViewModeSchema
+              datasource={props.datasource}
+              setDatasourceViewModeFlag={setDatasourceViewModeFlagClick}
+            />
+          )}
+        </TabPanelContainer>
+      )}
       <ConfigurationsTabPanelContainer
         className="t--datasource-tab-container"
         value={VIEW_MODE_TABS.CONFIGURATIONS}

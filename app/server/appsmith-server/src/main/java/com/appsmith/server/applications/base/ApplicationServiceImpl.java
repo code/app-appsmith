@@ -1,6 +1,7 @@
 package com.appsmith.server.applications.base;
 
-import com.appsmith.server.helpers.ResponseUtils;
+import com.appsmith.server.artifacts.base.artifactbased.ArtifactBasedService;
+import com.appsmith.server.domains.Application;
 import com.appsmith.server.repositories.ApplicationRepository;
 import com.appsmith.server.repositories.NewActionRepository;
 import com.appsmith.server.services.AnalyticsService;
@@ -14,20 +15,21 @@ import com.appsmith.server.solutions.ApplicationPermission;
 import com.appsmith.server.solutions.DatasourcePermission;
 import com.appsmith.server.solutions.PolicySolution;
 import com.appsmith.server.solutions.WorkspacePermission;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-public class ApplicationServiceImpl extends ApplicationServiceCECompatibleImpl implements ApplicationService {
+public class ApplicationServiceImpl extends ApplicationServiceCECompatibleImpl
+        implements ApplicationService, ArtifactBasedService<Application> {
 
     public ApplicationServiceImpl(
             Validator validator,
             ApplicationRepository repository,
             AnalyticsService analyticsService,
             PolicySolution policySolution,
-            ResponseUtils responseUtils,
             PermissionGroupService permissionGroupService,
             NewActionRepository newActionRepository,
             AssetService assetService,
@@ -36,14 +38,13 @@ public class ApplicationServiceImpl extends ApplicationServiceCECompatibleImpl i
             SessionUserService sessionUserService,
             UserDataService userDataService,
             WorkspaceService workspaceService,
-            WorkspacePermission workspacePermission) {
-
+            WorkspacePermission workspacePermission,
+            ObservationRegistry observationRegistry) {
         super(
                 validator,
                 repository,
                 analyticsService,
                 policySolution,
-                responseUtils,
                 permissionGroupService,
                 newActionRepository,
                 assetService,
@@ -52,6 +53,7 @@ public class ApplicationServiceImpl extends ApplicationServiceCECompatibleImpl i
                 sessionUserService,
                 userDataService,
                 workspaceService,
-                workspacePermission);
+                workspacePermission,
+                observationRegistry);
     }
 }

@@ -37,9 +37,13 @@ type StaticTableProps = TableColumnHeaderProps & {
   isAddRowInProgress: boolean;
   headerProps?: TableColumnHeaderProps | Record<string, never>;
   totalColumnsWidth?: number;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   scrollContainerStyles: any;
   useVirtual: boolean;
   tableBodyRef?: React.MutableRefObject<HTMLDivElement | null>;
+  isLoading: boolean;
+  loadMoreFromEvaluations: () => void;
 };
 
 const StaticTable = (props: StaticTableProps, ref: React.Ref<SimpleBar>) => {
@@ -79,6 +83,8 @@ const StaticTable = (props: StaticTableProps, ref: React.Ref<SimpleBar>) => {
         getTableBodyProps={props.getTableBodyProps}
         height={props.height}
         isAddRowInProgress={props.isAddRowInProgress}
+        isLoading={props.isLoading}
+        loadMoreFromEvaluations={props.loadMoreFromEvaluations}
         multiRowSelection={!!props.multiRowSelection}
         pageSize={props.pageSize}
         prepareRow={props.prepareRow}

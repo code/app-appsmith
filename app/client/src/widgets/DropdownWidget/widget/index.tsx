@@ -12,7 +12,7 @@ import { WIDGET_TAGS, layoutConfigurations } from "constants/WidgetConstants";
 import type { ValidationResponse } from "constants/WidgetValidation";
 import { ValidationTypes } from "constants/WidgetValidation";
 import type { Stylesheet } from "entities/AppTheming";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import _ from "lodash";
 import { buildDeprecationWidgetMessage } from "pages/Editor/utils";
 import React from "react";
@@ -29,6 +29,7 @@ import IconSVG from "../icon.svg";
 
 function defaultOptionValueValidation(value: unknown): ValidationResponse {
   if (typeof value === "string") return { isValid: true, parsed: value.trim() };
+
   if (value === undefined || value === null)
     return {
       isValid: false,
@@ -40,6 +41,7 @@ function defaultOptionValueValidation(value: unknown): ValidationResponse {
         },
       ],
     };
+
   return { isValid: true, parsed: value };
 }
 
@@ -465,6 +467,8 @@ class DropdownWidget extends BaseWidget<DropdownWidgetProps, WidgetState> {
     };
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static getMetaPropertiesMap(): Record<string, any> {
     return {
       defaultValue: undefined,
@@ -483,6 +487,7 @@ class DropdownWidget extends BaseWidget<DropdownWidgetProps, WidgetState> {
   componentDidMount() {
     this.changeSelectedOption();
   }
+
   componentDidUpdate(prevProps: DropdownWidgetProps): void {
     // removing selectedOptionValue if defaultValueChanges
     if (
@@ -506,6 +511,7 @@ class DropdownWidget extends BaseWidget<DropdownWidgetProps, WidgetState> {
     });
 
     const { componentHeight, componentWidth } = this.props;
+
     return (
       <DropDownComponent
         accentColor={this.props.accentColor}
@@ -551,6 +557,7 @@ class DropdownWidget extends BaseWidget<DropdownWidgetProps, WidgetState> {
     if (this.props.selectedOptionValue) {
       isChanged = !(this.props.selectedOptionValue === selectedOption.value);
     }
+
     if (isChanged) {
       this.props.updateWidgetMetaProperty("value", selectedOption.value, {
         triggerPropertyName: "onOptionChange",
@@ -566,6 +573,7 @@ class DropdownWidget extends BaseWidget<DropdownWidgetProps, WidgetState> {
       value: this.props.selectedOptionValue ?? this.props.defaultOptionValue,
     });
     const value = this.props.options?.[index]?.value;
+
     this.props.updateWidgetMetaProperty("value", value);
   };
 

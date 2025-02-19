@@ -1,6 +1,6 @@
 import LayoutFactory from "layoutSystems/anvil/layoutComponents/LayoutFactory";
 import type { LayoutProps } from "../../anvilTypes";
-import type { CanvasWidgetsReduxState } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import { FlexLayerAlignment } from "layoutSystems/common/utils/constants";
 import type BaseLayoutComponent from "layoutSystems/anvil/layoutComponents/BaseLayoutComponent";
 
@@ -46,6 +46,7 @@ export function deleteWidgetFromLayout(
     if (!Comp.extractChildWidgetIds(layoutProps).includes(widgetId)) {
       return layoutProps;
     }
+
     return Comp.removeChild(layoutProps, {
       alignment: FlexLayerAlignment.Start,
       widgetId,
@@ -84,6 +85,7 @@ export function updateAnvilParentPostWidgetDeletion(
   widgetType: string,
 ): CanvasWidgetsReduxState {
   if (!parentId || !widgetId || !allWidgets[parentId]) return allWidgets;
+
   return {
     ...allWidgets,
     [parentId]: {

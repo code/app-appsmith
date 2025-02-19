@@ -1,9 +1,7 @@
-import {
-  ReduxActionTypes,
-  type ReduxAction,
-} from "@appsmith/constants/ReduxActionConstants";
-import { getAction } from "@appsmith/selectors/entitiesSelector";
-import { getCurrentWorkspaceId } from "@appsmith/selectors/selectedWorkspaceSelectors";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
+import { type ReduxAction } from "actions/ReduxActionTypes";
+import { getAction } from "ee/selectors/entitiesSelector";
+import { getCurrentWorkspaceId } from "ee/selectors/selectedWorkspaceSelectors";
 import type { WidgetAddChild } from "actions/pageActions";
 import type { Action } from "entities/Action";
 import type { DragDetails } from "reducers/uiReducers/dragResizeReducer";
@@ -41,15 +39,18 @@ describe("addAndMoveBuildingBlockToCanvasSaga", () => {
 
     // Step 1: select getCurrentApplicationId
     let result = generator.next();
+
     expect(result.value).toEqual(select(getCurrentApplicationId));
 
     // Mock return value of getCurrentApplicationId
     const applicationId = "app1";
+
     result = generator.next(applicationId);
     expect(result.value).toEqual(select(getCurrentWorkspaceId));
 
     // Step 2: select getCurrentWorkspaceId
     const workspaceId = "workspace1";
+
     result = generator.next(workspaceId);
     expect(result.value).toEqual(select(getDragDetails));
 
@@ -59,6 +60,7 @@ describe("addAndMoveBuildingBlockToCanvasSaga", () => {
         displayName: "TestWidget",
       },
     };
+
     result = generator.next(dragDetails);
 
     // Generating the skeletonWidgetName
@@ -123,6 +125,7 @@ describe("addAndMoveBuildingBlockToCanvasSaga", () => {
     generator.next();
     // Introduce an error by throwing one manually
     const error = new Error("Something went wrong");
+
     try {
       generator.throw(error);
     } catch (err) {
@@ -138,15 +141,18 @@ describe("addBuildingBlockToCanvasSaga", () => {
 
     // Step 1: select getCurrentApplicationId
     let result = generator.next();
+
     expect(result.value).toEqual(select(getCurrentApplicationId));
 
     // Mock return value of getCurrentApplicationId
     const applicationId = "app1";
+
     result = generator.next(applicationId);
     expect(result.value).toEqual(select(getCurrentWorkspaceId));
 
     // Step 2: select getCurrentWorkspaceId
     const workspaceId = "workspace1";
+
     result = generator.next(workspaceId);
     expect(result.value).toEqual(select(getDragDetails));
 
@@ -156,6 +162,7 @@ describe("addBuildingBlockToCanvasSaga", () => {
         displayName: "TestWidget",
       },
     };
+
     result = generator.next(dragDetails);
 
     // Generating the skeletonWidgetName
@@ -214,6 +221,7 @@ describe("addBuildingBlockToCanvasSaga", () => {
     generator.next();
     // Introduce an error by throwing one manually
     const error = new Error("Something went wrong");
+
     try {
       generator.throw(error);
     } catch (err) {
@@ -226,6 +234,8 @@ describe("addNewlyAddedActionsToRedux", () => {
   it("1. should add new actions to Redux if they do not already exist", () => {
     const existingAction = undefined;
 
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const generator: any = addNewlyAddedActionsToRedux(newlyCreatedActions);
 
     for (const action of newlyCreatedActions) {
@@ -278,6 +288,8 @@ describe("updateWidgetsNameInNewQueries", () => {
   it("2. should return an empty array when queries array is empty", () => {
     const oldWidgetName = "OldWidget";
     const newWidgetName = "NewWidget";
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const queries: any[] = [];
 
     const updatedQueries = updateWidgetsNameInNewQueries(

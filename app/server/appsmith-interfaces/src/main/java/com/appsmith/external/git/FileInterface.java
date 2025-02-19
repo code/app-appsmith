@@ -1,5 +1,6 @@
 package com.appsmith.external.git;
 
+import com.appsmith.external.git.models.GitResourceMap;
 import com.appsmith.external.models.ApplicationGitReference;
 import com.appsmith.external.models.ArtifactGitReference;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -34,17 +35,22 @@ public interface FileInterface {
             Path baseRepoSuffix, ArtifactGitReference artifactGitReference, String branchName)
             throws IOException, GitAPIException;
 
+    Mono<Path> saveArtifactToGitRepo(Path baseRepoSuffix, GitResourceMap gitResourceMap, String branchName)
+            throws GitAPIException, IOException;
+
     /**
      * This method will reconstruct the application from the repo
      *
      * @param organisationId To which organisation application needs to be rehydrated
-     * @param defaultApplicationId Default application needs to be rehydrated
+     * @param baseApplicationId Base application needs to be rehydrated
      * @param branchName for which branch the application needs to be rehydrated
      * @param repoName git repo name to access file system
      * @return application reference from which entire application can be rehydrated
      */
     Mono<ApplicationGitReference> reconstructApplicationReferenceFromGitRepo(
-            String organisationId, String defaultApplicationId, String repoName, String branchName);
+            String organisationId, String baseApplicationId, String repoName, String branchName);
+
+    Mono<GitResourceMap> constructGitResourceMapFromGitRepo(Path repositorySuffix, String refName);
 
     /**
      * This method just reconstructs the metdata of the json from git repo.
@@ -64,6 +70,8 @@ public interface FileInterface {
             String branchName,
             Path repoSuffixPath,
             Boolean isResetToLastCommitRequired);
+
+    Mono<Object> reconstructMetadataFromGitRepository(Path repoSuffix);
 
     Mono<Object> reconstructPageFromGitRepo(
             String pageName, String branchName, Path repoSuffixPath, Boolean checkoutRequired);

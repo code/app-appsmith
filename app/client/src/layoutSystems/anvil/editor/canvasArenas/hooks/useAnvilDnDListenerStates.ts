@@ -5,7 +5,7 @@ import {
   type DraggedWidget,
   LayoutComponentTypes,
 } from "layoutSystems/anvil/utils/anvilTypes";
-import type { CanvasWidgetsReduxState } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type { LayoutElementPositions } from "layoutSystems/common/types";
 import { areWidgetsWhitelisted } from "layoutSystems/anvil/utils/layouts/whitelistUtils";
 import { AnvilDropTargetTypesEnum, type AnvilDragMeta } from "../types";
@@ -15,7 +15,7 @@ import { getWidgetHierarchy } from "layoutSystems/anvil/utils/paste/utils";
 import type { AnvilGlobalDnDStates } from "../../canvas/hooks/useAnvilGlobalDnDStates";
 import { getWidgets } from "sagas/selectors";
 import { useMemo } from "react";
-import { ZoneWidget } from "widgets/anvil/ZoneWidget";
+import { WDSZoneWidget } from "modules/ui-builder/ui/wds/WDSZoneWidget";
 import { useAnvilWidgetElevation } from "../../canvas/providers/AnvilWidgetElevationProvider";
 
 interface AnvilDnDListenerStatesProps {
@@ -67,15 +67,19 @@ const checkIfWidgetTypeDraggedIsAllowedToDrop = (
   if (allowedWidgetTypes.length === 0) {
     return true;
   }
+
   let draggedWidgetTypes: string[] = [];
+
   if (isNewWidget) {
     const { newWidget } = dragDetails;
+
     draggedWidgetTypes.push(newWidget.type);
   } else {
     draggedWidgetTypes = selectedWidgets.map(
       (eachWidgetId) => allWidgets[eachWidgetId].type,
     );
   }
+
   return areWidgetsWhitelisted(draggedWidgetTypes, allowedWidgetTypes);
 };
 
@@ -144,12 +148,14 @@ export const useAnvilDnDListenerStates = ({
   }, [widgetProps, allWidgets]);
 
   const isElevatedWidget = useMemo(() => {
-    if (widgetProps.type === ZoneWidget.type) {
+    if (widgetProps.type === WDSZoneWidget.type) {
       const isAnyZoneElevated = allSiblingsWidgetIds.some(
         (each) => !!elevatedWidgets[each],
       );
+
       return isAnyZoneElevated;
     }
+
     return !!elevatedWidgets[widgetId];
   }, [widgetProps, elevatedWidgets, allSiblingsWidgetIds]);
 

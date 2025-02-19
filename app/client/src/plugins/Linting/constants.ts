@@ -1,33 +1,93 @@
 import { ECMA_VERSION } from "@shared/ast";
 import type { LintOptions } from "jshint";
 import isEntityFunction from "./utils/isEntityFunction";
+import { noFloatingPromisesLintRule } from "./customRules/no-floating-promises";
+import { getLintRulesBasedOnContext } from "ee/utils/lintRulesHelpers";
 
-export const lintOptions = (globalData: Record<string, boolean>) =>
-  ({
-    indent: 2,
-    esversion: ECMA_VERSION,
-    eqeqeq: false, // Not necessary to use ===
-    curly: false, // Blocks can be added without {}, eg if (x) return true
-    freeze: true, // Overriding inbuilt classes like Array is not allowed
-    undef: true, // Undefined variables should be reported as error
-    forin: false, // Doesn't require filtering for..in loops with obj.hasOwnProperty()
-    noempty: false, // Empty blocks are allowed
-    strict: false, // We won't force strict mode
-    unused: "strict", // Unused variables are not allowed
-    asi: true, // Tolerate Automatic Semicolon Insertion (no semicolons)
-    boss: true, // Tolerate assignments where comparisons would be expected
-    evil: false, // Use of eval not allowed
-    funcscope: true, // Tolerate variable definition inside control statements
-    sub: true, // Don't force dot notation
-    expr: true, // suppresses warnings about the use of expressions where normally you would expect to see assignments or function calls
-    // environments
-    browser: false,
-    worker: true,
-    mocha: false,
-    // global values
-    globals: globalData,
-    loopfunc: true,
-  }) as LintOptions;
+import type { IDEType } from "ee/IDE/Interfaces/IDETypes";
+
+export enum LINTER_TYPE {
+  "JSHINT" = "JSHint",
+  "ESLINT" = "ESLint",
+}
+
+export const lintOptions = (
+  globalData: Record<string, boolean | "readonly" | "writable">,
+  asyncFunctions: string[],
+  ideType: IDEType,
+  linterType: LINTER_TYPE = LINTER_TYPE.JSHINT,
+) => {
+  if (linterType === LINTER_TYPE.JSHINT) {
+    return {
+      indent: 2,
+      esversion: ECMA_VERSION,
+      eqeqeq: false, // Not necessary to use ===
+      curly: false, // Blocks can be added without {}, eg if (x) return true
+      freeze: true, // Overriding inbuilt classes like Array is not allowed
+      undef: true, // Undefined variables should be reported as error
+      forin: false, // Doesn't require filtering for..in loops with obj.hasOwnProperty()
+      noempty: false, // Empty blocks are allowed
+      strict: false, // We won't force strict mode
+      unused: "strict", // Unused variables are not allowed
+      asi: true, // Tolerate Automatic Semicolon Insertion (no semicolons)
+      boss: true, // Tolerate assignments where comparisons would be expected
+      evil: false, // Use of eval not allowed
+      funcscope: true, // Tolerate variable definition inside control statements
+      sub: true, // Don't force dot notation
+      expr: true, // suppresses warnings about the use of expressions where normally you would expect to see assignments or function calls
+      // environments
+      browser: false,
+      worker: true,
+      mocha: false,
+      // global values
+      globals: globalData,
+      loopfunc: true,
+    } as LintOptions;
+  } else {
+    const extraRules = getLintRulesBasedOnContext({ ideType });
+
+    return {
+      languageOptions: {
+        ecmaVersion: ECMA_VERSION,
+        globals: globalData,
+        sourceType: "script",
+      },
+      // Need to pass for custom rules
+      settings: {
+        globalData,
+        asyncFunctions,
+      },
+      plugins: {
+        customRules: {
+          rules: {
+            "no-floating-promises": noFloatingPromisesLintRule,
+          },
+        },
+      },
+      rules: {
+        ...extraRules,
+        eqeqeq: "off",
+        curly: "off",
+        "no-extend-native": "error",
+        "no-undef": "error",
+        "guard-for-in": "off",
+        "no-empty": "off",
+        strict: "off",
+        "no-unused-vars": [
+          "warn",
+          { vars: "all", args: "all", ignoreRestSiblings: false },
+        ],
+        "no-cond-assign": "off",
+        "no-eval": "error",
+        "block-scoped-var": "off",
+        "dot-notation": "off",
+        "no-unused-expressions": "off",
+        "no-loop-func": "off",
+      },
+    } as const;
+  }
+};
+
 export const JS_OBJECT_START_STATEMENT = "export default";
 export const INVALID_JSOBJECT_START_STATEMENT = `JSObject must start with '${JS_OBJECT_START_STATEMENT}'`;
 export const INVALID_JSOBJECT_START_STATEMENT_ERROR_CODE =
@@ -38,6 +98,7 @@ export const IDENTIFIER_NOT_DEFINED_LINT_ERROR_CODE = "W117";
 // For these error types, we want to show a warning
 // All messages can be found here => https://github.com/jshint/jshint/blob/2.9.5/src/messages.js
 export const WARNING_LINT_ERRORS = {
+  "no-unused-vars": "'{a}' is assigned a value but never used.",
   W098: "'{a}' is defined but never used.",
   W014: "Misleading line break before '{a}'; readers may interpret this as an expression boundary.",
   ASYNC_FUNCTION_BOUND_TO_SYNC_FIELD:
@@ -75,6 +136,8 @@ export enum CustomLintErrorCode {
 
 export const CUSTOM_LINT_ERRORS: Record<
   CustomLintErrorCode,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (...args: any[]) => string
 > = {
   [CustomLintErrorCode.INVALID_ENTITY_PROPERTY]: (
@@ -94,6 +157,7 @@ export const CUSTOM_LINT_ERRORS: Record<
   ) => {
     const hasMultipleBindings = dataFieldBindings.length > 1;
     const bindings = dataFieldBindings.join(" , ");
+
     return isMarkedAsync
       ? `Cannot bind async functions to data fields. Convert this to a sync function or remove references to "${fullName}" on the following data ${
           hasMultipleBindings ? "fields" : "field"
@@ -115,6 +179,7 @@ export const CUSTOM_LINT_ERRORS: Record<
     const lintErrorMessage = !isValidProperty
       ? `${objectName} doesn't have a property named ${propertyName}`
       : `Direct mutation of widget properties is not supported. ${suggestionSentence}`;
+
     return lintErrorMessage;
   },
   [CustomLintErrorCode.INVALID_APPSMITH_STORE_PROPERTY_SETTER]: () => {

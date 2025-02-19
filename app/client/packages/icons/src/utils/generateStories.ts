@@ -16,7 +16,7 @@ const createStory = (
   componentList: string,
 ) => {
   return `import { Meta } from "@storybook/addon-docs";
-import { Flex } from "@design-system/widgets";
+import { Flex } from "@appsmith/wds";
 ${importList}
 <Meta title="Appsmith Icons/${title}" />
 
@@ -45,6 +45,7 @@ async function generateStories() {
     "Icons",
     "Icon set for Entity Explorer Panel, which provides a visual representation of the widgets.",
   );
+  await generateStory("CustomIcons", "Set of custom icons.");
   // eslint-disable-next-line no-console
   console.error("\x1b[32mStories generation completed successfully!\x1b[0m");
 }
@@ -61,6 +62,7 @@ async function generateStory(title: string, description: string) {
 
     files.forEach((file) => {
       const name = file.replace(".tsx", "");
+
       importList += createImportListString(name, title);
       componentList += createComponentListString(name);
     });

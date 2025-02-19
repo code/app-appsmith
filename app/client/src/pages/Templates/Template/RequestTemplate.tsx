@@ -1,16 +1,16 @@
-import React from "react";
-import styled from "styled-components";
-import { Text, TextType } from "design-system-old";
-import { Button } from "design-system";
+import { Button } from "@appsmith/ads";
+import { Text, TextType } from "@appsmith/ads-old";
 import RequestTemplateSvg from "assets/images/request-template.svg";
 import {
   COULDNT_FIND_TEMPLATE,
-  createMessage,
   COULDNT_FIND_TEMPLATE_DESCRIPTION,
-  REQUEST_TEMPLATE,
+  createMessage,
   REQUEST_BUILDING_BLOCK,
-} from "@appsmith/constants/messages";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+  REQUEST_TEMPLATE,
+} from "ee/constants/messages";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
+import React from "react";
+import styled from "styled-components";
 
 const Wrapper = styled.div`
   border: 1px solid var(--ads-v2-color-border);
@@ -48,10 +48,10 @@ const StyledImage = styled.img`
   border-radius: var(--ads-v2-border-radius);
 `;
 
-const REQUEST_TEMPLATE_URL =
+export const REQUEST_TEMPLATE_URL =
   "https://app.appsmith.com/app/request-templates/request-list-6241c12fc99df2369931a714";
 
-interface RequestTemplateProps {
+export interface RequestTemplateProps {
   isBuildingBlock?: boolean;
 }
 

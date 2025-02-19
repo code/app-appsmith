@@ -36,14 +36,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.security.test.context.support.WithUserDetails;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -57,7 +55,6 @@ import java.util.UUID;
 import static com.appsmith.server.acl.AclPermission.READ_PAGES;
 import static com.appsmith.server.constants.ArtifactType.APPLICATION;
 
-@ExtendWith(SpringExtension.class)
 @SpringBootTest
 @Slf4j
 public class RefactoringServiceTest {
@@ -135,7 +132,7 @@ public class RefactoringServiceTest {
 
     @BeforeEach
     public void setup() {
-        newPageService.deleteAll();
+        newPageService.deleteAll().block();
         User apiUser = userService.findByEmail("api_user").block();
         Workspace toCreate = new Workspace();
         toCreate.setName("LayoutActionServiceTest");
@@ -190,7 +187,7 @@ public class RefactoringServiceTest {
         Application newApp = new Application();
         newApp.setName(UUID.randomUUID().toString());
         GitArtifactMetadata gitData = new GitArtifactMetadata();
-        gitData.setBranchName("actionServiceTest");
+        gitData.setRefName("actionServiceTest");
         newApp.setGitApplicationMetadata(gitData);
         gitConnectedApp = applicationPageService
                 .createApplication(newApp, workspaceId)
@@ -199,11 +196,11 @@ public class RefactoringServiceTest {
                     return applicationService
                             .save(application1)
                             .zipWhen(application11 -> exportService.exportByArtifactIdAndBranchName(
-                                    application11.getId(), gitData.getBranchName(), APPLICATION));
+                                    application11.getId(), gitData.getRefName(), APPLICATION));
                 })
                 // Assign the branchName to all the resources connected to the application
                 .flatMap(tuple -> importService.importArtifactInWorkspaceFromGit(
-                        workspaceId, tuple.getT1().getId(), tuple.getT2(), gitData.getBranchName()))
+                        workspaceId, tuple.getT1().getId(), tuple.getT2(), gitData.getRefName()))
                 .map(importableArtifact -> (Application) importableArtifact)
                 .block();
 
@@ -211,7 +208,7 @@ public class RefactoringServiceTest {
                 .findPageById(gitConnectedApp.getPages().get(0).getId(), READ_PAGES, false)
                 .block();
 
-        branchName = gitConnectedApp.getGitApplicationMetadata().getBranchName();
+        branchName = gitConnectedApp.getGitApplicationMetadata().getRefName();
 
         workspaceId = workspace.getId();
         datasource = new Datasource();
@@ -284,7 +281,8 @@ public class RefactoringServiceTest {
         mockActionCollectionDTO.setName("testCollection");
         mockActionCollectionDTO.setActions(List.of(firstAction, secondAction));
 
-        Mockito.when(actionCollectionService.getActionCollectionsByViewMode(Mockito.any(), Mockito.anyBoolean()))
+        Mockito.when(actionCollectionService.getNonComposedActionCollectionsByViewMode(
+                        Mockito.any(), Mockito.anyBoolean()))
                 .thenReturn(Flux.just(mockActionCollectionDTO));
 
         Mono<Boolean> nameAllowedMono = refactoringService.isNameAllowed(

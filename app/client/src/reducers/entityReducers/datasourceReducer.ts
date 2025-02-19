@@ -1,9 +1,9 @@
 import { createReducer } from "utils/ReducerUtils";
-import type { ReduxAction } from "@appsmith/constants/ReduxActionConstants";
+import type { ReduxAction } from "actions/ReduxActionTypes";
 import {
   ReduxActionTypes,
   ReduxActionErrorTypes,
-} from "@appsmith/constants/ReduxActionConstants";
+} from "ee/constants/ReduxActionConstants";
 import type {
   Datasource,
   DatasourceStorage,
@@ -12,18 +12,21 @@ import type {
 } from "entities/Datasource";
 import { ToastMessageType } from "entities/Datasource";
 import { TEMP_DATASOURCE_ID } from "constants/Datasource";
-import type { DropdownOption } from "design-system-old";
-import produce from "immer";
+import type { DropdownOption } from "@appsmith/ads-old";
+import { create } from "mutative";
 import { assign } from "lodash";
 
 export interface DatasourceDataState {
   list: Datasource[];
   loading: boolean;
+  loadingTokenForDatasourceId: string | null;
   isTesting: boolean;
   isListing: boolean; // fetching unconfigured datasource list
   fetchingDatasourceStructure: Record<string, boolean>;
   structure: Record<string, DatasourceStructure>;
   isFetchingMockDataSource: false;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   mockDatasourceList: any[];
   executingDatasourceQuery: boolean;
   isReconnectingModalOpen: boolean; // reconnect datasource modal for import application
@@ -46,6 +49,7 @@ export interface DatasourceDataState {
 const initialState: DatasourceDataState = {
   list: [],
   loading: false,
+  loadingTokenForDatasourceId: null,
   isTesting: false,
   isListing: false,
   fetchingDatasourceStructure: {},
@@ -78,9 +82,12 @@ const datasourceReducer = createReducer(initialState, {
   },
   [ReduxActionTypes.FETCH_MOCK_DATASOURCES_SUCCESS]: (
     state: DatasourceDataState,
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     action: ReduxAction<any>,
   ) => {
     const mockDatasourceList = action.payload as MockDatasource[];
+
     return { ...state, isFetchingMockDataSource: false, mockDatasourceList };
   },
   [ReduxActionErrorTypes.FETCH_MOCK_DATASOURCES_ERROR]: (
@@ -118,6 +125,12 @@ const datasourceReducer = createReducer(initialState, {
     state: DatasourceDataState,
   ) => {
     return { ...state, loading: true };
+  },
+  [ReduxActionTypes.CREATE_DATASOURCE_FROM_FORM_TOGGLE_LOADING]: (
+    state: DatasourceDataState,
+    action: ReduxAction<{ loading?: boolean }>,
+  ) => {
+    return { ...state, loading: !!action.payload.loading };
   },
   [ReduxActionTypes.UPDATE_DATASOURCE_INIT]: (state: DatasourceDataState) => {
     return { ...state, loading: true };
@@ -235,6 +248,8 @@ const datasourceReducer = createReducer(initialState, {
       id?: string;
       environmentId: string;
       messages?: Array<string>;
+      // TODO: Fix this the next time the file is edited
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       error?: any;
     }>,
   ): DatasourceDataState => {
@@ -253,6 +268,7 @@ const datasourceReducer = createReducer(initialState, {
             },
           };
         }
+
         return datasource;
       });
       const unconfiguredList = state.unconfiguredList.map((datasource) => {
@@ -269,8 +285,10 @@ const datasourceReducer = createReducer(initialState, {
             },
           };
         }
+
         return datasource;
       });
+
       return {
         ...state,
         isTesting: false,
@@ -278,6 +296,7 @@ const datasourceReducer = createReducer(initialState, {
         unconfiguredList: unconfiguredList,
       };
     }
+
     return {
       ...state,
       isTesting: false,
@@ -345,6 +364,31 @@ const datasourceReducer = createReducer(initialState, {
       ],
     };
   },
+  [ReduxActionTypes.GET_OAUTH_ACCESS_TOKEN]: (
+    state: DatasourceDataState,
+    action: ReduxAction<{ datasourceId: string }>,
+  ) => {
+    return {
+      ...state,
+      loadingTokenForDatasourceId: action.payload.datasourceId,
+    };
+  },
+  [ReduxActionTypes.GET_OAUTH_ACCESS_TOKEN_SUCCESS]: (
+    state: DatasourceDataState,
+  ) => {
+    return {
+      ...state,
+      loadingTokenForDatasourceId: null,
+    };
+  },
+  [ReduxActionErrorTypes.GET_OAUTH_ACCESS_TOKEN_ERROR]: (
+    state: DatasourceDataState,
+  ) => {
+    return {
+      ...state,
+      loadingTokenForDatasourceId: null,
+    };
+  },
   [ReduxActionTypes.UPDATE_DATASOURCE_STORAGE_SUCCESS]: (
     state: DatasourceDataState,
     action: ReduxAction<DatasourceStorage>,
@@ -409,8 +453,10 @@ const datasourceReducer = createReducer(initialState, {
       if (datasource.id === action.payload.id) {
         return { ...datasource, name: action.payload.name };
       }
+
       return datasource;
     });
+
     return {
       ...state,
       list: list,
@@ -420,7 +466,7 @@ const datasourceReducer = createReducer(initialState, {
     state: DatasourceDataState,
     action: ReduxAction<Datasource>,
   ): DatasourceDataState => {
-    return produce(state, (draftState) => {
+    return create(state, (draftState) => {
       draftState.loading = false;
       draftState.list.forEach((datasource) => {
         if (datasource.id === action.payload.id) {
@@ -428,16 +474,6 @@ const datasourceReducer = createReducer(initialState, {
         }
       });
     });
-
-    return {
-      ...state,
-      loading: false,
-      list: state.list.map((datasource) => {
-        if (datasource.id === action.payload.id) return action.payload;
-
-        return datasource;
-      }),
-    };
   },
   [ReduxActionErrorTypes.CREATE_DATASOURCE_ERROR]: (
     state: DatasourceDataState,
@@ -471,6 +507,8 @@ const datasourceReducer = createReducer(initialState, {
       id?: string;
       environmentId: string;
       messages?: Array<string>;
+      // TODO: Fix this the next time the file is edited
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       error?: any;
     }>,
   ): DatasourceDataState => {
@@ -489,6 +527,7 @@ const datasourceReducer = createReducer(initialState, {
             },
           };
         }
+
         return datasource;
       });
       const unconfiguredList = state.unconfiguredList.map((datasource) => {
@@ -505,8 +544,10 @@ const datasourceReducer = createReducer(initialState, {
             },
           };
         }
+
         return datasource;
       });
+
       return {
         ...state,
         isTesting: false,
@@ -514,6 +555,7 @@ const datasourceReducer = createReducer(initialState, {
         unconfiguredList: unconfiguredList,
       };
     }
+
     return {
       ...state,
       isTesting: false,
@@ -614,7 +656,7 @@ const datasourceReducer = createReducer(initialState, {
   [ReduxActionTypes.FETCH_GSHEET_SPREADSHEETS]: (
     state: DatasourceDataState,
   ) => {
-    return produce(state, (draftState) => {
+    return create(state, (draftState) => {
       draftState.gsheetStructure.isFetchingSpreadsheets = true;
     });
   },
@@ -622,7 +664,7 @@ const datasourceReducer = createReducer(initialState, {
     state: DatasourceDataState,
     action: ReduxAction<{ id: string; data: DropdownOption[] }>,
   ) => {
-    return produce(state, (draftState) => {
+    return create(state, (draftState) => {
       draftState.gsheetStructure.spreadsheets[action.payload.id] = {
         value: action.payload.data,
       };
@@ -634,7 +676,7 @@ const datasourceReducer = createReducer(initialState, {
     state: DatasourceDataState,
     action: ReduxAction<{ id: string; error: string }>,
   ) => {
-    return produce(state, (draftState) => {
+    return create(state, (draftState) => {
       draftState.gsheetStructure.spreadsheets[action.payload.id] = {
         error: action.payload.error,
       };
@@ -643,7 +685,7 @@ const datasourceReducer = createReducer(initialState, {
     });
   },
   [ReduxActionTypes.FETCH_GSHEET_SHEETS]: (state: DatasourceDataState) => {
-    return produce(state, (draftState) => {
+    return create(state, (draftState) => {
       draftState.gsheetStructure.isFetchingSheets = true;
     });
   },
@@ -651,7 +693,7 @@ const datasourceReducer = createReducer(initialState, {
     state: DatasourceDataState,
     action: ReduxAction<{ id: string; data: DropdownOption[] }>,
   ) => {
-    return produce(state, (draftState) => {
+    return create(state, (draftState) => {
       draftState.gsheetStructure.sheets[action.payload.id] = {
         value: action.payload.data,
       };
@@ -662,7 +704,7 @@ const datasourceReducer = createReducer(initialState, {
     state: DatasourceDataState,
     action: ReduxAction<{ id: string; error: string }>,
   ) => {
-    return produce(state, (draftState) => {
+    return create(state, (draftState) => {
       draftState.gsheetStructure.sheets[action.payload.id] = {
         error: action.payload.error,
       };
@@ -670,7 +712,7 @@ const datasourceReducer = createReducer(initialState, {
     });
   },
   [ReduxActionTypes.FETCH_GSHEET_COLUMNS]: (state: DatasourceDataState) => {
-    return produce(state, (draftState) => {
+    return create(state, (draftState) => {
       draftState.gsheetStructure.isFetchingColumns = true;
     });
   },
@@ -678,7 +720,7 @@ const datasourceReducer = createReducer(initialState, {
     state: DatasourceDataState,
     action: ReduxAction<{ id: string; data: DropdownOption[] }>,
   ) => {
-    return produce(state, (draftState) => {
+    return create(state, (draftState) => {
       draftState.gsheetStructure.columns[action.payload.id] = {
         value: action.payload.data,
       };
@@ -689,7 +731,7 @@ const datasourceReducer = createReducer(initialState, {
     state: DatasourceDataState,
     action: ReduxAction<{ id: string; error: string }>,
   ) => {
-    return produce(state, (draftState) => {
+    return create(state, (draftState) => {
       draftState.gsheetStructure.columns[action.payload.id] = {
         error: action.payload.error,
       };
@@ -710,6 +752,7 @@ const datasourceReducer = createReducer(initialState, {
             },
           );
         }
+
         return datasource;
       });
       const unconfiguredList = state.unconfiguredList.map((datasource) => {
@@ -721,14 +764,17 @@ const datasourceReducer = createReducer(initialState, {
             },
           );
         }
+
         return datasource;
       });
+
       return {
         ...state,
         list: list,
         unconfiguredList: unconfiguredList,
       };
     }
+
     return {
       ...state,
     };

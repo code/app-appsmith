@@ -1,13 +1,13 @@
 import { useDispatch, useSelector } from "react-redux";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import { getWidget } from "sagas/selectors";
-import { getPluginPackageFromDatasourceId } from "@appsmith/selectors/entitiesSelector";
+import { getPluginPackageFromDatasourceId } from "ee/selectors/entitiesSelector";
 import { getisOneClickBindingConnectingForWidget } from "selectors/oneClickBindingSelectors";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import { isValidGsheetConfig } from "../utils";
 import { useContext, useMemo } from "react";
 import { WidgetQueryGeneratorFormContext } from "../index";
-import { PluginPackageName } from "../../../../entities/Action";
+import { PluginPackageName } from "entities/Plugin";
 import { useFormConfig } from "../common/useFormConfig";
 
 export function useConnectData() {

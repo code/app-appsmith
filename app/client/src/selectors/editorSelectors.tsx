@@ -1,18 +1,17 @@
 import { createSelector } from "reselect";
 
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import type {
   CanvasWidgetsReduxState,
   FlattenedWidgetProps,
-} from "reducers/entityReducers/canvasWidgetsReducer";
+} from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type {
   AppLayoutConfig,
   PageListReduxState,
 } from "reducers/entityReducers/pageListReducer";
 import type { WidgetCardProps, WidgetProps } from "widgets/BaseWidget";
 
-import type { Page } from "@appsmith/constants/ReduxActionConstants";
-import { ApplicationVersion } from "@appsmith/actions/applicationActions";
+import { ApplicationVersion } from "ee/actions/applicationActions";
 import type {
   OccupiedSpace,
   WidgetSpace,
@@ -28,12 +27,11 @@ import {
 } from "selectors/dataTreeSelectors";
 import type { MainCanvasReduxState } from "reducers/uiReducers/mainCanvasReducer";
 
+import { getActionEditorSavingMap } from "PluginActionEditor/store";
 import {
-  getActions,
-  getApiPaneSavingMap,
   getCanvasWidgets,
   getJSCollections,
-} from "@appsmith/selectors/entitiesSelector";
+} from "ee/selectors/entitiesSelector";
 import { checkIsDropTarget } from "WidgetProvider/factory/helpers";
 import { buildChildWidgetTree } from "utils/widgetRenderUtils";
 import { LOCAL_STORAGE_KEYS } from "utils/localStorage";
@@ -41,13 +39,16 @@ import type { CanvasWidgetStructure } from "WidgetProvider/constants";
 import { denormalize } from "utils/canvasStructureHelpers";
 import { isAutoHeightEnabledForWidget } from "widgets/WidgetUtils";
 import WidgetFactory from "WidgetProvider/factory";
-import { isAirgapped } from "@appsmith/utils/airgapHelpers";
+import { isAirgapped } from "ee/utils/airgapHelpers";
 import { getIsAnonymousDataPopupVisible } from "./onboardingSelectors";
-import { WDS_V2_WIDGET_MAP } from "widgets/wds/constants";
+import { WDS_V2_WIDGET_MAP } from "modules/ui-builder/ui/wds/constants";
 import { LayoutSystemTypes } from "layoutSystems/types";
 import { getLayoutSystemType } from "./layoutSystemSelectors";
 import { protectedModeSelector } from "./gitSyncSelectors";
 import { getIsAnvilLayout } from "layoutSystems/anvil/integrations/selectors";
+import { getCurrentApplication } from "ee/selectors/applicationSelectors";
+import type { Page } from "entities/Page";
+import { objectKeys } from "@appsmith/utils";
 
 const getIsDraggingOrResizing = (state: AppState) =>
   state.ui.widgetDragResize.isResizing || state.ui.widgetDragResize.isDragging;
@@ -76,7 +77,7 @@ export const getLoadingError = (state: AppState) =>
 
 export const getIsPageSaving = createSelector(
   [
-    getApiPaneSavingMap,
+    getActionEditorSavingMap,
     (state: AppState) => state.ui.jsPane.isSaving,
     (state: AppState) => state.ui.appTheming.isSaving,
     (state: AppState) => state.ui.applications.isSavingNavigationSetting,
@@ -84,23 +85,23 @@ export const getIsPageSaving = createSelector(
     (state: AppState) => state.ui.editor.loadingStates.saving,
   ],
   (
-    savingApis,
+    savingActions,
     savingJSObjects,
     isSavingAppTheme,
     isSavingNavigationSetting,
     isEditorSavingEntity,
     isEditorSaving,
   ) => {
-    const areApisSaving = Object.keys(savingApis).some(
-      (apiId) => savingApis[apiId],
+    const areActionsSaving = objectKeys(savingActions).some(
+      (actionId) => savingActions[actionId],
     );
-    const areJsObjectsSaving = Object.keys(savingJSObjects).some(
+    const areJsObjectsSaving = objectKeys(savingJSObjects).some(
       (collectionId) => savingJSObjects[collectionId],
     );
 
     return (
       isEditorSavingEntity ||
-      areApisSaving ||
+      areActionsSaving ||
       areJsObjectsSaving ||
       isSavingAppTheme ||
       isEditorSaving ||
@@ -142,8 +143,16 @@ export const getPageById = (pageId: string) =>
     pages.find((page) => page.pageId === pageId),
   );
 
+export const getPageByBaseId = (basePageId: string) =>
+  createSelector(getPageList, (pages: Page[]) =>
+    pages.find((page) => page.basePageId === basePageId),
+  );
+
 export const getCurrentPageId = (state: AppState) =>
   state.entities.pageList.currentPageId;
+
+export const getCurrentBasePageId = (state: AppState) =>
+  state.entities.pageList.currentBasePageId;
 
 export const getCurrentPagePermissions = createSelector(
   getCurrentPageId,
@@ -178,18 +187,18 @@ export const selectPageSlugToIdMap = createSelector(getPageList, (pages) =>
     (acc, page: Page) => {
       // Comeback
       acc[page.pageId] = page.slug || "";
+
       return acc;
     },
     {} as Record<string, string>,
   ),
 );
 
-export const getCurrentApplication = (state: AppState) =>
-  state.ui.applications.currentApplication;
-
 export const getCurrentApplicationId = (state: AppState) =>
   state.entities.pageList.applicationId || "";
-/** this is set during init can assume it to be defined */
+
+export const getCurrentBaseApplicationId = (state: AppState) =>
+  state.entities.pageList.baseApplicationId || "";
 
 export const selectCurrentApplicationSlug = (state: AppState) =>
   state.ui.applications.currentApplication?.slug || PLACEHOLDER_APP_SLUG;
@@ -201,6 +210,7 @@ export const selectApplicationVersion = (state: AppState) =>
 export const selectPageSlugById = (pageId: string) =>
   createSelector(getPageList, (pages) => {
     const page = pages.find((page) => page.pageId === pageId);
+
     return page?.slug || PLACEHOLDER_PAGE_SLUG;
   });
 
@@ -215,6 +225,7 @@ export const selectURLSlugs = createSelector(
     );
     const pageSlug = currentPage?.slug || PLACEHOLDER_PAGE_SLUG;
     const customSlug = currentPage?.customSlug;
+
     return { applicationSlug, pageSlug, customSlug };
   },
 );
@@ -236,11 +247,13 @@ export const getViewModePageList = createSelector(
       const currentPage = pageList.find(
         (page) => page.pageId === currentPageId,
       );
+
       if (!!currentPage?.isHidden) {
         return [currentPage];
       }
 
       const visiblePages = pageList.filter((page) => !page.isHidden);
+
       return visiblePages;
     }
 
@@ -325,15 +338,18 @@ export const getWidgetCards = createSelector(
       const isAnvilWidget = Object.values(WDS_V2_WIDGET_MAP).includes(
         config.type,
       );
+
       if (isAnvilLayout) {
         return isAnvilWidget;
       }
+
       return !isAnvilWidget;
     });
     const cards = layoutSystemBasesWidgets.filter((config) => {
       if (isAirgapped()) {
         return config.widgetName !== "Map" && !config.hideCard;
       }
+
       return !config.hideCard;
     });
 
@@ -341,6 +357,7 @@ export const getWidgetCards = createSelector(
       const {
         detachFromLayout = false,
         displayName,
+        displayOrder,
         iconSVG,
         isSearchWildcard,
         key,
@@ -368,6 +385,7 @@ export const getWidgetCards = createSelector(
         columns,
         detachFromLayout,
         displayName,
+        displayOrder,
         icon: iconSVG,
         thumbnail: thumbnailSVG,
         IconCmp,
@@ -384,6 +402,7 @@ export const getWidgetCards = createSelector(
   },
 );
 const getIsMobileBreakPoint = (state: AppState) => state.ui.mainCanvas.isMobile;
+
 export const getIsAutoLayoutMobileBreakPoint = createSelector(
   getIsAutoLayout,
   getIsMobileBreakPoint,
@@ -406,36 +425,48 @@ export const getDimensionMap = createSelector(
   },
 );
 const addWidgetDimensionProxy = (
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dimensionMap: any,
   widgets: CanvasWidgetsReduxState,
 ) => {
   const dimensions = Object.keys(dimensionMap);
   const proxyHandler = {
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     get(target: any, prop: any) {
       if (dimensions.includes(prop)) {
         const actualMap = dimensionMap[prop];
+
         if (!!target[actualMap]) {
           return target[actualMap];
         }
       }
+
       return Reflect.get(target, prop);
     },
   };
+
   return Object.keys(widgets).reduce((allWidgets, each) => {
     const widget = { ...allWidgets[each] };
     const proxyWidget = new Proxy(widget, proxyHandler);
+
     allWidgets = {
       ...allWidgets,
       [each]: proxyWidget,
     };
+
     return allWidgets;
   }, widgets);
 };
+
 export const getWidgetsForBreakpoint = createSelector(
   getDimensionMap,
   getIsAutoLayoutMobileBreakPoint,
   getWidgets,
   (
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     dimensionMap: any,
     isAutoLayoutMobileBreakPoint: boolean,
     widgets: CanvasWidgetsReduxState,
@@ -482,6 +513,7 @@ const getOccupiedSpacesForContainer = (
       bottom: widget.bottomRow,
       right: widget.rightColumn,
     };
+
     return occupiedSpace;
   });
 };
@@ -497,6 +529,7 @@ const getWidgetSpacesForContainer = (
     rightColumn: rightColumnMap,
     topRow: topRowMap,
   } = dimensionMap;
+
   return widgets.map((widget) => {
     const hasAutoHeight = isAutoHeightEnabledForWidget(widget);
     const fixedHeight = hasAutoHeight
@@ -513,6 +546,7 @@ const getWidgetSpacesForContainer = (
       isDropTarget: checkIsDropTarget(widget.type),
       fixedHeight,
     };
+
     return occupiedSpace;
   });
 };
@@ -532,7 +566,9 @@ const generateOccupiedSpacesMap = (
   const occupiedSpaces: {
     [containerWidgetId: string]: WidgetSpace[];
   } = {};
+
   if (!fetchNow) return {};
+
   // Get all widgets with type "CONTAINER_WIDGET" and has children
   const containerWidgets: FlattenedWidgetProps[] = Object.values(
     widgets,
@@ -549,6 +585,7 @@ const generateOccupiedSpacesMap = (
           containerWidget.children.indexOf(widgetId) > -1 &&
           !widgets[widgetId].detachFromLayout,
       );
+
       // Get the occupied spaces in this container
       // Assign it to the containerWidgetId key in occupiedSpaces
       occupiedSpaces[containerWidgetId] = getWidgetSpacesForContainer(
@@ -558,6 +595,7 @@ const generateOccupiedSpacesMap = (
       );
     });
   }
+
   // Return undefined if there are no occupiedSpaces.
   return Object.keys(occupiedSpaces).length > 0 ? occupiedSpaces : {};
 };
@@ -589,6 +627,7 @@ export const getOccupiedSpaces = createSelector(
             containerWidget.children.indexOf(widgetId) > -1 &&
             !widgets[widgetId].detachFromLayout,
         );
+
         // Get the occupied spaces in this container
         // Assign it to the containerWidgetId key in occupiedSpaces
         occupiedSpaces[containerWidgetId] = getOccupiedSpacesForContainer(
@@ -643,20 +682,26 @@ export const getOccupiedSpacesGroupedByParentCanvas = createSelector(
         // Get the nesting level of this Canvas:
         let parentId = canvasWidget.parentId;
         let level = 0;
+
         while (parentId) {
           const parent = widgets[parentId];
+
           if (parent.type === "CANVAS_WIDGET") level++;
+
           parentId = parent.parentId;
         }
+
         canvasLevelMap[canvasWidget.widgetId] = level;
         // Initialise the occupied spaces with an empty array
         occupiedSpaces[canvasWidgetId] = {};
+
         // If this canvas widget has children
         if (canvasWidget.children && canvasWidget.children.length > 0) {
           // Iterate through all children
           canvasWidget.children.forEach((childWidgetId: string) => {
             // Get the widget props
             const widget = widgets[childWidgetId];
+
             // If the widget is not detached from layout, which means
             // They actually exist by being displayed within the canvas
             // (unlike a modal widget or another canvas widget)
@@ -723,6 +768,7 @@ const generateOccupiedSpacesForContainer = (
     containerId,
     childWidgets.map((widgetId) => widgets[widgetId]),
   );
+
   return occupiedSpaces;
 };
 
@@ -768,6 +814,7 @@ const generateWidgetSpacesForContainer = (
     childWidgets.map((widgetId) => widgets[widgetId]),
     dimensionMap,
   );
+
   return occupiedSpaces;
 };
 
@@ -832,22 +879,13 @@ export function getContainerWidgetSpacesSelectorWhileMoving(
   );
 }
 
-export const getActionById = createSelector(
-  [getActions, (state: any, props: any) => props.match.params.apiId],
-  (actions, id) => {
-    const action = actions.find((action) => action.config.id === id);
-    if (action) {
-      return action.config;
-    } else {
-      return undefined;
-    }
-  },
-);
-
 export const getJSCollectionDataById = createSelector(
   [getJSCollections, (state: AppState, collectionId: string) => collectionId],
-  (jsActions, id) => {
-    const action = jsActions.find((action) => action.config.id === id);
+  (jsActions, collectionId) => {
+    const action = jsActions.find(
+      (action) => action.config.id === collectionId,
+    );
+
     if (action) {
       return action;
     } else {
@@ -856,15 +894,18 @@ export const getJSCollectionDataById = createSelector(
   },
 );
 
-export const getJSCollectionById = createSelector(
+export const getJSCollectionDataByBaseId = createSelector(
   [
     getJSCollections,
-    (state: any, props: any) => props.match.params.collectionId,
+    (state: AppState, baseCollectionId: string) => baseCollectionId,
   ],
-  (jsActions, id) => {
-    const action = jsActions.find((action) => action.config.id === id);
+  (jsActions, baseCollectionId) => {
+    const action = jsActions.find(
+      (action) => action.config.baseId === baseCollectionId,
+    );
+
     if (action) {
-      return action.config;
+      return action;
     } else {
       return undefined;
     }
@@ -929,6 +970,7 @@ export const showCanvasTopSectionSelector = createSelector(
     const state = JSON.parse(
       localStorage.getItem(LOCAL_STORAGE_KEYS.CANVAS_CARDS_STATE) ?? "{}",
     );
+
     if (
       !state[pageId] ||
       Object.keys(canvasWidgets).length > 1 ||
@@ -946,9 +988,3 @@ export const getGsheetToken = (state: AppState) =>
 
 export const getGsheetProjectID = (state: AppState) =>
   state.entities.datasources.gsheetProjectID;
-
-export const combinedPreviewModeSelector = createSelector(
-  previewModeSelector,
-  protectedModeSelector,
-  (isPreviewMode, isProtectedMode) => isPreviewMode || isProtectedMode,
-);

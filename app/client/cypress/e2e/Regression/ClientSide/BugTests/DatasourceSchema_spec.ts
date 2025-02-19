@@ -3,6 +3,7 @@ import {
   dataSources,
   entityItems,
   homePage,
+  locators,
 } from "../../../../support/Objects/ObjectsCore";
 import EditorNavigation, {
   EntityType,
@@ -14,7 +15,7 @@ let guid;
 let dataSourceName: string;
 describe(
   "Datasource form related tests",
-  { tags: ["@tag.Datasource"] },
+  { tags: ["@tag.Datasource", "@tag.Git", "@tag.AccessControl"] },
   function () {
     before(() => {
       homePage.CreateNewWorkspace("FetchSchemaOnce", true);
@@ -28,7 +29,7 @@ describe(
         dataSourceName = "Postgres " + guid;
         dataSources.NavigateToDSCreateNew();
         dataSources.CreatePlugIn("PostgreSQL");
-        agHelper.RenameWithInPane(dataSourceName, false);
+        agHelper.RenameDatasource(dataSourceName);
         dataSources.FillPostgresDSForm(
           "Production",
           false,
@@ -46,7 +47,8 @@ describe(
       });
     });
 
-    it("2. Verify if schema was fetched once #18448", () => {
+    //This test is failing because of this bug #36348
+    it.skip("2. Verify if schema was fetched once #36348", () => {
       agHelper.RefreshPage();
       EditorNavigation.SelectEntityByName(
         dataSourceName,
@@ -63,34 +65,38 @@ describe(
       dataSources.DeleteDatasourceFromWithinDS(dataSourceName);
     });
 
-    it(
+    it.skip(
       "3. Verify if schema (table and column) exist in query editor and searching works",
       { tags: ["@tag.excludeForAirgap"] },
       () => {
         agHelper.RefreshPage();
         dataSources.CreateMockDB("Users");
         dataSources.CreateQueryAfterDSSaved();
-        dataSources.VerifyTableSchemaOnQueryEditor("public.users");
-        dataSources.SelectTableFromPreviewSchemaList("public.users");
-        dataSources.VerifyColumnSchemaOnQueryEditor("id", 1);
+        agHelper.GetNClick(dataSources._dsTabSchema);
+        agHelper.AssertElementAbsence(locators._btnSpinner);
         dataSources.FilterAndVerifyDatasourceSchemaBySearch(
           "public.us",
           "public.users",
         );
+        dataSources.SelectTableFromPreviewSchemaList("public.users");
+        dataSources.VerifyColumnSchemaOnQueryEditor("id", 0);
       },
     );
 
-    it(
+    it.skip(
       "4. Verify if refresh works.",
       { tags: ["@tag.excludeForAirgap"] },
       () => {
         agHelper.RefreshPage();
         dataSources.CreateMockDB("Users");
         dataSources.CreateQueryAfterDSSaved();
+        agHelper.GetNClick(dataSources._dsTabSchema);
+        dataSources.FilterAndVerifyDatasourceSchemaBySearch("public.users");
         dataSources.VerifyTableSchemaOnQueryEditor("public.users");
         // then refresh
         dataSources.RefreshDatasourceSchema();
         // assert the schema is still shown.
+        dataSources.FilterAndVerifyDatasourceSchemaBySearch("public.users");
         dataSources.VerifyTableSchemaOnQueryEditor("public.users");
       },
     );

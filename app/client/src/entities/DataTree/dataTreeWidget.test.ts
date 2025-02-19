@@ -1,4 +1,4 @@
-import type { FlattenedWidgetProps } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { FlattenedWidgetProps } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import {
   generateDataTreeWidget,
   getSetterConfig,
@@ -6,7 +6,7 @@ import {
 import {
   ENTITY_TYPE,
   EvaluationSubstitutionType,
-} from "entities/DataTree/dataTreeFactory";
+} from "ee/entities/DataTree/types";
 import WidgetFactory from "WidgetProvider/factory";
 
 import { ValidationTypes } from "constants/WidgetValidation";
@@ -20,6 +20,7 @@ describe("generateDataTreeWidget", () => {
       WidgetFactory,
       "getWidgetMetaPropertiesMap",
     );
+
     getMetaProps.mockReturnValueOnce({
       text: undefined,
       isDirty: false,
@@ -30,6 +31,7 @@ describe("generateDataTreeWidget", () => {
       WidgetFactory,
       "getWidgetDerivedPropertiesMap",
     );
+
     getDerivedProps.mockReturnValueOnce({
       isValid: "{{true}}",
       value: "{{this.text}}",
@@ -39,6 +41,7 @@ describe("generateDataTreeWidget", () => {
       WidgetFactory,
       "getWidgetDefaultPropertiesMap",
     );
+
     getDefaultProps.mockReturnValueOnce({
       text: "defaultText",
     });
@@ -47,6 +50,7 @@ describe("generateDataTreeWidget", () => {
       WidgetFactory,
       "getWidgetPropertyPaneConfig",
     );
+
     getPropertyConfig.mockReturnValueOnce([
       {
         sectionName: "General",
@@ -221,8 +225,6 @@ describe("generateDataTreeWidget", () => {
       parentColumnSpace: 0,
       parentRowSpace: 0,
       rightColumn: 0,
-      renderMode: RenderModes.CANVAS,
-      version: 0,
       topRow: 0,
       widgetId: "123",
       widgetName: "Input1",
@@ -308,6 +310,7 @@ describe("generateDataTreeWidget", () => {
     };
 
     const result = generateDataTreeWidget(widget, widgetMetaProps, new Set());
+
     expect(result.unEvalEntity).toStrictEqual(expectedData);
     expect(result.configEntity).toStrictEqual(expectedConfig);
   });
@@ -335,6 +338,8 @@ describe("generateDataTreeWidget", () => {
       },
     };
 
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const inputSetterConfig: Record<string, any> = {
       __setters: {
         setVisibility: {
@@ -404,6 +409,8 @@ describe("generateDataTreeWidget", () => {
       },
     };
 
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const jsonFormSetterConfig: Record<string, any> = {
       __setters: {
         setVisibility: {
@@ -532,6 +539,8 @@ describe("generateDataTreeWidget", () => {
       },
     };
 
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tableSetterConfig: Record<string, any> = {
       __setters: {
         setVisibility: {

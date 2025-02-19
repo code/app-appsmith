@@ -1,12 +1,12 @@
 import React from "react";
-import type { Checkbox } from "@design-system/widgets";
-import { RadioGroup } from "@design-system/widgets";
+import type { Checkbox } from "@appsmith/wds";
+import { Radio, RadioGroup } from "@appsmith/wds";
 import type { Meta, StoryObj } from "@storybook/react";
 import { StoryGrid, DataAttrWrapper } from "@design-system/storybook";
 
 const meta: Meta<typeof RadioGroup> = {
   component: RadioGroup,
-  title: "Design System/Widgets/RadioGroup",
+  title: "Design System/Widgets/Radio Group",
 };
 
 export default meta;
@@ -22,12 +22,24 @@ export const LightMode: Story = {
     <StoryGrid>
       {states.map((state) => (
         <DataAttrWrapper attr={state} key={state} target="label">
-          <RadioGroup items={items} />
+          <RadioGroup>
+            {items.map(({ label, value }) => (
+              <Radio key={value} value={value}>
+                {label}
+              </Radio>
+            ))}
+          </RadioGroup>
         </DataAttrWrapper>
       ))}
       {states.map((state) => (
         <DataAttrWrapper attr={state} key={state} target="label">
-          <RadioGroup defaultValue="value-1" items={items} />
+          <RadioGroup defaultValue="value-1">
+            {items.map(({ label, value }) => (
+              <Radio key={value} value={value}>
+                {label}
+              </Radio>
+            ))}
+          </RadioGroup>
         </DataAttrWrapper>
       ))}
     </StoryGrid>

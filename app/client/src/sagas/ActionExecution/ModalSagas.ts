@@ -6,9 +6,14 @@ import type {
   TCloseModalDescription,
   TShowModalDescription,
 } from "workers/Evaluation/fns/modalFns";
+import type { SourceEntity } from "entities/AppsmithConsole";
 
-export function* openModalSaga(action: TShowModalDescription) {
+export function* openModalSaga(
+  action: TShowModalDescription,
+  source?: SourceEntity,
+) {
   const { modalName } = action.payload;
+
   if (typeof modalName !== "string") {
     throw new ActionValidationError(
       "SHOW_MODAL_BY_NAME",
@@ -17,14 +22,23 @@ export function* openModalSaga(action: TShowModalDescription) {
       getType(modalName),
     );
   }
+
   yield put(action);
   AppsmithConsole.info({
-    text: `showModal('${modalName ?? ""}') was triggered`,
+    source,
+    text: `showModal triggered`,
+    state: {
+      modalName,
+    },
   });
 }
 
-export function* closeModalSaga(action: TCloseModalDescription) {
+export function* closeModalSaga(
+  action: TCloseModalDescription,
+  source?: SourceEntity,
+) {
   const { modalName } = action.payload;
+
   if (typeof modalName !== "string") {
     throw new ActionValidationError(
       "CLOSE_MODAL",
@@ -33,8 +47,13 @@ export function* closeModalSaga(action: TCloseModalDescription) {
       getType(modalName),
     );
   }
+
   yield put(action);
   AppsmithConsole.info({
-    text: `closeModal(${modalName}) was triggered`,
+    source,
+    text: `closeModal triggered`,
+    state: {
+      modalName,
+    },
   });
 }

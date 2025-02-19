@@ -146,6 +146,7 @@ function getInitialHighlights(
     const alignmentId: string = `${layoutProps.layoutId}-${index}`;
     const alignmentDimension: LayoutElementPosition =
       getDimensions(alignmentId);
+
     highlights = updateHighlights(
       highlights,
       baseHighlight,
@@ -200,6 +201,7 @@ export function getHighlightsForWidgets(
       draggedWidgets,
       getDimensions,
     );
+
     return payload;
   }
 
@@ -235,6 +237,12 @@ export function getHighlightsForWidgets(
      * then derive initial highlights for the alignment.
      */
     if (!widgets.length) {
+      const isFillWidgetDragged = draggedWidgets.some(
+        (widget) => widget.responsiveBehavior === ResponsiveBehavior.Fill,
+      );
+
+      if (isFillWidgetDragged) return;
+
       /**
        * If it is an empty Center alignment,
        * which is no longer in the center position due to the size of its siblings,
@@ -288,6 +296,7 @@ export function getHighlightsForWidgets(
           const skipHighlightBeforeWidget = draggedWidgetIndices.includes(
             index - 1,
           );
+
           /**
            * Add a highlight before the widget
            */
@@ -330,6 +339,7 @@ export function getHighlightsForWidgets(
                 true,
               );
             }
+
             highlights.push(...temp);
             temp = [];
           }
@@ -354,6 +364,7 @@ function generateHighlight(
   isFinalHighlight: boolean,
 ): AnvilHighlightInfo {
   let posX = 0;
+
   if (!currDimension) {
     // Initial highlight
     posX =
@@ -364,6 +375,7 @@ function generateHighlight(
       layoutDimension.width -
       currDimension.left -
       currDimension.width;
+
     posX = Math.min(
       currDimension.left + currDimension.width,
       layoutDimension.left +
@@ -377,11 +389,13 @@ function generateHighlight(
     const gap: number = prevDimension
       ? currDimension.left - (prevDimension.left + prevDimension.width)
       : HIGHLIGHT_SIZE;
+
     posX = Math.max(
       currDimension.left - gap / 2 - HIGHLIGHT_SIZE / 2,
       layoutDimension.left,
     );
   }
+
   const posY = tallestWidget ? tallestWidget.top : layoutDimension.top;
   const edgeDetails = {
     top: posY === layoutDimension.top,
@@ -391,6 +405,7 @@ function generateHighlight(
     right:
       posX + HIGHLIGHT_SIZE === layoutDimension.left + layoutDimension.width,
   };
+
   return {
     ...baseHighlight,
     layoutId,
@@ -430,12 +445,15 @@ function updateHighlights(
     tallestWidget,
     isFinalHighlight,
   );
+
   if (prevHighlight) {
     arr[arr.length - 1] = {
       ...prevHighlight,
     };
   }
+
   arr.push(curr);
+
   return arr;
 }
 
@@ -459,6 +477,8 @@ function extractAlignmentInfo(
   layout: WidgetLayoutProps[],
   getDimensions: GetDimensions,
 ): AlignmentInfo {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const map: { [key: string]: any } = {
     [FlexLayerAlignment.Start]: {
       dimension: getDimensions(
@@ -495,6 +515,7 @@ function extractAlignmentInfo(
       widgets,
       getDimensions,
     );
+
     map[alignment].meta = meta;
   });
 

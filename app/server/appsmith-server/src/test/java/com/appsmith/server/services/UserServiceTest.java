@@ -7,12 +7,13 @@ import com.appsmith.server.configurations.CommonConfig;
 import com.appsmith.server.configurations.WithMockAppsmithUser;
 import com.appsmith.server.constants.FieldName;
 import com.appsmith.server.domains.LoginSource;
+import com.appsmith.server.domains.Organization;
+import com.appsmith.server.domains.OrganizationConfiguration;
 import com.appsmith.server.domains.PasswordResetToken;
 import com.appsmith.server.domains.PermissionGroup;
-import com.appsmith.server.domains.Tenant;
-import com.appsmith.server.domains.TenantConfiguration;
 import com.appsmith.server.domains.User;
 import com.appsmith.server.domains.UserData;
+import com.appsmith.server.domains.UserState;
 import com.appsmith.server.domains.Workspace;
 import com.appsmith.server.dtos.InviteUsersDTO;
 import com.appsmith.server.dtos.ResendEmailVerificationDTO;
@@ -34,16 +35,17 @@ import org.apache.hc.core5.http.message.BasicNameValuePair;
 import org.apache.hc.core5.net.WWWFormCodec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import reactor.util.function.Tuple2;
@@ -66,7 +68,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Slf4j
-@ExtendWith(SpringExtension.class)
 @SpringBootTest
 @DirtiesContext
 public class UserServiceTest {
@@ -102,7 +103,7 @@ public class UserServiceTest {
     EmailVerificationTokenRepository emailVerificationTokenRepository;
 
     @Autowired
-    TenantService tenantService;
+    OrganizationService organizationService;
 
     Mono<User> userMono;
 
@@ -186,7 +187,7 @@ public class UserServiceTest {
                     assertThat(user.getId()).isNotNull();
                     assertThat(user.getEmail()).isEqualTo("new-user-email@email.com");
                     assertThat(user.getName()).isNullOrEmpty();
-                    assertThat(user.getTenantId()).isNotNull();
+                    assertThat(user.getOrganizationId()).isNotNull();
 
                     Set<Policy> userPolicies = user.getPolicies();
                     Optional<Policy> optionalManageUserPolicy = userPolicies.stream()
@@ -426,21 +427,6 @@ public class UserServiceTest {
 
     @Test
     @WithUserDetails(value = "api_user")
-    public void updateRoleOfUser() {
-        UserUpdateDTO updateUser = new UserUpdateDTO();
-        updateUser.setRole("New role of user");
-        final Mono<UserData> resultMono =
-                userService.updateCurrentUser(updateUser, null).then(userDataService.getForUserEmail("api_user"));
-        StepVerifier.create(resultMono)
-                .assertNext(userData -> {
-                    assertNotNull(userData);
-                    assertThat(userData.getRole()).isEqualTo("New role of user");
-                })
-                .verifyComplete();
-    }
-
-    @Test
-    @WithUserDetails(value = "api_user")
     public void updateIntercomConsentOfUser() {
         final Mono<UserData> userDataMono = userDataService.getForUserEmail("api_user");
         StepVerifier.create(userDataMono)
@@ -498,10 +484,9 @@ public class UserServiceTest {
 
     @Test
     @WithUserDetails(value = "api_user")
-    public void updateNameRoleAndUseCaseOfUser() {
+    public void updateNameAndUseCaseOfUser() {
         UserUpdateDTO updateUser = new UserUpdateDTO();
         updateUser.setName("New name of user here");
-        updateUser.setRole("New role of user");
         updateUser.setUseCase("New use case");
         final Mono<Tuple2<User, UserData>> resultMono = userService
                 .updateCurrentUser(updateUser, null)
@@ -513,7 +498,6 @@ public class UserServiceTest {
                     assertNotNull(user);
                     assertNotNull(userData);
                     assertEquals("New name of user here", user.getName());
-                    assertEquals("New role of user", userData.getRole());
                     assertEquals("New use case", userData.getUseCase());
                 })
                 .verifyComplete();
@@ -683,21 +667,23 @@ public class UserServiceTest {
         newUser.setEmail(testEmail);
         Mono<User> userMono = userRepository.save(newUser);
 
-        // Setting tenant Config emailVerificationEnabled to FALSE
-        Mono<Tenant> tenantMono = tenantService.getDefaultTenant().flatMap(tenant1 -> {
-            TenantConfiguration tenantConfiguration = tenant1.getTenantConfiguration();
-            tenantConfiguration.setEmailVerificationEnabled(Boolean.FALSE);
-            tenant1.setTenantConfiguration(tenantConfiguration);
-            return tenantService.update(tenant1.getId(), tenant1);
-        });
+        // Setting Organization Config emailVerificationEnabled to FALSE
+        Mono<Organization> organizationMono = organizationService
+                .getDefaultOrganization()
+                .flatMap(organization -> {
+                    OrganizationConfiguration organizationConfiguration = organization.getOrganizationConfiguration();
+                    organizationConfiguration.setEmailVerificationEnabled(Boolean.FALSE);
+                    organization.setOrganizationConfiguration(organizationConfiguration);
+                    return organizationService.update(organization.getId(), organization);
+                });
 
         Mono<Boolean> emailVerificationMono =
                 userService.resendEmailVerification(getResendEmailVerificationDTO(testEmail), null);
 
-        Mono<Boolean> resultMono = userMono.then(tenantMono).then(emailVerificationMono);
+        Mono<Boolean> resultMono = userMono.then(organizationMono).then(emailVerificationMono);
 
         StepVerifier.create(resultMono)
-                .expectErrorMessage(AppsmithError.TENANT_EMAIL_VERIFICATION_NOT_ENABLED.getMessage())
+                .expectErrorMessage(AppsmithError.ORGANIZATION_EMAIL_VERIFICATION_NOT_ENABLED.getMessage())
                 .verify();
     }
 
@@ -711,18 +697,20 @@ public class UserServiceTest {
         newUser.setEmailVerified(Boolean.TRUE);
         Mono<User> userMono = userRepository.save(newUser);
 
-        // Setting tenant Config emailVerificationEnabled to TRUE
-        Mono<Tenant> tenantMono = tenantService.getDefaultTenant().flatMap(tenant1 -> {
-            TenantConfiguration tenantConfiguration = tenant1.getTenantConfiguration();
-            tenantConfiguration.setEmailVerificationEnabled(Boolean.TRUE);
-            tenant1.setTenantConfiguration(tenantConfiguration);
-            return tenantService.update(tenant1.getId(), tenant1);
-        });
+        // Setting Organization Config emailVerificationEnabled to TRUE
+        Mono<Organization> organizationMono = organizationService
+                .getDefaultOrganization()
+                .flatMap(organization -> {
+                    OrganizationConfiguration organizationConfiguration = organization.getOrganizationConfiguration();
+                    organizationConfiguration.setEmailVerificationEnabled(Boolean.TRUE);
+                    organization.setOrganizationConfiguration(organizationConfiguration);
+                    return organizationService.update(organization.getId(), organization);
+                });
 
         Mono<Boolean> emailVerificationMono =
                 userService.resendEmailVerification(getResendEmailVerificationDTO(testEmail), null);
 
-        Mono<Boolean> resultMono = userMono.then(tenantMono).then(emailVerificationMono);
+        Mono<Boolean> resultMono = userMono.then(organizationMono).then(emailVerificationMono);
 
         StepVerifier.create(resultMono)
                 .expectErrorMessage(AppsmithError.USER_ALREADY_VERIFIED.getMessage())
@@ -750,5 +738,62 @@ public class UserServiceTest {
                     assertEquals("New use case", userData.getUseCase());
                 })
                 .verifyComplete();
+    }
+
+    private <I> Mono<I> runAs(Mono<I> input, User user, String password) {
+        log.info("Running as user: {}", user.getEmail());
+        return input.contextWrite((ctx) -> {
+            SecurityContext securityContext = new SecurityContextImpl(
+                    new UsernamePasswordAuthenticationToken(user, password, user.getAuthorities()));
+            return ctx.put(SecurityContext.class, Mono.just(securityContext));
+        });
+    }
+
+    @Test
+    @WithUserDetails(value = "api_user")
+    public void testUpdateCurrentUser_shouldNotUpdatePolicies() {
+        String testName = "testUpdateName_shouldNotUpdatePolicies";
+        User user = new User();
+        user.setEmail(testName + "@test.com");
+        user.setPassword(testName);
+        User createdUser = userService.create(user).block();
+        Set<Policy> policies = createdUser.getPolicies();
+
+        assertThat(createdUser.getName()).isNull();
+        assertThat(createdUser.getPolicies()).isNotEmpty();
+
+        UserUpdateDTO updateUser = new UserUpdateDTO();
+        updateUser.setName("Test Name");
+
+        User userUpdatedPostNameUpdate = runAs(userService.updateCurrentUser(updateUser, null), createdUser, testName)
+                .block();
+
+        assertThat(userUpdatedPostNameUpdate.getName()).isEqualTo("Test Name");
+        userUpdatedPostNameUpdate.getPolicies().forEach(policy -> {
+            assertThat(policies).contains(policy);
+        });
+    }
+
+    @Test
+    @WithUserDetails(value = "api_user")
+    public void testUpdateWithoutPermission_shouldUpdateChangedFields() {
+        String testName = "testUpdateWithoutPermission_shouldUpdateChangedFields";
+        User user = new User();
+        user.setEmail(testName + "@test.com");
+        user.setPassword(testName);
+        User createdUser = userService.create(user).block();
+        Set<Policy> policies = createdUser.getPolicies();
+
+        User update = new User();
+        update.setName("Test Name");
+        update.setState(UserState.ACTIVATED);
+        User updatedUser =
+                userService.updateWithoutPermission(createdUser.getId(), update).block();
+
+        assertThat(updatedUser.getName()).isEqualTo("Test Name");
+        assertThat(updatedUser.getState()).isEqualTo(UserState.ACTIVATED);
+        policies.forEach(policy -> {
+            assertThat(updatedUser.getPolicies()).contains(policy);
+        });
     }
 }

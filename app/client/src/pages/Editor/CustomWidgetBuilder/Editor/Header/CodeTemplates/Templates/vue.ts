@@ -1,7 +1,4 @@
-import {
-  CUSTOM_WIDGET_FEATURE,
-  createMessage,
-} from "@appsmith/constants/messages";
+import { CUSTOM_WIDGET_FEATURE, createMessage } from "ee/constants/messages";
 import { CUSTOM_WIDGET_ONREADY_DOC_URL } from "pages/Editor/CustomWidgetBuilder/constants";
 
 export default {
@@ -57,7 +54,7 @@ export default {
 }
 
 .button-container {
-	text-align: right;	
+	text-align: right;
 	padding-top: 4px;
 }
 
@@ -110,7 +107,7 @@ export default {
 			},
 			reset() {
 				this.currentIndex = 0;
-				appsmith.triggerEvent("onReset");
+				appsmith.triggerEvent("onResetClick");
 			},
 		},
 	});

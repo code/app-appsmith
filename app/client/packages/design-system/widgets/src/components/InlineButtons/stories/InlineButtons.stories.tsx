@@ -2,12 +2,12 @@ import React from "react";
 import {
   InlineButtons,
   Flex,
-  objectKeys,
   BUTTON_VARIANTS,
   COLORS,
   SIZES,
-} from "@design-system/widgets";
+} from "@appsmith/wds";
 import type { Meta, StoryObj } from "@storybook/react";
+import { objectKeys } from "@appsmith/utils";
 import {
   itemList,
   longItemList,
@@ -21,7 +21,7 @@ import {
  */
 const meta: Meta<typeof InlineButtons> = {
   component: InlineButtons,
-  title: "Design-system/Widgets/InlineButtons",
+  title: "WDS/Widgets/Inline Buttons",
 };
 
 export default meta;
@@ -66,8 +66,11 @@ export const IndividualSemantic: Story = {
 export const Sizes: Story = {
   render: () => (
     <Flex direction="column" gap="spacing-4" width="100%">
-      {Object.keys(SIZES)
-        .filter((size) => !["large"].includes(size))
+      {objectKeys(SIZES)
+        .filter(
+          (size): size is Exclude<keyof typeof SIZES, "xSmall" | "large"> =>
+            !["xSmall", "large"].includes(size),
+        )
         .map((size) => (
           <InlineButtons items={itemList} key={size} size={size} />
         ))}

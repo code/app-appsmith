@@ -10,7 +10,7 @@ import { compact, get, map, sortBy } from "lodash";
 import WidgetsMultiSelectBox from "layoutSystems/fixedlayout/common/widgetGrouping/WidgetsMultiSelectBox";
 import type { SetterConfig, Stylesheet } from "entities/AppTheming";
 import { getSnappedGrid } from "sagas/WidgetOperationUtils";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import {
   isAutoHeightEnabledForWidget,
   DefaultAutocompleteDefinitions,
@@ -39,7 +39,7 @@ import {
 } from "layoutSystems/common/utils/constants";
 import { renderAppsmithCanvas } from "layoutSystems/CanvasFactory";
 import { generateDefaultLayoutPreset } from "layoutSystems/anvil/layoutComponents/presets/DefaultLayoutPreset";
-import type { CanvasWidgetsReduxState } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import { LayoutSystemTypes } from "layoutSystems/types";
 import type { LayoutProps } from "layoutSystems/anvil/utils/anvilTypes";
 import { getWidgetBluePrintUpdates } from "utils/WidgetBlueprintUtils";
@@ -322,6 +322,8 @@ export class ContainerWidget extends BaseWidget<
   static getDefaultPropertiesMap(): Record<string, string> {
     return {};
   }
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static getMetaPropertiesMap(): Record<string, any> {
     return {};
   }
@@ -383,7 +385,11 @@ export class ContainerWidget extends BaseWidget<
       this.props.positioning !== Positioning.Vertical;
 
     return (
-      <ContainerComponent {...props} noScroll={isAutoHeightEnabled}>
+      <ContainerComponent
+        key={props.widgetId}
+        {...props}
+        noScroll={isAutoHeightEnabled}
+      >
         <WidgetsMultiSelectBox
           {...this.getSnapSpaces()}
           noContainerOffset={!!props.noContainerOffset}

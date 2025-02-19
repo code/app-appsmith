@@ -1,14 +1,14 @@
+import * as _ from "../../../../../../support/Objects/ObjectsCore";
 import {
   PageLeftPane,
   PagePaneSegment,
 } from "../../../../../../support/Pages/EditorNavigation";
 
 const commonlocators = require("../../../../../../locators/commonlocators.json");
-import * as _ from "../../../../../../support/Objects/ObjectsCore";
 
 describe(
   "Table widget - Select column type functionality",
-  { tags: ["@tag.Widget", "@tag.Table"] },
+  { tags: ["@tag.Widget", "@tag.Table", "@tag.Binding"] },
   () => {
     before(() => {
       cy.dragAndDropToCanvas("tablewidgetv2", { x: 350, y: 500 });
@@ -30,10 +30,16 @@ describe(
       cy.get(".t--property-pane-section-collapse-events").should("exist");
     });
 
-    it("2. should check that options given in the property pane is appearing on the table", () => {
-      cy.get(".t--property-control-options").should("exist");
+    it("2. should check that select column returns value if no option is provided", () => {
+      cy.readTableV2data(0, 0).then((val) => {
+        expect(val).to.equal("#1");
+      });
+    });
+
+    it("3. should check that JSON options given in the property pane is appearing on the table", () => {
+      cy.get(_.locators._controlOption).should("exist");
       cy.updateCodeInput(
-        ".t--property-control-options",
+        _.locators._controlOption,
         `
       [
         {
@@ -73,9 +79,52 @@ describe(
       cy.get(".menu-item-active.has-focus").should("contain", "#1");
     });
 
-    it("3. should check that placeholder property is working", () => {
+    it("4. should check that javascript options given in the property pane is appearing on the table", () => {
+      cy.get(_.locators._controlOption).should("exist");
       cy.updateCodeInput(
-        ".t--property-control-options",
+        _.locators._controlOption,
+        `
+      {{[
+        {
+          "label": "#1",
+          "value": "#1"
+        },
+        {
+          "label": "#2",
+          "value": "#2"
+        },
+        {
+          "label": "#3",
+          "value": "#3"
+        }
+      ]}}
+    `,
+      );
+      cy.editTableSelectCell(0, 0);
+
+      [
+        {
+          label: "#1",
+          value: "#1",
+        },
+        {
+          label: "#2",
+          value: "#2",
+        },
+        {
+          label: "#3",
+          value: "#3",
+        },
+      ].forEach((item) => {
+        cy.get(".menu-item-text").contains(item.value).should("exist");
+      });
+
+      cy.get(".menu-item-active.has-focus").should("contain", "#1");
+    });
+
+    it("5. should check that placeholder property is working", () => {
+      cy.updateCodeInput(
+        _.locators._controlOption,
         `
       [
         {
@@ -109,9 +158,9 @@ describe(
       ).should("contain", "choose an item");
     });
 
-    it("4. should check that filterable property is working", () => {
+    it("6. should check that filterable property is working", () => {
       cy.updateCodeInput(
-        ".t--property-control-options",
+        _.locators._controlOption,
         `
       {{[
         {
@@ -129,7 +178,9 @@ describe(
       ]}}
     `,
       );
-      cy.get(".t--property-control-filterable input").click({ force: true });
+      cy.get(_.locators._propertyControlInput("filterable")).click({
+        force: true,
+      });
       cy.editTableSelectCell(0, 0);
       cy.get(".select-popover-wrapper .bp3-input-group input").should("exist");
       cy.get(".select-popover-wrapper .bp3-input-group input").type("1", {
@@ -152,7 +203,8 @@ describe(
       cy.get(".t--canvas-artboard").click({ force: true });
     });
 
-    it("5. should check that on option select is working", () => {
+    it("7. should check that on option select is working", () => {
+      _.agHelper.CheckForPageSaveError();
       cy.openPropertyPane("tablewidgetv2");
       cy.editColumn("step");
       cy.get(".t--property-control-onoptionchange .t--js-toggle").click();
@@ -162,21 +214,40 @@ describe(
       {{showAlert(currentRow.step)}}
     `,
       );
+      cy.updateCodeInput(
+        _.locators._controlOption,
+        `
+      [
+        {
+          "label": "#1label",
+          "value": "#1value"
+        },
+        {
+          "label": "#2label",
+          "value": "#2value"
+        },
+        {
+          "label": "#3label",
+          "value": "#3value"
+        }
+      ]
+    `,
+      );
       cy.editTableSelectCell(0, 0);
-      cy.get(".menu-item-link").contains("#3").click();
+      cy.get(".menu-item-link").contains("#3label").click();
 
-      _.agHelper.ValidateToastMessage("#3");
+      _.agHelper.ValidateToastMessage("#3value");
 
       cy.get(".menu-virtual-list").should("not.exist");
       cy.readTableV2data(0, 0).then((val) => {
-        expect(val).to.equal("#3");
+        expect(val).to.equal("#3label");
       });
       cy.discardTableRow(4, 0);
     });
 
-    it("6. should check that currentRow is accessible in the select options", () => {
+    it("8. should check that currentRow is accessible in the select options", () => {
       cy.updateCodeInput(
-        ".t--property-control-options",
+        _.locators._controlOption,
         `
       {{[
         {
@@ -199,7 +270,7 @@ describe(
       cy.get(".menu-item-text").contains("#1").should("not.exist");
     });
 
-    it("7. should check that 'same select option in new row' property is working", () => {
+    it("9. should check that 'same select option in new row' property is working", () => {
       _.propPane.NavigateBackToPropertyPane();
 
       const checkSameOptionsInNewRowWhileEditing = () => {
@@ -216,7 +287,7 @@ describe(
         cy.get(".t--property-control-newrowoptions").should("not.exist");
 
         cy.updateCodeInput(
-          ".t--property-control-options",
+          _.locators._controlOption,
           `
         {{[{
           "label": "male",
@@ -265,7 +336,13 @@ describe(
       checkSameOptionsWhileAddingNewRow();
     });
 
-    it("8. should check that 'new row select options' is working", () => {
+    it("10. check that table shows with select options mismatch", () => {
+      cy.readTableV2data(0, 0).then((val) => {
+        expect(val).to.equal("#1");
+      });
+    });
+
+    it("11. should check that 'new row select options' is working", () => {
       const checkNewRowOptions = () => {
         // New row select options should be visible when "Same options in new row" is turned off
         _.propPane.TogglePropertyState("Same options in new row", "Off");
@@ -330,18 +407,22 @@ describe(
       checkNoOptionState();
     });
 
-    it("9. should check that server side filering is working", () => {
+    it("12. should check that server side filering is working", () => {
       _.dataSources.CreateDataSource("Postgres");
       _.dataSources.CreateQueryAfterDSSaved(
         "SELECT * FROM public.astronauts {{this.params.filterText ? `WHERE name LIKE '%${this.params.filterText}%'` : ''}} LIMIT 10;",
       );
       _.dataSources.ToggleUsePreparedStatement(false);
       cy.wait("@saveAction");
-      cy.get(".t--run-query").click();
+      cy.get(_.dataSources._runQueryBtn).click();
       cy.wait("@postExecute");
       PageLeftPane.switchSegment(PagePaneSegment.UI);
       cy.openPropertyPane("tablewidgetv2");
       cy.editColumn("step");
+      _.agHelper.CheckUncheck(
+        _.locators._propertyControlInput("filterable"),
+        true,
+      );
       cy.get(".t--property-control-serversidefiltering input").click();
       cy.updateCodeInput(
         ".t--property-pane-section-selectproperties",

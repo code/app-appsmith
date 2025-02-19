@@ -2,7 +2,7 @@ import { Layers } from "constants/Layers";
 import type { RefObject } from "react";
 import React, { useState, useEffect } from "react";
 import styled, { css } from "styled-components";
-import { ActionExecutionResizerHeight } from "pages/Editor/APIEditor/constants";
+import { ActionExecutionResizerHeight } from "PluginActionEditor/components/PluginActionResponse/constants";
 
 export const ResizerCSS = css`
   width: 100%;
@@ -38,9 +38,13 @@ function Resizer(props: ResizerProps) {
   // On mount and update, set the initial height of the component
   useEffect(() => {
     if (!props.initialHeight) return;
+
     const panel = props.panelRef.current;
+
     if (!panel) return;
+
     panel.style.height = `${props.initialHeight}px`;
+
     if (height !== props.initialHeight) {
       setHeight(props.initialHeight);
     }
@@ -48,6 +52,7 @@ function Resizer(props: ResizerProps) {
 
   const handleResize = (movementY: number) => {
     const panel = props.panelRef.current;
+
     if (!panel) return;
 
     const { height } = panel.getBoundingClientRect();
@@ -78,6 +83,7 @@ function Resizer(props: ResizerProps) {
     // snap the resizer to a specific height as specified by the snapToHeight prop.
     if (props.openResizer && !mouseDown) {
       const panel = props.panelRef.current;
+
       if (!panel) return;
 
       const { height } = panel.getBoundingClientRect();

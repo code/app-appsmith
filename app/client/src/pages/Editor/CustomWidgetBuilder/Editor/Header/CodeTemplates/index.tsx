@@ -11,18 +11,18 @@ import {
   ModalBody,
   ModalFooter,
   Text,
-} from "design-system";
+} from "@appsmith/ads";
 import React, { useContext, useState } from "react";
-import codeTemplates from "./Templates";
+import fixedLayoutTemplates from "./Templates";
+import anvilTemplates from "./Templates/anvilTemplates";
 import { CustomWidgetBuilderContext } from "pages/Editor/CustomWidgetBuilder";
 import styles from "../styles.module.css";
 import type { SrcDoc } from "pages/Editor/CustomWidgetBuilder/types";
 import styled from "styled-components";
-import {
-  CUSTOM_WIDGET_FEATURE,
-  createMessage,
-} from "@appsmith/constants/messages";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import { CUSTOM_WIDGET_FEATURE, createMessage } from "ee/constants/messages";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
+import { useSelector } from "react-redux";
+import { getIsAnvilLayout } from "layoutSystems/anvil/integrations/selectors";
 
 const StyledButton = styled(Button)`
   height: 32px !important;
@@ -79,6 +79,8 @@ export function CodeTemplates() {
 
   const [selectedTemplate, setSelectedTemplate] = useState<SrcDoc | null>(null);
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
+  const isAnvilLayout = useSelector(getIsAnvilLayout);
+  const codeTemplates = isAnvilLayout ? anvilTemplates : fixedLayoutTemplates;
 
   return (
     <div className={styles.templateMenu}>

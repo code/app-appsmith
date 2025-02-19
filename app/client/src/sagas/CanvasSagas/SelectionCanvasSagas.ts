@@ -1,7 +1,7 @@
 import { selectWidgetInitAction } from "actions/widgetSelectionActions";
 import type { OccupiedSpace } from "constants/CanvasEditorConstants";
-import type { ReduxAction } from "@appsmith/constants/ReduxActionConstants";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+import type { ReduxAction } from "actions/ReduxActionTypes";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import { MAIN_CONTAINER_WIDGET_ID } from "constants/WidgetConstants";
 import equal from "fast-deep-equal/es6";
 import type { Task } from "redux-saga";
@@ -12,7 +12,7 @@ import { snapToGrid } from "utils/helpers";
 import { areIntersecting } from "utils/boxHelpers";
 import type { WidgetProps } from "widgets/BaseWidget";
 import { getWidgets } from "sagas/selectors";
-import type { CanvasWidgetsReduxState } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import { SelectionRequestType } from "sagas/WidgetSelectUtils";
 import type { SelectedArenaDimensions } from "layoutSystems/fixedlayout/editor/FixedLayoutCanvasArenas/CanvasSelectionArena";
 
@@ -28,6 +28,8 @@ interface StartingSelectionState {
 
 function* selectAllWidgetsInAreaSaga(
   StartingSelectionState: StartingSelectionState,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   action: ReduxAction<any>,
 ) {
   const { lastSelectedWidgets, mainContainer, widgetOccupiedSpaces } =
@@ -137,6 +139,7 @@ function* startCanvasSelectionSaga(
       widgetOccupiedSpaces,
     },
   );
+
   yield take(ReduxActionTypes.STOP_CANVAS_SELECTION);
   yield cancel(selectionTask);
 }

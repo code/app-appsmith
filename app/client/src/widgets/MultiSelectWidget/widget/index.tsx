@@ -17,7 +17,7 @@ import { Layers } from "constants/Layers";
 import { WIDGET_TAGS, layoutConfigurations } from "constants/WidgetConstants";
 import { FILL_WIDGET_MIN_WIDTH } from "constants/minWidthConstants";
 import type { SetterConfig, Stylesheet } from "entities/AppTheming";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import { ResponsiveBehavior } from "layoutSystems/common/utils/constants";
 import { buildDeprecationWidgetMessage } from "pages/Editor/utils";
 import type { DraftValueType } from "rc-select/lib/Select";
@@ -31,19 +31,23 @@ import IconSVG from "../icon.svg";
 
 function defaultOptionValueValidation(value: unknown): ValidationResponse {
   let values: string[] = [];
+
   if (typeof value === "string") {
     try {
       values = JSON.parse(value);
+
       if (!Array.isArray(values)) {
         throw new Error();
       }
     } catch {
       values = value.length ? value.split(",") : [];
+
       if (values.length > 0) {
         values = values.map((_v: string) => _v.trim());
       }
     }
   }
+
   if (Array.isArray(value)) {
     values = Array.from(new Set(value));
   }
@@ -496,6 +500,8 @@ class MultiSelectWidget extends BaseWidget<
     };
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static getMetaPropertiesMap(): Record<string, any> {
     return {
       selectedOptionValueArr: undefined,

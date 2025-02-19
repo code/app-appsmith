@@ -20,12 +20,14 @@ import {
   JSON_FORM_CONNECT_BUTTON_TEXT,
   JSON_FORM_CONNECT_OVERLAY_TEXT,
 } from "../constants/messages";
-import { createMessage } from "@appsmith/constants/messages";
+import { createMessage } from "ee/constants/messages";
 
 interface StyledContainerProps {
   backgroundColor?: string;
 }
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface JSONFormComponentProps<TValues = any> {
   backgroundColor?: string;
   borderColor?: Color;
@@ -59,10 +61,15 @@ export interface JSONFormComponentProps<TValues = any> {
   submitButtonStyles: ButtonStyleProps;
   title: string;
   updateFormData: (values: TValues) => void;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateWidgetMetaProperty: (propertyName: string, propertyValue: any) => void;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateWidgetProperty: (propertyName: string, propertyValue: any) => void;
   widgetId: string;
   showConnectDataOverlay?: boolean;
+  maxAllowedFields?: number;
 }
 
 const StyledContainer = styled(WidgetStyleContainer)<StyledContainerProps>`
@@ -168,7 +175,8 @@ function JSONFormComponent<TValues>(
     if (fieldLimitExceeded) {
       return (
         <InfoMessage fixHeight={fixMessageHeight}>
-          Source data exceeds {MAX_ALLOWED_FIELDS} fields.&nbsp;
+          Source data exceeds {rest.maxAllowedFields || MAX_ALLOWED_FIELDS}{" "}
+          fields. &nbsp;
           {renderMode === RenderModes.PAGE
             ? "Please contact your developer for more information"
             : "Please update the source data."}

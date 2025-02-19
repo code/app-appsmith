@@ -1,9 +1,9 @@
 import React from "react";
 import type { ControlData, ControlProps } from "./BaseControl";
 import BaseControl from "./BaseControl";
-import type { ToggleGroupOption } from "design-system";
-import { ToggleButtonGroup } from "design-system";
-import produce from "immer";
+import type { ToggleGroupOption } from "@appsmith/ads";
+import { ToggleButtonGroup } from "@appsmith/ads";
+import { create } from "mutative";
 import type { DSEventDetail } from "utils/AppsmithUtils";
 import {
   DSEventTypes,
@@ -62,7 +62,7 @@ class ButtonTabControl extends BaseControl<ButtonTabControlProps> {
         isUpdatedViaKeyboard,
       );
     } else {
-      const updatedValues: string[] = produce(values, (draft: string[]) => {
+      const updatedValues: string[] = create(values, (draft: string[]) => {
         draft.push(value);
       });
 
@@ -91,6 +91,8 @@ class ButtonTabControl extends BaseControl<ButtonTabControlProps> {
     return "BUTTON_GROUP";
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static canDisplayValueInUI(config: ControlData, value: any): boolean {
     const allowedValues = new Set(
       (config as ButtonTabControlProps)?.options?.map(

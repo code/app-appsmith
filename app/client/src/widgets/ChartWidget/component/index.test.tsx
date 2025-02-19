@@ -18,7 +18,14 @@ import { Provider } from "react-redux";
 import configureMockStore from "redux-mock-store";
 import { APP_MODE } from "entities/App";
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let container: any;
+
+jest.mock("selectors/gitModSelectors", () => ({
+  ...jest.requireActual("selectors/gitModSelectors"),
+  selectCombinedPreviewMode: jest.fn(() => false),
+}));
 
 describe("Chart Widget", () => {
   const seriesData1: ChartData = {
@@ -108,17 +115,21 @@ describe("Chart Widget", () => {
     );
 
     const xAxisLabel = getByText("xaxisname");
+
     expect(xAxisLabel).toBeInTheDocument();
 
     let echartsContainer = container.querySelector("#widgetIDechart-container");
+
     expect(echartsContainer).toBeInTheDocument();
 
     let fusionContainer = container.querySelector(
       "#widgetIDcustom-fusion-chart-container",
     );
+
     expect(fusionContainer).not.toBeInTheDocument();
 
     let props = { ...defaultProps };
+
     props.chartType = "CUSTOM_FUSION_CHART";
 
     rerender(
@@ -151,6 +162,7 @@ describe("Chart Widget", () => {
   it("2. successfully switches sequence of basic chart/custom fusion chart/basic chart/custom echart", async () => {
     // First render with Area Chart
     let props = JSON.parse(JSON.stringify(defaultProps));
+
     props.chartType = "AREA_CHART";
 
     const { container, getByText, rerender } = render(
@@ -160,14 +172,17 @@ describe("Chart Widget", () => {
     );
 
     let xAxisLabel = getByText("xaxisname");
+
     expect(xAxisLabel).toBeInTheDocument();
 
     let echartsContainer = container.querySelector("#widgetIDechart-container");
+
     expect(echartsContainer).toBeInTheDocument();
 
     let fusionContainer = container.querySelector(
       "#widgetIDcustom-fusion-chart-container",
     );
+
     expect(fusionContainer).not.toBeInTheDocument();
 
     // Second render with fusion charts
@@ -221,6 +236,7 @@ describe("Chart Widget", () => {
   it("3. adds a click event when user adds a click callback", async () => {
     const mockCallback = jest.fn((params) => params);
     const props = { ...defaultProps };
+
     props.onDataPointClick = (point) => {
       point;
       mockCallback(point);
@@ -234,6 +250,7 @@ describe("Chart Widget", () => {
 
     expect(mockCallback.mock.calls.length).toEqual(0);
     const el = await screen.findByText("1000");
+
     await userEvent.click(el);
     expect(mockCallback.mock.calls.length).toEqual(1);
   });

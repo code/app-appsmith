@@ -1,4 +1,4 @@
-import type { FeatureFlag } from "@appsmith/entities/FeatureFlag";
+import type { FeatureFlag } from "ee/entities/FeatureFlag";
 import {
   setFeatureFlagOverridesAction,
   updateFeatureFlagOverrideAction,
@@ -15,6 +15,7 @@ import {
 export const AvailableFeaturesToOverride: FeatureFlag[] = [
   "release_anvil_enabled",
   "release_layout_conversion_enabled",
+  "release_anvil_toggle_enabled",
 ];
 export type OverriddenFeatureFlags = Partial<Record<FeatureFlag, boolean>>;
 
@@ -37,19 +38,23 @@ export const useFeatureFlagOverride = () => {
           ) {
             acc[flagName] = flagValues[flagName];
           }
+
           return acc;
         }, {} as OverriddenFeatureFlags);
+
         if (filteredFlagValues) {
           dispatch(setFeatureFlagOverridesAction(filteredFlagValues));
         }
       });
     }
-  }, [areFeatureFlagsFetched]);
+  }, [areFeatureFlagsFetched, dispatch]);
 
   /**
    * Sets up a global function to toggle the feature flag override.
    */
   useEffect(() => {
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).overrideFeatureFlag = (
       featureFlagValues: OverriddenFeatureFlags,
     ) => {
@@ -60,6 +65,7 @@ export const useFeatureFlagOverride = () => {
           AvailableFeaturesToOverride.includes(flagName) &&
           isBoolean(flagValue),
       );
+
       if (areAllFlagsValid) {
         dispatch(updateFeatureFlagOverrideAction(featureFlagValues));
         setFeatureFlagOverrideValues(featureFlagValues);

@@ -17,8 +17,6 @@ import { evaluateHiddenProperty } from "./helpers";
 import type { EnhancementFns } from "selectors/widgetEnhancementSelectors";
 import { getWidgetEnhancementSelector } from "selectors/widgetEnhancementSelectors";
 import equal from "fast-deep-equal/es6";
-import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
-import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
 
 export interface PropertyControlsGeneratorProps {
   id: string;
@@ -51,10 +49,12 @@ const generatePropertyControl = (
   isCollapseAllExceptDataEnabled: boolean,
 ) => {
   if (!propertyPaneConfig) return null;
+
   return propertyPaneConfig.map((config: PropertyPaneConfig) => {
     if ((config as PropertyPaneSectionConfig).sectionName) {
       const sectionConfig: PropertyPaneSectionConfig =
         config as PropertyPaneSectionConfig;
+
       return (
         <PropertySection
           childrenId={sectionConfig.childrenId}
@@ -94,16 +94,15 @@ const generatePropertyControl = (
         />
       );
     }
+
     throw Error("Unknown configuration provided: " + props.type);
   });
 };
 
 function PropertyControlsGenerator(props: PropertyControlsGeneratorProps) {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const widgetProps: any = useSelector(getWidgetPropsForPropertyPane);
-
-  const isCollapseAllExceptDataEnabled: boolean = useFeatureFlag(
-    FEATURE_FLAG.ab_learnability_discoverability_collapse_all_except_data_enabled,
-  );
 
   const enhancementSelector = getWidgetEnhancementSelector(
     widgetProps?.widgetId,
@@ -131,11 +130,11 @@ function PropertyControlsGenerator(props: PropertyControlsGeneratorProps) {
   ) : (
     <>
       {generatePropertyControl(
-        searchResults as readonly PropertyPaneConfig[],
+        searchResults,
         props,
         isSearchResult,
         enhancements,
-        isCollapseAllExceptDataEnabled,
+        true,
       )}
     </>
   );

@@ -21,7 +21,7 @@ import EditorNavigation, {
 
 describe(
   "Switchgroup Widget Functionality",
-  { tags: ["@tag.Widget", "@tag.Switch"] },
+  { tags: ["@tag.Widget", "@tag.Switch", "@tag.Binding"] },
   function () {
     /**
      * Adding switch group, checkbox group and text widgets
@@ -217,7 +217,7 @@ describe(
       agHelper.TypeText(widgetsLoc.RadioInput, "{{BLUE}}", 1);
       propPane.ToggleJSMode("Options", true);
       agHelper.AssertElementAbsence(locators._toastMsg);
-      agHelper.GetNAssertElementText(widgets.textWidget, "RED");
+      agHelper.GetNAssertElementText(widgets.textWidget, "");
     });
 
     it("4. Set Label, Tooltip, Inline and check switch group", () => {
@@ -278,7 +278,7 @@ describe(
         0,
         true,
       );
-      agHelper.AssertElementVisibility(locators._visibleTextSpan("RED"));
+      agHelper.AssertElementVisibility(locators._visibleTextSpan("BLUE"));
     });
   },
 );

@@ -66,10 +66,12 @@ export class PropertyPane {
   _colorInputField = (option: string) =>
     "//h3[text()='" + option + " Color']//parent::div";
   _actionSelectorPopup = ".t--action-selector-popup";
+  _actionCollapsibleHeader = (label: string) =>
+    `.ads-v2-collapsible__header:has(label[for="${label}"])`;
   _actionSelectorFieldByLabel = (label: string) =>
-    `.t--action-selector-popup label[for="${label}"] + div .CodeMirror textarea`;
+    `.t--action-selector-popup label[for="${label}"] + div .CodeMirror textarea, .t--action-selector-popup .ads-v2-collapsible__header:has(label[for="${label}"]) + div .CodeMirror textarea`;
   _actionSelectorFieldContentByLabel = (label: string) =>
-    `.t--action-selector-popup label[for="${label}"] + div`;
+    `.t--action-selector-popup label[for="${label}"] + div, .t--action-selector-popup .ads-v2-collapsible__header:has(label[for="${label}"]) + div`;
   _actionCardByTitle = (title: string) =>
     `[data-testid='action-card-${title}']`;
   _actionCallbacks = ".t--action-callbacks";
@@ -90,7 +92,7 @@ export class PropertyPane {
     "div.tab-view span:contains('" + type + "')";
 
   _dropdownSelectType = ".t--open-dropdown-Select-type";
-  _selectorViewLabel = '[data-testId="selector-view-label"]';
+  _selectorViewLabel = '[data-testid="selector-view-label"]';
   _textView = ".text-view";
   _selectorView = ".selector-view";
   _dropdownOptions =
@@ -175,6 +177,10 @@ export class PropertyPane {
   _dataIcon = (icon: string) => `[data-icon="${icon}"]`;
   _iconDropdown = "[data-test-id='virtuoso-scroller']";
   _dropdownControlError = "[data-testid='t---dropdown-control-error']";
+  _borderColorCursor = ".t--property-control-bordercolor .bp3-input-group div";
+  _buttonWidget = "[data-widgetname-cy='Button1']";
+  _getActionCardSelector = (type: string) =>
+    `[data-testid='action-card-Show ${type}']`;
 
   public OpenJsonFormFieldSettings(fieldName: string) {
     this.agHelper.GetNClick(this._jsonFieldEdit(fieldName));
@@ -674,5 +680,51 @@ export class PropertyPane {
       });
 
     this.agHelper.AssertAutoSave(); //Allowing time for saving entered value
+  }
+
+  public AssertPropertySwitchState(
+    propertyName: string,
+    state: "enabled" | "disabled",
+  ) {
+    this.agHelper
+      .GetElement(this._propertyToggle(propertyName))
+      .should(state === "enabled" ? "be.checked" : "not.be.checked");
+  }
+
+  public ExpandIfCollapsedSection(sectionName: string) {
+    cy.get(`.t--property-pane-section-collapse-${sectionName}`)
+      .scrollIntoView()
+      .then(($element) => {
+        cy.wrap($element)
+          .siblings(".bp3-collapse")
+          .then(($sibling) => {
+            const siblingHeight = $sibling.height(); // Get the height of the sibling element
+
+            if (!siblingHeight) {
+              $element.click();
+            }
+          });
+      });
+  }
+
+  public ToggleJSModeByIndex(
+    endp: string,
+    toToggleOnJS: true | false = true,
+    index: number = 0,
+  ) {
+    const toggleLocator = this.locator._jsToggle(
+      endp.replace(/ +/g, "").toLowerCase(),
+    );
+
+    cy.get(toggleLocator)
+      .eq(index) // Use the index to interact with a specific toggle
+      .invoke("attr", "class")
+      .then((classes: string) => {
+        if (toToggleOnJS && !classes.includes("is-active")) {
+          this.agHelper.GetNClick(toggleLocator, index, true);
+        } else if (!toToggleOnJS && classes.includes("is-active")) {
+          this.agHelper.GetNClick(toggleLocator, index, true);
+        }
+      });
   }
 }

@@ -1,30 +1,27 @@
 import { executeDatasourceQuery } from "actions/datasourceActions";
 import type { Datasource, QueryTemplate } from "entities/Datasource";
 import { useCallback, useState } from "react";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import { useDispatch, useSelector } from "react-redux";
 import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
-import { PluginName } from "entities/Action";
 import { isGoogleSheetPluginDS } from "utils/editorContextUtils";
 import {
   getHasCreatePagePermission,
   hasCreateDSActionPermissionInApp,
-} from "@appsmith/utils/BusinessFeatures/permissionPageHelpers";
-import type { GenerateCRUDEnabledPluginMap } from "api/PluginApi";
+} from "ee/utils/BusinessFeatures/permissionPageHelpers";
+import { type GenerateCRUDEnabledPluginMap, PluginName } from "entities/Plugin";
 import { DATASOURCES_ALLOWED_FOR_PREVIEW_MODE } from "constants/QueryEditorConstants";
 import {
   getGenerateCRUDEnabledPluginMap,
   getPlugin,
-} from "@appsmith/selectors/entitiesSelector";
-import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
-import type { AppState } from "@appsmith/reducers";
-import {
-  getCurrentApplication,
-  getPagePermissions,
-} from "selectors/editorSelectors";
+} from "ee/selectors/entitiesSelector";
+import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
+import type { AppState } from "ee/reducers";
+import { getPagePermissions } from "selectors/editorSelectors";
 import { get } from "lodash";
-import { useEditorType } from "@appsmith/hooks";
 import history from "utils/history";
+import { getCurrentApplication } from "ee/selectors/applicationSelectors";
+import { getIDETypeByUrl } from "ee/entities/IDE/utils";
 
 interface FetchPreviewData {
   datasourceId: string;
@@ -38,7 +35,11 @@ interface UseDatasourceQueryReturn {
 }
 
 interface UseDatasourceQueryParams {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setPreviewData: (data: any) => void;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setPreviewDataError: (string: any) => void;
 }
 
@@ -52,6 +53,8 @@ export const useDatasourceQuery = ({
   const [failedFetchingPreviewData, setFailedFetchingPreviewData] =
     useState(false);
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onFetchPreviewDataSuccess = useCallback((payload: any) => {
     setIsLoading(false);
 
@@ -68,6 +71,8 @@ export const useDatasourceQuery = ({
     }
   }, []);
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onFetchPreviewDataFailure = useCallback((error: any) => {
     setIsLoading(false);
     setFailedFetchingPreviewData(true);
@@ -123,6 +128,10 @@ export const useShowPageGenerationOnHeader = (
 
   const isGoogleSheetPlugin = isGoogleSheetPluginDS(plugin?.packageName);
 
+  const releaseDragDropBuildingBlocks = useFeatureFlag(
+    FEATURE_FLAG.release_drag_drop_building_blocks_enabled,
+  );
+
   const isPluginAllowedToPreviewData =
     DATASOURCES_ALLOWED_FOR_PREVIEW_MODE.includes(plugin?.name || "") ||
     (plugin?.name === PluginName.MONGO &&
@@ -132,7 +141,7 @@ export const useShowPageGenerationOnHeader = (
     getGenerateCRUDEnabledPluginMap,
   );
 
-  const editorType = useEditorType(history.location.pathname);
+  const ideType = getIDETypeByUrl(history.location.pathname);
 
   const canCreatePages = getHasCreatePagePermission(
     isGACEnabled,
@@ -142,7 +151,7 @@ export const useShowPageGenerationOnHeader = (
     isEnabled: isGACEnabled,
     dsPermissions: datasourcePermissions,
     pagePermissions,
-    editorType,
+    ideType,
   });
 
   const canGeneratePage = canCreateDatasourceActions && canCreatePages;
@@ -151,5 +160,9 @@ export const useShowPageGenerationOnHeader = (
     !isPluginAllowedToPreviewData &&
     !!generateCRUDSupportedPlugin[(datasource as Datasource).pluginId];
 
-  return supportTemplateGeneration && canGeneratePage;
+  return (
+    !releaseDragDropBuildingBlocks && // only show generate page button if dragging of building blocks is not enabled (product decision)
+    supportTemplateGeneration &&
+    canGeneratePage
+  );
 };

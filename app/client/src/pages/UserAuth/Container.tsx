@@ -1,10 +1,10 @@
 import React from "react";
 import { useSelector } from "react-redux";
 
-import { getTenantConfig } from "@appsmith/selectors/tenantSelectors";
-import { getAssetUrl } from "@appsmith/utils/airgapHelpers";
+import { getOrganizationConfig } from "ee/selectors/organizationSelectors";
+import { getAssetUrl } from "ee/utils/airgapHelpers";
 import LeftSideContent from "./LeftSideContent";
-import { getAppsmithConfigs } from "@appsmith/configs";
+import { getAppsmithConfigs } from "ee/configs";
 import { useIsMobileDevice } from "utils/hooks/useDeviceDetect";
 import styled from "styled-components";
 
@@ -40,7 +40,7 @@ const BoxWrapper = styled.div<{ isMobileView: boolean }>`
 
 function Container(props: ContainerProps) {
   const { children, footer, subtitle, testId, title } = props;
-  const tenantConfig = useSelector(getTenantConfig);
+  const organizationConfig = useSelector(getOrganizationConfig);
   const { cloudHosting } = getAppsmithConfigs();
   const isMobileDevice = useIsMobileDevice();
 
@@ -59,7 +59,7 @@ function Container(props: ContainerProps) {
         {!isMobileDevice && (
           <img
             className="h-8 mx-auto"
-            src={getAssetUrl(tenantConfig.brandLogoUrl)}
+            src={getAssetUrl(organizationConfig.brandLogoUrl)}
           />
         )}
         <div className={`flex flex-col gap-4`}>

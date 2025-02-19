@@ -1,5 +1,6 @@
 package com.appsmith.server.solutions;
 
+import com.appsmith.external.git.constants.ce.RefType;
 import com.appsmith.external.models.ActionConfiguration;
 import com.appsmith.external.models.ActionDTO;
 import com.appsmith.external.models.DBAuth;
@@ -7,7 +8,6 @@ import com.appsmith.external.models.Datasource;
 import com.appsmith.external.models.DatasourceConfiguration;
 import com.appsmith.external.models.DatasourceStorage;
 import com.appsmith.external.models.DatasourceStorageDTO;
-import com.appsmith.external.models.DefaultResources;
 import com.appsmith.external.models.Property;
 import com.appsmith.server.applications.base.ApplicationService;
 import com.appsmith.server.datasources.base.DatasourceService;
@@ -39,7 +39,6 @@ import com.appsmith.server.services.WorkspaceService;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,7 +46,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.test.context.support.WithUserDetails;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -61,7 +59,6 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Slf4j
-@ExtendWith(SpringExtension.class)
 @SpringBootTest
 public class PartialExportServiceTest {
 
@@ -224,7 +221,7 @@ public class PartialExportServiceTest {
         testApplication.setModifiedBy("some-user");
         testApplication.setGitApplicationMetadata(new GitArtifactMetadata());
         GitArtifactMetadata gitData = new GitArtifactMetadata();
-        gitData.setBranchName("master");
+        gitData.setRefName("master");
         gitData.setDefaultBranchName("master");
         testApplication.setGitApplicationMetadata(gitData);
 
@@ -264,7 +261,7 @@ public class PartialExportServiceTest {
 
         // Get the partial export resources
         Mono<ApplicationJson> partialExportFileDTOMono = partialExportService.getPartialExportResources(
-                testApplication.getId(), savedPage.getId(), null, partialExportFileDTO);
+                testApplication.getId(), savedPage.getId(), partialExportFileDTO);
 
         StepVerifier.create(partialExportFileDTOMono)
                 .assertNext(applicationJson -> {
@@ -293,13 +290,8 @@ public class PartialExportServiceTest {
         PageDTO savedPage = new PageDTO();
         savedPage.setName("Page 2");
         savedPage.setApplicationId(application.getId());
-        DefaultResources defaultResources = new DefaultResources();
-        defaultResources.setApplicationId(application.getId());
-        defaultResources.setBranchName("master");
-        savedPage.setDefaultResources(defaultResources);
-        savedPage = applicationPageService
-                .createPageWithBranchName(savedPage, "master")
-                .block();
+        savedPage.setRefName("master");
+        savedPage = applicationPageService.createPage(savedPage).block();
 
         // Create Action
         ActionDTO action = new ActionDTO();
@@ -322,7 +314,7 @@ public class PartialExportServiceTest {
 
         // Get the partial export resources
         Mono<ApplicationJson> partialExportFileDTOMono = partialExportService.getPartialExportResources(
-                application.getId(), savedPage.getId(), "master", partialExportFileDTO);
+                application.getId(), savedPage.getId(), partialExportFileDTO);
 
         StepVerifier.create(partialExportFileDTOMono)
                 .assertNext(applicationJson -> {
@@ -358,13 +350,8 @@ public class PartialExportServiceTest {
         PageDTO savedPage = new PageDTO();
         savedPage.setName("Page 2");
         savedPage.setApplicationId(application.getId());
-        DefaultResources defaultResources = new DefaultResources();
-        defaultResources.setApplicationId(application.getId());
-        defaultResources.setBranchName("master");
-        savedPage.setDefaultResources(defaultResources);
-        savedPage = applicationPageService
-                .createPageWithBranchName(savedPage, "master")
-                .block();
+        savedPage.setRefName("master");
+        savedPage = applicationPageService.createPage(savedPage).block();
 
         // Create Action
         ActionDTO action = new ActionDTO();
@@ -376,11 +363,8 @@ public class PartialExportServiceTest {
         actionConfiguration.setTimeoutInMillisecond("6000");
         action.setActionConfiguration(actionConfiguration);
         action.setDatasource(datasourceMap.get("DS1"));
-        DefaultResources defaultResource = new DefaultResources();
-        defaultResource.setApplicationId(application.getId());
-        defaultResource.setBranchName("master");
-        defaultResource.setActionId("testActionId");
-        action.setDefaultResources(defaultResource);
+        action.setRefType(RefType.branch);
+        action.setRefName("master");
 
         ActionDTO savedAction =
                 layoutActionService.createSingleAction(action, Boolean.FALSE).block();
@@ -389,11 +373,11 @@ public class PartialExportServiceTest {
         partialExportFileDTO.setDatasourceList(List.of(
                 datasourceMap.get("DS1").getId(), datasourceMap.get("DS2").getId()));
         // For a feature branch the resources in the client always get the default resource id
-        partialExportFileDTO.setActionList(List.of("testActionId"));
+        partialExportFileDTO.setActionList(List.of(savedAction.getId()));
 
         // Get the partial export resources
         Mono<ApplicationJson> partialExportFileDTOMono = partialExportService.getPartialExportResources(
-                application.getId(), savedPage.getId(), "master", partialExportFileDTO);
+                application.getId(), savedPage.getId(), partialExportFileDTO);
 
         StepVerifier.create(partialExportFileDTOMono)
                 .assertNext(applicationJson -> {

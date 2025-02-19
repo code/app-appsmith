@@ -4,16 +4,15 @@ export default [
     id: 1,
     children: [
       {
-        label: "Run query on page load",
+        label: "Run the query on page load",
         configProperty: "executeOnLoad",
         controlType: "SWITCH",
-        subtitle: "Will refresh data each time the page is loaded",
       },
       {
-        label: "Request confirmation before running query",
+        label: "Request confirmation before running this query",
         configProperty: "confirmBeforeExecute",
         controlType: "SWITCH",
-        subtitle:
+        tooltipText:
           "Ask confirmation from the user each time before refreshing data",
       },
       {
@@ -22,7 +21,6 @@ export default [
         configProperty: "actionConfiguration.timeoutInMillisecond",
         controlType: "INPUT_TEXT",
         dataType: "NUMBER",
-        width: "270px",
       },
     ],
   },

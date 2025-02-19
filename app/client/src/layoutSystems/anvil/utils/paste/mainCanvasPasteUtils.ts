@@ -1,4 +1,4 @@
-import type { CanvasWidgetsReduxState } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type { CopiedWidgetData, PasteDestinationInfo } from "./types";
 import type { FlattenedWidgetProps } from "WidgetProvider/constants";
 import { all, call } from "redux-saga/effects";
@@ -42,6 +42,7 @@ export function* pasteWidgetsIntoMainCanvas(
           reverseMap,
           parent.widgetId,
         );
+
         widgets = res.widgets;
         map = res.map;
         reverseMap = res.reverseMap;
@@ -75,5 +76,6 @@ export function* pasteWidgetsIntoMainCanvas(
       false,
     );
   }
+
   return { widgets, widgetIdMap: map, reverseWidgetIdMap: reverseMap };
 }

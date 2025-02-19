@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import type { DropdownOption } from "design-system-old";
-import { Button, SearchInput } from "design-system";
+import type { DropdownOption } from "@appsmith/ads-old";
+import { Button, SearchInput } from "@appsmith/ads";
 import {
   useSheetData,
   useSheetsList,
@@ -10,7 +10,7 @@ import {
 import type { DropdownOptions } from "../GeneratePage/components/constants";
 import { DEFAULT_DROPDOWN_OPTION } from "../GeneratePage/components/constants";
 import { isEmpty } from "lodash";
-import Table from "pages/Editor/QueryEditor/Table";
+import Table from "PluginActionEditor/components/PluginActionResponse/components/Table";
 import {
   getCurrentApplicationId,
   getPagePermissions,
@@ -20,17 +20,17 @@ import {
   createMessage,
   DATASOURCE_GENERATE_PAGE_BUTTON,
   GSHEET_SEARCH_PLACEHOLDER,
-} from "@appsmith/constants/messages";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
-import { getCurrentApplication } from "@appsmith/selectors/applicationSelectors";
-import type { AppState } from "@appsmith/reducers";
-import { getDatasource } from "@appsmith/selectors/entitiesSelector";
+} from "ee/constants/messages";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
+import { getCurrentApplication } from "ee/selectors/applicationSelectors";
+import type { AppState } from "ee/reducers";
+import { getDatasource } from "ee/selectors/entitiesSelector";
 import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
-import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
+import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
 import {
   getHasCreatePagePermission,
   hasCreateDSActionPermissionInApp,
-} from "@appsmith/utils/BusinessFeatures/permissionPageHelpers";
+} from "ee/utils/BusinessFeatures/permissionPageHelpers";
 import RenderInterimDataState from "./RenderInterimDataState";
 import {
   ButtonContainer,
@@ -48,9 +48,10 @@ import Entity from "../Explorer/Entity";
 import DatasourceField from "./DatasourceField";
 import { setEntityCollapsibleState } from "actions/editorContextActions";
 import ItemLoadingIndicator from "./ItemLoadingIndicator";
-import { useEditorType } from "@appsmith/hooks";
 import history from "utils/history";
 import { getIsGeneratingTemplatePage } from "selectors/pageListSelectors";
+import { getIsAnvilEnabledInCurrentApplication } from "layoutSystems/anvil/integrations/selectors";
+import { getIDETypeByUrl } from "ee/entities/IDE/utils";
 
 interface Props {
   datasourceId: string;
@@ -66,6 +67,8 @@ function GoogleSheetSchema(props: Props) {
     [],
   );
   const [sheetOptions, setSheetOptions] = useState<DropdownOptions>([]);
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sheetData, setSheetData] = useState<any>([]);
   const [selectedSpreadsheet, setSelectedSpreadsheet] =
     useState<DropdownOption>({});
@@ -77,6 +80,8 @@ function GoogleSheetSchema(props: Props) {
     setSelectedDatasourceTableOptions: setSpreadsheetOptions,
     setSelectedDatasourceIsInvalid,
   });
+
+  const isAnvilEnabled = useSelector(getIsAnvilEnabledInCurrentApplication);
 
   const toggleOnUnmountRefObject = useRef<{
     selectedSheet?: string;
@@ -125,6 +130,7 @@ function GoogleSheetSchema(props: Props) {
     try {
       const element = document.querySelector(elementId);
       const container = document.querySelector(containerId);
+
       if (element && container) {
         const elementRect = element.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
@@ -152,6 +158,7 @@ function GoogleSheetSchema(props: Props) {
         ),
       );
     }
+
     if (!isEmpty(spreadSheet) && collapseSpreadsheet) {
       dispatch(
         setEntityCollapsibleState(`${datasourceId}-${spreadSheet}`, false),
@@ -227,8 +234,10 @@ function GoogleSheetSchema(props: Props) {
       setSelectedSpreadsheet((ss) => {
         setSelectedSheet((s) => {
           collapseAccordions(datasource?.id || "", ss.value, s.value);
+
           return {};
         });
+
         return {};
       });
     }
@@ -347,8 +356,11 @@ function GoogleSheetSchema(props: Props) {
   );
 
   const isFeatureEnabled = useFeatureFlag(FEATURE_FLAG.license_gac_enabled);
+  const releaseDragDropBuildingBlocks = useFeatureFlag(
+    FEATURE_FLAG.release_drag_drop_building_blocks_enabled,
+  );
 
-  const editorType = useEditorType(history.location.pathname);
+  const ideType = getIDETypeByUrl(history.location.pathname);
 
   const canCreatePages = getHasCreatePagePermission(
     isFeatureEnabled,
@@ -359,7 +371,7 @@ function GoogleSheetSchema(props: Props) {
     isEnabled: isFeatureEnabled,
     dsPermissions: datasourcePermissions,
     pagePermissions,
-    editorType,
+    ideType,
   });
 
   const refreshSpreadSheetButton = (option: DropdownOption) => (
@@ -372,11 +384,13 @@ function GoogleSheetSchema(props: Props) {
   );
 
   const showGeneratePageBtn =
+    !releaseDragDropBuildingBlocks &&
     !isLoading &&
     !isError &&
     sheetData?.length &&
     canCreateDatasourceActions &&
-    canCreatePages;
+    canCreatePages &&
+    !isAnvilEnabled;
 
   const filteredSpreadsheets = spreadsheetOptions.filter((option) =>
     (option.label || "").toLowerCase()?.includes(searchString),
@@ -385,7 +399,7 @@ function GoogleSheetSchema(props: Props) {
   return (
     <ViewModeSchemaContainer>
       <DataWrapperContainer>
-        <StructureContainer data-testId="datasource-schema-container">
+        <StructureContainer data-testid="t--datasource-schema-container">
           {datasource && (
             <DatasourceStructureHeader
               datasource={datasource}
@@ -399,10 +413,11 @@ function GoogleSheetSchema(props: Props) {
                 <SearchInput
                   className="datasourceStructure-search"
                   endIcon="close"
-                  onChange={(value) => handleSearch(value)}
+                  onChange={(value: string) => handleSearch(value)}
                   placeholder={createMessage(GSHEET_SEARCH_PLACEHOLDER)}
                   size={"sm"}
                   startIcon="search"
+                  //@ts-expect-error Fix this the next time the file is edited
                   type="text"
                 />
               </DatasourceStructureSearchContainer>

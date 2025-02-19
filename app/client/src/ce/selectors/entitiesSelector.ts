@@ -1,8 +1,8 @@
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import type {
   ActionData,
   ActionDataState,
-} from "@appsmith/reducers/entityReducers/actionsReducer";
+} from "ee/reducers/entityReducers/actionsReducer";
 import type { ActionResponse } from "api/ActionAPI";
 import { createSelector } from "reselect";
 import type {
@@ -15,28 +15,26 @@ import {
   isEmbeddedRestDatasource,
 } from "entities/Datasource";
 import type { Action } from "entities/Action";
-import {
-  isStoredDatasource,
-  PluginPackageName,
-  PluginType,
-} from "entities/Action";
+import { isStoredDatasource } from "entities/Action";
 import { countBy, find, get, groupBy, keyBy, sortBy } from "lodash";
 import ImageAlt from "assets/images/placeholder-image.svg";
-import type { CanvasWidgetsReduxState } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import { MAIN_CONTAINER_WIDGET_ID } from "constants/WidgetConstants";
 import type { AppStoreState } from "reducers/entityReducers/appReducer";
 import type {
   JSCollectionData,
   JSCollectionDataState,
-} from "@appsmith/reducers/entityReducers/jsActionsReducer";
-import type {
-  DefaultPlugin,
-  GenerateCRUDEnabledPluginMap,
-  Plugin,
-} from "api/PluginApi";
+} from "ee/reducers/entityReducers/jsActionsReducer";
+import {
+  type DefaultPlugin,
+  type GenerateCRUDEnabledPluginMap,
+  type Plugin,
+  PluginPackageName,
+  PluginType,
+} from "entities/Plugin";
 import type { JSAction, JSCollection } from "entities/JSCollection";
 import { APP_MODE } from "entities/App";
-import type { ExplorerFileEntity } from "@appsmith/pages/Editor/Explorer/helpers";
+import type { ExplorerFileEntity } from "ee/pages/Editor/Explorer/helpers";
 import type { ActionValidationConfigMap } from "constants/PropertyControlConstants";
 import type { EvaluationError } from "utils/DynamicBindingUtils";
 import {
@@ -47,24 +45,37 @@ import {
 import { InstallState } from "reducers/uiReducers/libraryReducer";
 import recommendedLibraries from "pages/Editor/Explorer/Libraries/recommendedLibraries";
 import type { JSLibrary } from "workers/common/JSLibrary";
-import { getEntityNameAndPropertyPath } from "@appsmith/workers/Evaluation/evaluationUtils";
+import { getEntityNameAndPropertyPath } from "ee/workers/Evaluation/evaluationUtils";
 import { getFormValues } from "redux-form";
 import { TEMP_DATASOURCE_ID } from "constants/Datasource";
-import type { Module } from "@appsmith/constants/ModuleConstants";
-import { getAnvilSpaceDistributionStatus } from "layoutSystems/anvil/integrations/selectors";
+import type { Module } from "ee/constants/ModuleConstants";
+// import { getAnvilSpaceDistributionStatus } from "layoutSystems/anvil/integrations/selectors";
 import {
   getCurrentWorkflowActions,
   getCurrentWorkflowJSActions,
-} from "@appsmith/selectors/workflowSelectors";
+} from "ee/selectors/workflowSelectors";
 import { MAX_DATASOURCE_SUGGESTIONS } from "constants/DatasourceEditorConstants";
-import type { CreateNewActionKeyInterface } from "@appsmith/entities/Engine/actionHelpers";
+import type { CreateNewActionKeyInterface } from "ee/entities/Engine/actionHelpers";
 import { getNextEntityName } from "utils/AppsmithUtils";
-import type { EntityItem } from "@appsmith/entities/IDE/constants";
+import { EditorEntityTab } from "IDE/Interfaces/EditorTypes";
+import type { IDEType } from "ee/IDE/Interfaces/IDETypes";
+import type {
+  EntityItem,
+  GenericEntityItem,
+} from "ee/IDE/Interfaces/EntityItem";
 import {
   ActionUrlIcon,
   JsFileIconV2,
+  WidgetIconByType,
 } from "pages/Editor/Explorer/ExplorerIcons";
-import { getAssetUrl } from "@appsmith/utils/airgapHelpers";
+import { getAssetUrl } from "ee/utils/airgapHelpers";
+import {
+  getIsSavingForApiName,
+  getIsSavingForJSObjectName,
+} from "selectors/ui";
+import WidgetFactory from "../../WidgetProvider/factory";
+
+const WidgetTypes = WidgetFactory.widgetTypes;
 
 export enum GROUP_TYPES {
   API = "APIs",
@@ -109,17 +120,24 @@ export const getDatasourcesGroupedByPluginCategory = createSelector(
   getPlugins,
   (datasources, plugins): DatasourceGroupByPluginCategory => {
     const groupedPlugins = keyBy(plugins, "id");
+
     return <DatasourceGroupByPluginCategory>groupBy(datasources, (d) => {
       const plugin = groupedPlugins[d.pluginId];
+
       if (
         plugin.type === PluginType.SAAS ||
-        plugin.type === PluginType.REMOTE
+        plugin.type === PluginType.REMOTE ||
+        plugin.type === PluginType.EXTERNAL_SAAS
       ) {
         return PluginCategory.SAAS;
       }
+
       if (plugin.type === PluginType.AI) return PluginCategory.AI;
+
       if (plugin.type === PluginType.DB) return PluginCategory.Databases;
+
       if (plugin.type === PluginType.API) return PluginCategory.APIs;
+
       return PluginCategory.Others;
     });
   },
@@ -149,46 +167,48 @@ export const getDatasourceStructureById = (
   return state.entities.datasources.structure[id];
 };
 
+// ! git mod - the following function is not getting used
 /**
  * Selector to indicate if the widget name should be shown/drawn on canvas
  */
-export const getShouldShowWidgetName = createSelector(
-  (state: AppState) => state.ui.widgetDragResize.isResizing,
-  (state: AppState) => state.ui.widgetDragResize.isDragging,
-  (state: AppState) => state.ui.editor.isPreviewMode,
-  (state: AppState) => state.ui.widgetDragResize.isAutoCanvasResizing,
-  getAnvilSpaceDistributionStatus,
-  // cannot import other selectors, breaks the app
-  (state) => {
-    const gitMetaData =
-      state.ui.applications.currentApplication?.gitApplicationMetadata;
-    const isGitConnected = !!(gitMetaData && gitMetaData?.remoteUrl);
-    const currentBranch = gitMetaData?.branchName;
-    const { protectedBranches = [] } = state.ui.gitSync;
-    if (!isGitConnected || !currentBranch) {
-      return false;
-    } else {
-      return protectedBranches.includes(currentBranch);
-    }
-  },
-  (
-    isResizing,
-    isDragging,
-    isPreviewMode,
-    isAutoCanvasResizing,
-    isDistributingSpace,
-    isProtectedMode,
-  ) => {
-    return (
-      !isResizing &&
-      !isDragging &&
-      !isPreviewMode &&
-      !isAutoCanvasResizing &&
-      !isDistributingSpace &&
-      !isProtectedMode
-    );
-  },
-);
+// export const getShouldShowWidgetName = createSelector(
+//   (state: AppState) => state.ui.widgetDragResize.isResizing,
+//   (state: AppState) => state.ui.widgetDragResize.isDragging,
+//   (state: AppState) => state.ui.editor.isPreviewMode,
+//   (state: AppState) => state.ui.widgetDragResize.isAutoCanvasResizing,
+//   getAnvilSpaceDistributionStatus,
+//   // cannot import other selectors, breaks the app
+//   (state) => {
+//     const gitMetaData =
+//       state.ui.applications.currentApplication?.gitApplicationMetadata;
+//     const isGitConnected = !!(gitMetaData && gitMetaData?.remoteUrl);
+//     const currentBranch = gitMetaData?.branchName;
+//     const { protectedBranches = [] } = state.ui.gitSync;
+
+//     if (!isGitConnected || !currentBranch) {
+//       return false;
+//     } else {
+//       return protectedBranches.includes(currentBranch);
+//     }
+//   },
+//   (
+//     isResizing,
+//     isDragging,
+//     isPreviewMode,
+//     isAutoCanvasResizing,
+//     isDistributingSpace,
+//     isProtectedMode,
+//   ) => {
+//     return (
+//       !isResizing &&
+//       !isDragging &&
+//       !isPreviewMode &&
+//       !isAutoCanvasResizing &&
+//       !isDistributingSpace &&
+//       !isProtectedMode
+//     );
+//   },
+// );
 
 export const getDatasourceTableColumns =
   (datasourceId: string, tableName: string) => (state: AppState) => {
@@ -222,6 +242,7 @@ export const getDatasourceFirstTableName = (
   if (!datasourceId) {
     return "";
   }
+
   const structure = getDatasourceStructureById(state, datasourceId);
 
   if (structure) {
@@ -229,6 +250,7 @@ export const getDatasourceFirstTableName = (
       return structure.tables[0].name;
     }
   }
+
   return "";
 };
 
@@ -267,6 +289,7 @@ export const getPluginIdsOfNames = (
   const pluginIds = plugins.map((plugin) => plugin.id);
 
   if (!pluginIds.length) return undefined;
+
   return pluginIds;
 };
 
@@ -280,6 +303,7 @@ export const getPluginIdsOfPackageNames = (
   const pluginIds = plugins.map((plugin) => plugin.id);
 
   if (!pluginIds.length) return undefined;
+
   return pluginIds;
 };
 
@@ -295,6 +319,7 @@ export const getPluginNameFromDatasourceId = (
   );
 
   if (!plugin) return undefined;
+
   return plugin.name;
 };
 
@@ -310,6 +335,7 @@ export const getPluginPackageFromDatasourceId = (
   );
 
   if (!plugin) return undefined;
+
   return plugin.packageName;
 };
 
@@ -337,6 +363,7 @@ export const getPluginNameFromId = (
   );
 
   if (!plugin) return "";
+
   return plugin.name;
 };
 
@@ -349,6 +376,7 @@ export const getPluginPackageNameFromId = (
   );
 
   if (!plugin) return "";
+
   return plugin.packageName;
 };
 
@@ -361,6 +389,7 @@ export const getPluginDatasourceComponentFromId = (
   );
 
   if (!plugin) return "";
+
   return plugin.datasourceComponent;
 };
 
@@ -376,9 +405,12 @@ export const getPluginTypeFromDatasourceId = (
   );
 
   if (!plugin) return undefined;
+
   return plugin.type;
 };
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getPluginForm = (state: AppState, pluginId: string): any[] => {
   return state.entities.plugins.formConfigs[pluginId];
 };
@@ -397,10 +429,14 @@ export const getIsDatasourceTesting = (state: AppState): boolean => {
   return state.entities.datasources.isTesting;
 };
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getEditorConfig = (state: AppState, pluginId: string): any[] => {
   return state.entities.plugins.editorConfigs[pluginId];
 };
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getSettingConfig = (state: AppState, pluginId: string): any[] => {
   return state.entities.plugins.settingConfigs[pluginId];
 };
@@ -432,7 +468,9 @@ export const getDatasourceDrafts = (state: AppState) => {
 
 export const getDatasourceDraft = (state: AppState, id: string) => {
   const drafts = state.ui.datasourcePane.drafts;
+
   if (id in drafts) return drafts[id];
+
   return {};
 };
 
@@ -542,7 +580,8 @@ export const getQueryName = (state: AppState, actionId: string): string => {
   return action?.config.name ?? "";
 };
 
-export const getCurrentPageId = (state: AppState) =>
+// * This is only for internal use to avoid cyclic dependency issue
+const getCurrentPageId = (state: AppState) =>
   state.entities.pageList.currentPageId;
 
 export const getDatasourcePlugins = createSelector(getPlugins, (plugins) => {
@@ -551,9 +590,11 @@ export const getDatasourcePlugins = createSelector(getPlugins, (plugins) => {
 
 export const getPluginImages = createSelector(getPlugins, (plugins) => {
   const pluginImages: Record<string, string> = {};
+
   plugins.forEach((plugin) => {
     pluginImages[plugin.id] = plugin?.iconLocation ?? ImageAlt;
   });
+
   return pluginImages;
 });
 
@@ -568,6 +609,8 @@ export const getPluginNames = createSelector(getPlugins, (plugins) => {
 });
 
 export const getPluginTemplates = createSelector(getPlugins, (plugins) => {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pluginTemplates: Record<string, any> = {};
 
   plugins.forEach((plugin) => {
@@ -578,6 +621,8 @@ export const getPluginTemplates = createSelector(getPlugins, (plugins) => {
 });
 
 export const getPluginResponseTypes = createSelector(getPlugins, (plugins) => {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pluginResponseTypes: Record<string, any> = {};
 
   plugins.forEach((plugin) => {
@@ -604,11 +649,13 @@ export const getGenerateCRUDEnabledPluginMap = createSelector(
   getPlugins,
   (plugins) => {
     const pluginIdGenerateCRUDPageEnabled: GenerateCRUDEnabledPluginMap = {};
+
     plugins.map((plugin) => {
       if (plugin.generateCRUDPageComponent) {
         pluginIdGenerateCRUDPageEnabled[plugin.id] = plugin.packageName;
       }
     });
+
     return pluginIdGenerateCRUDPageEnabled;
   },
 );
@@ -629,6 +676,7 @@ export const getCurrentActions = createSelector(
   getActions,
   (pageId, actions): ActionData[] => {
     if (!pageId) return [];
+
     return actions.filter((a) => a.config.pageId === pageId);
   },
 );
@@ -656,6 +704,7 @@ export const getCurrentJSCollections = createSelector(
   getJSCollections,
   (pageId, actions) => {
     if (!pageId) return [];
+
     return actions.filter((a) => a.config.pageId === pageId);
   },
 );
@@ -671,12 +720,14 @@ export const getJSCollectionFromName = createSelector(
   ],
   (jsCollections, JSObjectName) => {
     let currentJSCollection = null;
+
     for (const jsCollection of jsCollections) {
       if (JSObjectName === jsCollection.config.name) {
         currentJSCollection = jsCollection;
         break;
       }
     }
+
     return currentJSCollection;
   },
 );
@@ -691,10 +742,12 @@ export const getJSActionFromName = createSelector(
   ],
   (JSCollectionData, { functionName }) => {
     if (!JSCollectionData) return null;
+
     const jsFunction = find(
       JSCollectionData.config.actions,
       (action) => action.name === functionName,
     );
+
     return jsFunction || null;
   },
 );
@@ -705,12 +758,14 @@ export const getJSActionFromJSCollection = (
 ) => {
   const actions = JSCollection.config.actions;
   let currentAction = null;
+
   for (const jsAction of actions) {
     if (functionName === jsAction.name) {
       currentAction = jsAction;
       break;
     }
   }
+
   return currentAction;
 };
 
@@ -724,6 +779,7 @@ export const getActionResponses = createSelector(getActions, (actions) => {
   actions.forEach((a) => {
     responses[a.config.id] = a.data;
   });
+
   return responses;
 });
 
@@ -732,6 +788,19 @@ export const getAction = (
   actionId: string,
 ): Action | undefined => {
   const action = find(state.entities.actions, (a) => a.config.id === actionId);
+
+  return action ? action.config : undefined;
+};
+
+export const getActionByBaseId = (
+  state: AppState,
+  baseActionId: string,
+): Action | undefined => {
+  const action = find(
+    state.entities.actions,
+    (a) => a.config.baseId === baseActionId,
+  );
+
   return action ? action.config : undefined;
 };
 
@@ -740,14 +809,28 @@ export const getActionData = (
   actionId: string,
 ): ActionResponse | undefined => {
   const action = find(state.entities.actions, (a) => a.config.id === actionId);
+
   return action ? action.data : undefined;
 };
 
-export const getJSCollection = (state: AppState, actionId: string) => {
+export const getJSCollection = (state: AppState, collectionId: string) => {
   const jsaction = find(
     state.entities.jsActions,
-    (a) => a.config.id === actionId,
+    (a) => a.config.id === collectionId,
   );
+
+  return jsaction && jsaction.config;
+};
+
+export const getJsCollectionByBaseId = (
+  state: AppState,
+  baseCollectionId: string,
+) => {
+  const jsaction = find(
+    state.entities.jsActions,
+    (a) => a.config.baseId === baseCollectionId,
+  );
+
   return jsaction && jsaction.config;
 };
 
@@ -763,6 +846,7 @@ export const getJSCollectionFromAllEntities = (
     state.entities.jsActions,
     (a) => a.config.id === actionId,
   );
+
   return jsaction && jsaction.config;
 };
 
@@ -774,6 +858,7 @@ export function getCurrentPageNameByActionId(
     return action.config.id === actionId;
   });
   const pageId = action ? action.config.pageId : "";
+
   return getPageNameByPageId(state, pageId);
 }
 
@@ -785,6 +870,7 @@ export function getCurrentPageNameByJSCollectionId(
     return action.config.id === actionId;
   });
   const pageId = action ? action.config.pageId : "";
+
   return getPageNameByPageId(state, pageId);
 }
 
@@ -792,29 +878,9 @@ export function getPageNameByPageId(state: AppState, pageId: string): string {
   const page = state.entities.pageList.pages.find(
     (page) => page.pageId === pageId,
   );
+
   return page ? page.pageName : "";
 }
-
-const getQueryPaneSavingMap = (state: AppState) => state.ui.queryPane.isSaving;
-export const getApiPaneSavingMap = (state: AppState) =>
-  state.ui.apiPane.isSaving;
-const getActionDirtyState = (state: AppState) => state.ui.apiPane.isDirty;
-
-export const isActionSaving = (id: string) =>
-  createSelector(
-    [getQueryPaneSavingMap, getApiPaneSavingMap],
-    (querySavingMap, apiSavingsMap) => {
-      return (
-        (id in querySavingMap && querySavingMap[id]) ||
-        (id in apiSavingsMap && apiSavingsMap[id])
-      );
-    },
-  );
-
-export const isActionDirty = (id: string) =>
-  createSelector([getActionDirtyState], (actionDirtyMap) => {
-    return id in actionDirtyMap && actionDirtyMap[id];
-  });
 
 export const getAppData = (state: AppState) => state.entities.app;
 
@@ -835,20 +901,27 @@ export const getCurrentPageWidgets = createSelector(
 );
 
 export const getParentModalId = (
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   widget: any,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pageWidgets: Record<string, any>,
 ) => {
   let parentModalId;
   let { parentId } = widget;
   let parentWidget = pageWidgets[parentId];
+
   while (parentId && parentId !== MAIN_CONTAINER_WIDGET_ID) {
     if (parentWidget?.type === "MODAL_WIDGET") {
       parentModalId = parentId;
       break;
     }
+
     parentId = parentWidget?.parentId;
     parentWidget = pageWidgets[parentId];
   }
+
   return parentModalId;
 };
 
@@ -856,6 +929,8 @@ export const getCanvasWidgetsWithParentId = createSelector(
   getCanvasWidgets,
   (canvasWidgets: CanvasWidgetsReduxState) => {
     return Object.entries(canvasWidgets).reduce(
+      // TODO: Fix this the next time the file is edited
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (res, [widgetId, widget]: any) => {
         const parentModalId = getParentModalId(widget, canvasWidgets);
 
@@ -873,8 +948,12 @@ export const getAllWidgetsMap = createSelector(
   getPageWidgets,
   (widgetsByPage) => {
     return Object.entries(widgetsByPage).reduce(
+      // TODO: Fix this the next time the file is edited
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (res: any, [pageId, pageWidgets]: any) => {
         const widgetsMap = Object.entries(pageWidgets.dsl).reduce(
+          // TODO: Fix this the next time the file is edited
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (res, [widgetId, widget]: any) => {
             const parentModalId = getParentModalId(widget, pageWidgets);
 
@@ -899,12 +978,28 @@ export const getAllWidgetsMap = createSelector(
 export const getAllPageWidgets = createSelector(
   getAllWidgetsMap,
   (widgetsMap) => {
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return Object.entries(widgetsMap).reduce((res: any[], [, widget]: any) => {
       res.push(widget);
+
       return res;
     }, []);
   },
 );
+
+export const getUISegmentItems = createSelector(getCanvasWidgets, (widgets) => {
+  const items: GenericEntityItem[] = Object.values(widgets)
+    // We remove canvas widget because they are functional widgets and not UI widgets
+    .filter((widget) => widget.type !== WidgetTypes.CANVAS_WIDGET)
+    .map((widget) => ({
+      icon: WidgetIconByType(widget.type),
+      title: widget.widgetName,
+      key: widget.widgetId,
+    }));
+
+  return items;
+});
 
 export const getPageList = createSelector(
   (state: AppState) => state.entities.pageList.pages,
@@ -958,6 +1053,7 @@ export const getExistingActionNames = createSelector(
           if (actionItem.config.pageId === currentPageId) {
             return actionItem.config.name;
           }
+
           return undefined;
         },
       );
@@ -968,15 +1064,13 @@ export const getExistingActionNames = createSelector(
           if (actionItem.config.pageId !== currentPageId) {
             return actionItem.config.name;
           }
+
           return undefined;
         },
       );
     }
   },
 );
-
-export const getEditingEntityName = (state: AppState) =>
-  state.ui.explorer.entity.editingEntityName;
 
 export const getExistingJSCollectionNames = createSelector(
   getJSCollections,
@@ -988,6 +1082,7 @@ export const getAppMode = (state: AppState) => state.entities.app.mode;
 
 export const widgetsMapWithParentModalId = (state: AppState) => {
   const appMode = getAppMode(state);
+
   return appMode === APP_MODE.EDIT
     ? getAllWidgetsMap(state)
     : getCanvasWidgetsWithParentId(state);
@@ -1010,6 +1105,7 @@ export const selectDatasourceIdToNameMap = createSelector(
     return datasources.reduce(
       (acc, datasource) => {
         acc[datasource.id] = datasource.name;
+
         return acc;
       },
       {} as Record<string, string>,
@@ -1055,6 +1151,7 @@ export const selectFilesForExplorer = createSelector(
       ...workflowJsActions,
     ].reduce((acc, file) => {
       let group;
+
       if (file.config.pluginType === PluginType.JS) {
         group = GROUP_TYPES.JS_ACTIONS;
       } else if (file.config.pluginType === PluginType.API) {
@@ -1071,11 +1168,13 @@ export const selectFilesForExplorer = createSelector(
       } else {
         group = datasourceIdToNameMap[file.config.datasource.id];
       }
+
       acc = acc.concat({
         type: file.config.pluginType,
         entity: file,
         group,
       });
+
       return acc;
     }, [] as Array<ExplorerFileEntity>);
 
@@ -1094,6 +1193,7 @@ export const selectFilesForExplorer = createSelector(
           });
           acc.group = file.group;
         }
+
         acc.files = acc.files.concat({
           ...file,
           entity: {
@@ -1102,19 +1202,28 @@ export const selectFilesForExplorer = createSelector(
             isMainJSCollection: file.entity?.config?.isMainJSCollection,
           },
         });
+
         return acc;
       },
       {
+        // TODO: Fix this the next time the file is edited
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         group: "" as any,
+        // TODO: Fix this the next time the file is edited
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         files: [] as any,
       },
     );
+
     return groupedFiles.files;
   },
 );
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getActionValidationConfig = (state: AppState, action: any) => {
   const pluginId = action.pluginId;
+
   return getActionValidationConfigFromPlugin(
     state.entities.plugins.editorConfigs[pluginId],
     {},
@@ -1126,29 +1235,37 @@ export const getAllActionValidationConfig = (state: AppState) => {
   const allValidationConfigs: {
     [actionId: string]: ActionValidationConfigMap;
   } = {};
+
   for (const action of allActions) {
     const pluginId = action.config.pluginId;
     let validationConfigs: ActionValidationConfigMap = {};
+
     validationConfigs = getActionValidationConfigFromPlugin(
       state.entities.plugins.editorConfigs[pluginId],
       {},
     );
     allValidationConfigs[action.config.id] = validationConfigs;
   }
+
   return allValidationConfigs;
 };
 
 function getActionValidationConfigFromPlugin(
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   editorConfigs: any,
   validationConfig: ActionValidationConfigMap,
 ): ActionValidationConfigMap {
   let newValidationConfig: ActionValidationConfigMap = {
     ...validationConfig,
   };
+
   if (!editorConfigs || !editorConfigs.length) return {};
+
   for (const editorConfig of editorConfigs) {
     if (editorConfig.validationConfig) {
       const configProperty = editorConfig.configProperty;
+
       newValidationConfig[configProperty] = editorConfig.validationConfig;
     }
 
@@ -1157,14 +1274,17 @@ function getActionValidationConfigFromPlugin(
         editorConfig.children,
         validationConfig,
       );
+
       newValidationConfig = Object.assign(
         newValidationConfig,
         childrenValidationConfig,
       );
     }
   }
+
   return newValidationConfig;
 }
+
 export const getJSActions = (
   state: AppState,
   JSCollectionId: string,
@@ -1185,6 +1305,7 @@ export const getActiveJSActionId = (
   const jsCollection = state.entities.jsActions.find(
     (jsCollectionData) => jsCollectionData.config.id === jsCollectionId,
   );
+
   return jsCollection?.activeJSActionId ?? null;
 };
 
@@ -1196,9 +1317,11 @@ export const getIsExecutingJSAction = (
   const jsCollection = state.entities.jsActions.find(
     (jsCollectionData) => jsCollectionData.config.id === jsCollectionId,
   );
+
   if (jsCollection?.isExecuting && jsCollection.isExecuting[actionId]) {
     return jsCollection.isExecuting[actionId];
   }
+
   return false;
 };
 
@@ -1212,6 +1335,7 @@ export const getJSCollectionParseErrors = (
     `${jsCollectionName}.${EVAL_ERROR_PATH}.body`,
     [],
   ) as EvaluationError[];
+
   return allErrors.filter((error) => {
     return error.errorType === PropertyEvaluationErrorType.PARSE;
   });
@@ -1264,6 +1388,7 @@ export const selectLibrariesForExplorer = createSelector(
         const recommendedLibrary = recommendedLibraries.find(
           (lib) => lib.url === url,
         );
+
         return {
           name: recommendedLibrary?.name || url,
           docsURL: recommendedLibrary?.url || url,
@@ -1272,6 +1397,7 @@ export const selectLibrariesForExplorer = createSelector(
           accessor: [],
         } as JSLibrary;
       });
+
     return [...queuedInstalls, ...libs];
   },
 );
@@ -1279,12 +1405,14 @@ export const selectLibrariesForExplorer = createSelector(
 export const getAllJSActionsData = (state: AppState) => {
   const jsActionsData: Record<string, unknown> = {};
   const jsCollections = state.entities.jsActions;
+
   jsCollections.forEach((collection) => {
     if (collection.data) {
       Object.keys(collection.data).forEach((actionId) => {
         const jsAction = getJSActions(state, collection.config.id).find(
           (action) => action.id === actionId,
         );
+
         if (jsAction) {
           jsActionsData[`${collection.config.name}.${jsAction.name}`] =
             collection.data?.[actionId];
@@ -1292,6 +1420,7 @@ export const getAllJSActionsData = (state: AppState) => {
       });
     }
   });
+
   return jsActionsData;
 };
 
@@ -1317,15 +1446,22 @@ export const getAllDatasourceTableKeys = createSelector(
     dataTreePath: string | undefined,
   ) => {
     if (!dataTreePath || !datasourceStructures) return;
+
     const { entityName } = getEntityNameAndPropertyPath(dataTreePath);
     const action = find(actions, ({ config: { name } }) => name === entityName);
+
     if (!action) return;
+
     const datasource = action.config.datasource;
     const datasourceId = "id" in datasource ? datasource.id : undefined;
+
     if (!datasourceId || !(datasourceId in datasourceStructures)) return;
+
     const tables: Record<string, string> = {};
     const { tables: datasourceTable } = datasourceStructures[datasourceId];
+
     if (!datasourceTable) return;
+
     datasourceTable.forEach((table) => {
       if (table?.name) {
         tables[table.name] = "table";
@@ -1351,17 +1487,24 @@ export const getDatasourceScopeValue = (
   const datasource = getDatasource(state, datasourceId);
   const pluginId = get(datasource, "pluginId", "");
   const formConfig = formConfigs[pluginId];
+
   if (!formConfig || (!!formConfig && formConfig.length === 0)) {
     return null;
   }
+
   const configProperty = "datasourceConfiguration.authentication.scopeString";
   const scopeValue = get(formData, configProperty);
   const options = formConfig[0]?.children?.find(
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (child: any) => child?.configProperty === configProperty,
   )?.options;
   const label = options?.find(
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (option: any) => option.value === scopeValue,
   )?.label;
+
   return label;
 };
 
@@ -1378,10 +1521,12 @@ export const getDatasourcesUsedInApplicationByActions = (
       ) {
         acc.add(action.config.datasource.id);
       }
+
       return acc;
     },
     new Set(),
   );
+
   return datasources.filter(
     (ds) =>
       datasourceIdsUsedInCurrentApplication.has(ds.id) &&
@@ -1400,10 +1545,12 @@ const getOtherDatasourcesInWorkspace = (state: AppState): Datasource[] => {
       ) {
         acc.add(action.config.datasource.id);
       }
+
       return acc;
     },
     new Set(),
   );
+
   return allDatasources.filter(
     (ds) =>
       !datasourceIdsUsedInCurrentApplication.has(ds.id) &&
@@ -1416,7 +1563,9 @@ export const getEntityExplorerDatasources = (state: AppState): Datasource[] => {
   const datasourcesUsedInApplication =
     getDatasourcesUsedInApplicationByActions(state);
   const otherDatasourceInWorkspace = getOtherDatasourcesInWorkspace(state);
+
   otherDatasourceInWorkspace.reverse();
+
   return otherDatasourceInWorkspace.slice(
     0,
     MAX_DATASOURCE_SUGGESTIONS - datasourcesUsedInApplication.length,
@@ -1505,6 +1654,7 @@ export const getQuerySegmentItems = createSelector(
       const iconUrl = getAssetUrl(
         pluginGroups[action.config.pluginId]?.iconLocation,
       );
+
       if (action.config.pluginType === PluginType.API) {
         group = isEmbeddedRestDatasource(action.config.datasource)
           ? "APIs"
@@ -1514,16 +1664,21 @@ export const getQuerySegmentItems = createSelector(
           ? "AI Queries"
           : datasourceIdToNameMap[action.config.datasource.id] ?? "AI Queries";
       } else {
-        group = datasourceIdToNameMap[action.config.datasource.id];
+        group =
+          action.config.datasource?.name ??
+          datasourceIdToNameMap[action.config.datasource?.id];
       }
+
       return {
-        icon: ActionUrlIcon(iconUrl),
+        icon: ActionUrlIcon(iconUrl, "16", "16"),
         title: action.config.name,
-        key: action.config.id,
+        key: action.config.baseId,
         type: action.config.pluginType,
         group,
+        userPermissions: action.config.userPermissions,
       };
     });
+
     return items;
   },
 );
@@ -1533,9 +1688,11 @@ export const getJSSegmentItems = createSelector(
     const items: EntityItem[] = jsActions.map((js) => ({
       icon: JsFileIconV2(),
       title: js.config.name,
-      key: js.config.id,
+      key: js.config.baseId,
       type: PluginType.JS,
+      userPermissions: js.config.userPermissions,
     }));
+
     return items;
   },
 );
@@ -1546,18 +1703,38 @@ export const getSelectedTableName = (state: AppState) =>
 export const getDatasourceUsageCountForApp = createSelector(
   getActions,
   getDatasources,
-  (state: AppState, editorType: string) => editorType,
-  (actions, datasources, editorType) => {
+  (state: AppState, ideType: IDEType) => ideType,
+  (actions, datasources, ideType) => {
     const actionCount = countBy(actions, "config.datasource.id");
     const actionDsMap: Record<string, string> = {};
 
     datasources.forEach((ds) => {
-      actionDsMap[ds.id] = `No queries in this ${editorType}`;
+      actionDsMap[ds.id] = `No queries in this ${ideType.toLowerCase()}`;
     });
     Object.keys(actionCount).forEach((dsId) => {
-      actionDsMap[dsId] = `${actionCount[dsId]} queries in this ${editorType}`;
+      actionDsMap[dsId] =
+        `${actionCount[dsId]} queries in this ${ideType.toLowerCase()}`;
     });
 
     return actionDsMap;
   },
 );
+
+export interface IsSavingEntityNameParams {
+  id: string;
+  segment: EditorEntityTab;
+  entity?: EntityItem;
+}
+
+export const getIsSavingEntityName = (
+  state: AppState,
+  { id, segment }: IsSavingEntityNameParams,
+) => {
+  let isSavingEntityName = getIsSavingForApiName(state, id);
+
+  if (EditorEntityTab.JS === segment) {
+    isSavingEntityName = getIsSavingForJSObjectName(state, id);
+  }
+
+  return isSavingEntityName;
+};

@@ -3,7 +3,7 @@ import { LabelPosition } from "components/constants";
 import { EventType } from "constants/AppsmithActionConstants/ActionConstants";
 import { ValidationTypes } from "constants/WidgetValidation";
 import type { SetterConfig, Stylesheet } from "entities/AppTheming";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import equal from "fast-deep-equal/es6";
 import { findIndex, isArray, isNil, isNumber, isString } from "lodash";
 import React from "react";
@@ -54,13 +54,14 @@ import type {
 
 import IconSVG from "../icon.svg";
 import ThumbnailSVG from "../thumbnail.svg";
-import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
+import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
 import type { DynamicPath } from "utils/DynamicBindingUtils";
 
 class SelectWidget extends BaseWidget<SelectWidgetProps, WidgetState> {
   constructor(props: SelectWidgetProps) {
     super(props);
   }
+
   static type = "SELECT_WIDGET";
 
   static getConfig() {
@@ -93,11 +94,15 @@ class SelectWidget extends BaseWidget<SelectWidgetProps, WidgetState> {
       labelPosition: LabelPosition.Top,
       labelAlignment: Alignment.LEFT,
       labelWidth: 5,
-      sourceData: [
-        { name: "Blue", code: "BLUE" },
-        { name: "Green", code: "GREEN" },
-        { name: "Red", code: "RED" },
-      ],
+      sourceData: JSON.stringify(
+        [
+          { name: "Blue", code: "BLUE" },
+          { name: "Green", code: "GREEN" },
+          { name: "Red", code: "RED" },
+        ],
+        null,
+        2,
+      ),
       optionLabel: "name",
       optionValue: "code",
       serverSideFiltering: false,
@@ -111,6 +116,7 @@ class SelectWidget extends BaseWidget<SelectWidgetProps, WidgetState> {
       labelTextSize: "0.875rem",
       responsiveBehavior: ResponsiveBehavior.Fill,
       minWidth: FILL_WIDGET_MIN_WIDTH,
+      dynamicPropertyPathList: [{ key: "sourceData" }],
     };
   }
 
@@ -156,12 +162,8 @@ class SelectWidget extends BaseWidget<SelectWidgetProps, WidgetState> {
             serverSideFiltering: true,
             onFilterUpdate: queryConfig.select.run,
           };
-          if (
-            !!SelectWidget.getFeatureFlag(
-              FEATURE_FLAG.rollout_js_enabled_one_click_binding_enabled,
-            )
-          )
-            dynamicPropertyPathList.push({ key: "sourceData" });
+
+          dynamicPropertyPathList.push({ key: "sourceData" });
         }
 
         return {
@@ -758,6 +760,8 @@ class SelectWidget extends BaseWidget<SelectWidgetProps, WidgetState> {
     };
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static getMetaPropertiesMap(): Record<string, any> {
     return {
       value: undefined,
@@ -820,6 +824,8 @@ class SelectWidget extends BaseWidget<SelectWidgetProps, WidgetState> {
     };
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   isStringOrNumber = (value: any): value is string | number =>
     isString(value) || isNumber(value);
 
@@ -835,6 +841,7 @@ class SelectWidget extends BaseWidget<SelectWidgetProps, WidgetState> {
       value: this.props.selectedOptionValue,
     });
     const { componentHeight, componentWidth } = this.props;
+
     return (
       <SelectComponent
         accentColor={this.props.accentColor}
@@ -849,6 +856,7 @@ class SelectWidget extends BaseWidget<SelectWidgetProps, WidgetState> {
         isDynamicHeightEnabled={isAutoHeightEnabledForWidget(this.props)}
         isFilterable={this.props.isFilterable}
         isLoading={this.props.isLoading}
+        isRequired={this.props.isRequired}
         isValid={this.props.isValid}
         label={this.props.selectedOptionLabel}
         labelAlignment={this.props.labelAlignment}
@@ -884,14 +892,17 @@ class SelectWidget extends BaseWidget<SelectWidgetProps, WidgetState> {
     if (!isNil(this.props.selectedOptionValue)) {
       isChanged = this.props.selectedOptionValue !== selectedOption.value;
     }
+
+    const { commitBatchMetaUpdates, pushBatchMetaUpdates } = this.props;
+
     if (isChanged) {
       if (!this.props.isDirty) {
-        this.props.updateWidgetMetaProperty("isDirty", true);
+        pushBatchMetaUpdates("isDirty", true);
       }
 
-      this.props.updateWidgetMetaProperty("label", selectedOption.label ?? "");
+      pushBatchMetaUpdates("label", selectedOption.label ?? "");
 
-      this.props.updateWidgetMetaProperty("value", selectedOption.value ?? "", {
+      pushBatchMetaUpdates("value", selectedOption.value ?? "", {
         triggerPropertyName: "onOptionChange",
         dynamicString: this.props.onOptionChange,
         event: {
@@ -902,8 +913,10 @@ class SelectWidget extends BaseWidget<SelectWidgetProps, WidgetState> {
 
     // When Label changes but value doesnt change, Applies to serverside Filtering
     if (!isChanged && this.props.selectedOptionLabel !== selectedOption.label) {
-      this.props.updateWidgetMetaProperty("label", selectedOption.label ?? "");
+      pushBatchMetaUpdates("label", selectedOption.label ?? "");
     }
+
+    commitBatchMetaUpdates();
   };
 
   onFilterChange = (value: string) => {
@@ -956,8 +969,14 @@ export interface SelectWidgetProps extends WidgetProps {
   onOptionChange?: string;
   onDropdownOpen?: string;
   onDropdownClose?: string;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultOptionValue?: any;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   value?: any;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   label?: any;
   isRequired: boolean;
   isFilterable: boolean;

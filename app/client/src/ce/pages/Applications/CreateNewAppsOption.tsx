@@ -1,42 +1,38 @@
 import {
   GO_BACK,
   SKIP_START_WITH_USE_CASE_TEMPLATES,
-  START_WITH_DATA_CONNECT_HEADING,
-  START_WITH_DATA_CONNECT_SUBHEADING,
   createMessage,
-} from "@appsmith/constants/messages";
-import urlBuilder from "@appsmith/entities/URLRedirect/URLAssembly";
-import { getCurrentPluginIdForCreateNewApp } from "@appsmith/selectors/applicationSelectors";
+} from "ee/constants/messages";
+import urlBuilder from "ee/entities/URLRedirect/URLAssembly";
+import { getCurrentPluginIdForCreateNewApp } from "ee/selectors/applicationSelectors";
 import {
   resetCurrentApplicationIdForCreateNewApp,
   resetCurrentPluginIdForCreateNewApp,
 } from "actions/onboardingActions";
 import { fetchPlugins } from "actions/pluginActions";
-import { Flex, Link, Text } from "design-system";
+import { Flex, Link } from "@appsmith/ads";
 import CreateNewDatasourceTab from "pages/Editor/IntegrationEditor/CreateNewDatasourceTab";
-import { getApplicationsOfWorkspace } from "@appsmith/selectors/selectedWorkspaceSelectors";
+import { getApplicationsOfWorkspace } from "ee/selectors/selectedWorkspaceSelectors";
 import { default as React, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import styled from "styled-components";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import history from "utils/history";
-import { builderURL } from "@appsmith/RouteBuilder";
-import { getDatasource, getPlugin } from "@appsmith/selectors/entitiesSelector";
-import type { Plugin } from "api/PluginApi";
-import { PluginPackageName, PluginType } from "entities/Action";
+import { builderURL } from "ee/RouteBuilder";
+import { getDatasource, getPlugin } from "ee/selectors/entitiesSelector";
+import { type Plugin, PluginPackageName, PluginType } from "entities/Plugin";
 import DataSourceEditor from "pages/Editor/DataSourceEditor";
 import { TEMP_DATASOURCE_ID } from "constants/Datasource";
 import { fetchMockDatasources } from "actions/datasourceActions";
 import DatasourceForm from "pages/Editor/SaaSEditor/DatasourceForm";
 import type { Datasource } from "entities/Datasource";
-import { fetchingEnvironmentConfigs } from "@appsmith/actions/environmentAction";
-import { shouldShowLicenseBanner } from "@appsmith/selectors/tenantSelectors";
-import { isAirgapped } from "@appsmith/utils/airgapHelpers";
+import { fetchingEnvironmentConfigs } from "ee/actions/environmentAction";
+import { shouldShowLicenseBanner } from "ee/selectors/organizationSelectors";
+import { isAirgapped } from "ee/utils/airgapHelpers";
 
 const SectionWrapper = styled.div<{ isBannerVisible: boolean }>`
   display: flex;
   flex-direction: column;
-  padding: 0 var(--ads-v2-spaces-7) var(--ads-v2-spaces-7);
   ${(props) => `
     margin-top: ${
       props.theme.homePage.header + (props.isBannerVisible ? 40 : 0)
@@ -56,8 +52,9 @@ const BackWrapper = styled.div<{ hidden?: boolean; isBannerVisible: boolean }>`
     top: ${props.theme.homePage.header + (props.isBannerVisible ? 40 : 0)}px;
     `}
   background: inherit;
-  padding: var(--ads-v2-spaces-3);
+  padding: var(--ads-v2-spaces-4) var(--ads-v2-spaces-8);
   z-index: 1;
+  border-bottom: 1px solid var(--ads-v2-color-gray-300);
   margin-left: -4px;
   ${(props) => `${props.hidden && "visibility: hidden; opacity: 0;"}`}
 `;
@@ -66,21 +63,9 @@ const LinkWrapper = styled(Link)<{ hidden?: boolean }>`
   ${(props) => `${props.hidden && "visibility: hidden; opacity: 0;"}`}
 `;
 
-const WithDataWrapper = styled.div`
+const WithDataWrapper = styled(Flex)`
   background: var(--ads-v2-color-bg);
-  padding: var(--ads-v2-spaces-13);
-  border: 1px solid var(--ads-v2-color-gray-300);
-  border-radius: 5px;
 `;
-
-const Header = ({ subtitle, title }: { subtitle: string; title: string }) => {
-  return (
-    <Flex flexDirection="column" mb="spaces-14" mt="spaces-7">
-      <Text kind="heading-xl">{title}</Text>
-      <Text>{subtitle}</Text>
-    </Flex>
-  );
-};
 
 const CreateNewAppsOption = ({
   currentApplicationIdForCreateNewApp,
@@ -107,8 +92,10 @@ const CreateNewAppsOption = ({
     AnalyticsUtil.logEvent("CREATE_APP_FROM_DATA");
     // fetch plugins information to show list of all plugins
     dispatch(fetchPlugins({ workspaceId: application?.workspaceId }));
+
     // For air-gapped version as internet access won't necessarily be available, we skip fetching mock datasources.
     if (!isAirgapped()) dispatch(fetchMockDatasources());
+
     if (application?.workspaceId) {
       dispatch(
         fetchingEnvironmentConfigs({
@@ -141,21 +128,22 @@ const CreateNewAppsOption = ({
 
   const onClickSkipButton = () => {
     const applicationObject = application!;
+
     urlBuilder.updateURLParams(
       {
         applicationSlug: applicationObject.slug,
         applicationVersion: applicationObject.applicationVersion,
-        applicationId: applicationObject.id,
+        baseApplicationId: applicationObject.baseId,
       },
       applicationObject.pages.map((page) => ({
         pageSlug: page.slug,
         customSlug: page.customSlug,
-        pageId: page.id,
+        basePageId: page.baseId,
       })),
     );
     history.push(
       builderURL({
-        pageId: applicationObject.pages[0].id,
+        basePageId: applicationObject.pages[0].baseId,
       }),
     );
 
@@ -178,12 +166,12 @@ const CreateNewAppsOption = ({
         {
           applicationSlug: application.slug,
           applicationVersion: application.applicationVersion,
-          applicationId: application.id,
+          baseApplicationId: application.baseId,
         },
         application.pages.map((page) => ({
           pageSlug: page.slug,
           customSlug: page.customSlug,
-          pageId: page.id,
+          basePageId: page.baseId,
         })),
       );
 
@@ -224,12 +212,8 @@ const CreateNewAppsOption = ({
           </LinkWrapper>
         )}
       </BackWrapper>
-      <Flex flexDirection="column" pl="spaces-3" pr="spaces-3">
-        <Header
-          subtitle={createMessage(START_WITH_DATA_CONNECT_SUBHEADING)}
-          title={createMessage(START_WITH_DATA_CONNECT_HEADING)}
-        />
-        <WithDataWrapper>
+      <Flex flex={"1"} flexDirection="column">
+        <WithDataWrapper flex={"1"} flexDirection="column">
           {createNewAppPluginId && !!selectedDatasource ? (
             selectedPlugin?.type === PluginType.SAAS ? (
               <DatasourceForm

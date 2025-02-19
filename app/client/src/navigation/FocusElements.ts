@@ -1,8 +1,8 @@
-import type { ReduxAction } from "@appsmith/constants/ReduxActionConstants";
-import type { AppState } from "@appsmith/reducers";
+import type { ReduxAction } from "actions/ReduxActionTypes";
+import type { AppState } from "ee/reducers";
 
 export enum FocusElement {
-  ApiPaneConfigTabs = "ApiPaneConfigTabs",
+  PluginActionConfigTabs = "PluginActionConfigTabs",
   CodeEditorHistory = "CodeEditorHistory",
   EntityCollapsibleState = "EntityCollapsibleState",
   EntityExplorerWidth = "EntityExplorerWidth",
@@ -10,8 +10,6 @@ export enum FocusElement {
   DatasourceViewMode = "DatasourceViewMode",
   SelectedDatasource = "SelectedDatasource",
   DebuggerContext = "DebuggerContext",
-  ApiRightPaneTabs = "ApiRightPaneTabs",
-  QueryPaneConfigTabs = "QueryPaneConfigTabs",
   JSPaneConfigTabs = "JSPaneConfigTabs",
   PropertySections = "PropertySections",
   PropertyField = "PropertyField",
@@ -26,8 +24,7 @@ export enum FocusElement {
   SelectedJSObject = "SelectedJSObject",
   SelectedEntity = "SelectedEntity",
   IDETabs = "IDETabs",
-  QueryDebugger = "QueryDebugger",
-  ApiDebugger = "ApiDebugger",
+  PluginActionDebugger = "PluginActionDebugger",
   JSDebugger = "JSDebugger",
 }
 
@@ -48,12 +45,16 @@ interface ConfigOther {
 type ConfigRedux = {
   type: FocusElementConfigType.Redux;
   selector: (state: AppState) => unknown;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setter: (payload: any) => ReduxAction<any>;
 } & ConfigOther;
 
 type ConfigURL = {
   type: FocusElementConfigType.URL;
   selector: (url: string) => unknown;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setter: (payload: any) => void;
 } & ConfigOther;
 

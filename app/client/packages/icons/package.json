@@ -6,11 +6,11 @@
   "main": "src/index.ts",
   "scripts": {
     "build": "yarn cleanup && figmagic && yarn optimize-icons && yarn generate-components && yarn generate-index && yarn generate-stories  && yarn prettier . --write --log-level=silent",
-    "cleanup": "ts-node ./src/utils/cleanup.ts",
-    "optimize-icons": "ts-node ./src/utils/optimizeIcons.ts",
-    "generate-components": "ts-node ./src/utils/generateComponents.ts",
-    "generate-index": "ts-node ./src/utils/generateIndex.ts",
-    "generate-stories": "ts-node ./src/utils/generateStories.ts",
+    "cleanup": "npx ts-node ./src/utils/cleanup.ts",
+    "optimize-icons": "npx ts-node ./src/utils/optimizeIcons.ts",
+    "generate-components": "npx ts-node ./src/utils/generateComponents.ts",
+    "generate-index": "npx ts-node ./src/utils/generateIndex.ts",
+    "generate-stories": "npx ts-node ./src/utils/generateStories.ts",
     "lint": "yarn g:lint",
     "prettier": "yarn g:prettier"
   },
@@ -18,6 +18,8 @@
     "react": "^16.8.0 || ^17.0.0-rc.1 || ^18.0.0"
   },
   "devDependencies": {
+    "@svgr/core": "^8.1.0",
+    "@svgr/plugin-jsx": "^8.1.0",
     "fast-glob": "^3.3.2",
     "figmagic": "^4.5.13",
     "fs-extra": "^11.2.0",

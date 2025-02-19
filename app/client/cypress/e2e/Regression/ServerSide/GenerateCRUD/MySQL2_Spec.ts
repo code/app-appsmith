@@ -19,7 +19,7 @@ let dsName: any, newStoreSecret: any;
 
 describe(
   "Validate MySQL Generate CRUD with JSON Form",
-  { tags: ["@tag.Datasource"] },
+  { tags: ["@tag.Datasource", "@tag.Git", "@tag.AccessControl"] },
   () => {
     // beforeEach(function() {
     //   if (INTERCEPT.MYSQL) {
@@ -68,7 +68,7 @@ describe(
       agHelper.FocusElement(locators._codeMirrorTextArea);
       //agHelper.VerifyEvaluatedValue(tableCreateQuery);
 
-      dataSources.RunQueryNVerifyResponseViews();
+      dataSources.runQueryAndVerifyResponseViews();
       dataSources.AssertTableInVirtuosoList(dsName, "Stores");
 
       agHelper.ActionContextMenuWithInPane({
@@ -79,13 +79,14 @@ describe(
 
     it("2. Validate Select record from Postgress datasource & verify query response", () => {
       dataSources.CreateQueryForDS(dsName, "SELECT * FROM Stores LIMIT 10");
-      dataSources.RunQueryNVerifyResponseViews(10);
+      dataSources.runQueryAndVerifyResponseViews({ count: 10 });
       dataSources.AssertQueryTableResponse(5, "2112");
       dataSources.AssertQueryTableResponse(6, "Mike's Liquors");
-      agHelper.ActionContextMenuWithInPane({
-        action: "Delete",
-        entityType: entityItems.Query,
-      });
+      // Commenting this deletion of query to make the generate crud work on the new page instead of the current page
+      // agHelper.ActionContextMenuWithInPane({
+      //   action: "Delete",
+      //   entityType: entityItems.Query,
+      // });
     });
 
     it("3. Verify Generate CRUD for the new table & Verify Deploy mode for table - Stores", () => {
@@ -129,13 +130,13 @@ describe(
         updateNVerify(6, 4, newStoreSecret as string);
       });
 
-      table.SelectTableRow(17, 0, true, "v2");
-      dataSources.AssertJSONFormHeader(17, 0, "store_id");
-      generateStoresSecretInfo(17);
+      table.SelectTableRow(12, 0, true, "v2");
+      dataSources.AssertJSONFormHeader(12, 0, "store_id");
+      generateStoresSecretInfo(12);
       cy.get("@secretInfo").then(($secretInfo) => {
         newStoreSecret = $secretInfo;
         cy.log("newStoreSecret is : " + newStoreSecret);
-        updateNVerify(17, 4, newStoreSecret as string);
+        updateNVerify(12, 4, newStoreSecret as string);
       });
 
       //Hidden field bug - to add here aft secret codes are updated for some fields!
@@ -374,7 +375,7 @@ describe(
       agHelper.FocusElement(locators._codeMirrorTextArea);
       //agHelper.VerifyEvaluatedValue(tableCreateQuery);
 
-      dataSources.RunQueryNVerifyResponseViews();
+      dataSources.runQueryAndVerifyResponseViews();
       dataSources.AssertTableInVirtuosoList(dsName, "Stores", false);
 
       agHelper.ActionContextMenuWithInPane({
@@ -398,9 +399,7 @@ describe(
       col3Text: string,
       jsonFromHeader: string,
     ) {
-      agHelper.GetNClick(
-        `${dataSources._generatePageBtn}, ${dataSources._datasourceCardGeneratePageBtn}`,
-      );
+      agHelper.GetNClick(dataSources._datasourceCardGeneratePageBtn);
       assertHelper.AssertNetworkStatus("@replaceLayoutWithCRUDPage", 201);
       agHelper.AssertContains("Successfully generated a page");
       //assertHelper.AssertNetworkStatus("@getActions", 200);//Since failing sometimes

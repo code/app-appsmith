@@ -1,6 +1,6 @@
 import type { ValidationResponse } from "constants/WidgetValidation";
 import { ValidationTypes } from "constants/WidgetValidation";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import { AutocompleteDataType } from "utils/autocomplete/AutocompleteDataType";
 import { FieldType } from "widgets/JSONFormWidget/constants";
 import { optionsCustomValidation } from "widgets/RadioGroupWidget/widget";
@@ -16,7 +16,11 @@ export const optionsValidation = optionsCustomValidation;
 
 function defaultOptionValidation(
   value: unknown,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   props: any,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   _: any,
 ): ValidationResponse {
   //Checks if the value is not of object type in {{}}

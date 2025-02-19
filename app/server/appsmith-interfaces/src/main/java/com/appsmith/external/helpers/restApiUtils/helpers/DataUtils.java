@@ -9,6 +9,7 @@ import com.appsmith.external.models.ApiContentType;
 import com.appsmith.external.models.Property;
 import com.appsmith.util.SerializationUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,14 +39,17 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static com.appsmith.external.exceptions.pluginExceptions.BasePluginErrorMessages.ERROR_INVALID_BASE64_FORMAT;
+import static com.appsmith.external.exceptions.pluginExceptions.BasePluginErrorMessages.ERROR_INVALID_MULTIPART_DATA;
 
 public class DataUtils {
 
@@ -80,8 +84,16 @@ public class DataUtils {
     }
 
     public DataUtils() {
-        this.objectMapper = SerializationUtils.getObjectMapperWithSourceInLocationEnabled();
-        this.objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        this.objectMapper = SerializationUtils.getObjectMapperWithSourceInLocationEnabled()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+        // Multipart data would be parsed using object mapper, these files may be large in the size.
+        // Hence, the length should not be truncated, therefore allowing maximum length.
+        this.objectMapper
+                .getFactory()
+                .setStreamReadConstraints(StreamReadConstraints.builder()
+                        .maxStringLength(Integer.MAX_VALUE)
+                        .build());
     }
 
     public BodyInserter<?, ?> buildBodyInserter(Object body, String contentType, Boolean encodeParamsToggle) {
@@ -223,8 +235,7 @@ public class DataUtils {
                         } catch (IOException e) {
                             e.printStackTrace();
                             throw new AppsmithPluginException(
-                                    AppsmithPluginError.PLUGIN_DATASOURCE_ARGUMENT_ERROR,
-                                    "Unable to parse content. Expected to receive an array or object of multipart data");
+                                    AppsmithPluginError.PLUGIN_DATASOURCE_ARGUMENT_ERROR, ERROR_INVALID_MULTIPART_DATA);
                         }
                         break;
                     case ARRAY:
@@ -291,37 +302,108 @@ public class DataUtils {
 
     private void populateFileTypeBodyBuilder(
             MultipartBodyBuilder bodyBuilder, Property property, ClientHttpRequest outputMessage) throws IOException {
+
         final String fileValue = (String) property.getValue();
         final String key = property.getKey();
-        List<MultipartFormDataDTO> multipartFormDataDTOs = new ArrayList<>();
 
-        if (fileValue.startsWith("{")) {
-            // Check whether the JSON string is an object
-            final MultipartFormDataDTO multipartFormDataDTO =
-                    objectMapper.readValue(fileValue, MultipartFormDataDTO.class);
-            multipartFormDataDTOs.add(multipartFormDataDTO);
-        } else if (fileValue.startsWith("[")) {
-            // Check whether the JSON string is an array
-            multipartFormDataDTOs = Arrays.asList(objectMapper.readValue(fileValue, MultipartFormDataDTO[].class));
+        if (fileValue.contains(BASE64_DELIMITER)) {
+            processBase64Data(fileValue, key, bodyBuilder, outputMessage);
         } else {
+            List<MultipartFormDataDTO> multipartFormDataDTOs = parseMultipartData(fileValue);
+
+            for (MultipartFormDataDTO dto : multipartFormDataDTOs) {
+                String dataString = String.valueOf(dto.getData());
+                if (dataString.contains(BASE64_DELIMITER)) {
+                    processBase64Data(dataString, key, bodyBuilder, outputMessage, dto.getName(), dto.getType());
+                } else {
+                    processRegularData(dataString, key, bodyBuilder, outputMessage, dto.getName(), dto.getType());
+                }
+            }
+        }
+    }
+
+    // Process BASE64-encoded content
+    private void processBase64Data(
+            String fileValue, String key, MultipartBodyBuilder bodyBuilder, ClientHttpRequest outputMessage) {
+        processBase64Data(fileValue, key, bodyBuilder, outputMessage, "file", "application/octet-stream");
+    }
+
+    // Overloaded method with custom filename & MIME type
+    private void processBase64Data(
+            String fileValue,
+            String key,
+            MultipartBodyBuilder bodyBuilder,
+            ClientHttpRequest outputMessage,
+            String filename,
+            String defaultMimeType) {
+        String[] parts = fileValue.split(BASE64_DELIMITER, 2);
+        if (parts.length != 2) {
             throw new AppsmithPluginException(
-                    AppsmithPluginError.PLUGIN_DATASOURCE_ARGUMENT_ERROR,
-                    "Unable to parse content. Expected to receive an array or object of multipart data");
+                    AppsmithPluginError.PLUGIN_DATASOURCE_ARGUMENT_ERROR, ERROR_INVALID_BASE64_FORMAT);
         }
 
-        multipartFormDataDTOs.forEach(multipartFormDataDTO -> {
-            final MultipartFormDataDTO finalMultipartFormDataDTO = multipartFormDataDTO;
-            Flux<DataBuffer> data = DataBufferUtils.readInputStream(
-                    () -> new ByteArrayInputStream(
-                            String.valueOf(finalMultipartFormDataDTO.getData()).getBytes(StandardCharsets.ISO_8859_1)),
-                    outputMessage.bufferFactory(),
-                    4096);
+        String metadataPart = parts[0];
+        String base64Content = parts[1];
+        String mimeType = extractMimeType(metadataPart, defaultMimeType);
+        byte[] decodedBytes = Base64.getMimeDecoder().decode(base64Content);
 
-            bodyBuilder
-                    .asyncPart(key, data, DataBuffer.class)
-                    .filename(multipartFormDataDTO.getName())
-                    .contentType(MediaType.valueOf(multipartFormDataDTO.getType()));
-        });
+        addPartToBody(bodyBuilder, key, decodedBytes, outputMessage, filename, mimeType);
+    }
+
+    // Process regular string data
+    private void processRegularData(
+            String data,
+            String key,
+            MultipartBodyBuilder bodyBuilder,
+            ClientHttpRequest outputMessage,
+            String filename,
+            String mimeType) {
+        byte[] bytes = data.getBytes(StandardCharsets.ISO_8859_1);
+        addPartToBody(bodyBuilder, key, bytes, outputMessage, filename, mimeType);
+    }
+
+    // Extract MIME type from metadata string
+    // The metadataPart typically follows this format: "data:mimetype;base64"
+    // Example values:
+    //   - "data:image/png;base64"  -> Extracted MIME type: "image/png"
+    //   - "data:application/pdf;base64" -> Extracted MIME type: "application/pdf"
+    //   - "data:text/plain;" (without base64) -> Extracted MIME type: "text/plain"
+    // If the format is incorrect or missing, it falls back to the default MIME type.
+    private String extractMimeType(String metadataPart, String defaultMimeType) {
+        if (metadataPart.startsWith("data:")) {
+            int endIndex = metadataPart.indexOf(';');
+            if (endIndex > 5) {
+                return metadataPart.substring(5, endIndex);
+            } else {
+                return metadataPart.substring(5);
+            }
+        }
+        return defaultMimeType;
+    }
+
+    // Add a part to the MultipartBodyBuilder
+    private void addPartToBody(
+            MultipartBodyBuilder bodyBuilder,
+            String key,
+            byte[] bytes,
+            ClientHttpRequest outputMessage,
+            String filename,
+            String mimeType) {
+        Flux<DataBuffer> data = DataBufferUtils.readInputStream(
+                () -> new ByteArrayInputStream(bytes), outputMessage.bufferFactory(), 4096);
+        bodyBuilder.asyncPart(key, data, DataBuffer.class).filename(filename).contentType(MediaType.valueOf(mimeType));
+    }
+
+    // Parse JSON multipart data
+    private List<MultipartFormDataDTO> parseMultipartData(String fileValue) throws IOException {
+        if (fileValue.startsWith("{")) {
+            return Collections.singletonList(objectMapper.readValue(fileValue, MultipartFormDataDTO.class));
+        } else if (fileValue.startsWith("[")) {
+            return Arrays.asList(objectMapper.readValue(fileValue, MultipartFormDataDTO[].class));
+        } else {
+            throw new AppsmithPluginException(
+                    AppsmithPluginError.PLUGIN_DATASOURCE_ARGUMENT_ERROR, ERROR_INVALID_MULTIPART_DATA);
+        }
     }
 
     /**

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 import set from "lodash/set";
-import type { DataTreeEntityConfig } from "@appsmith/entities/DataTree/types";
+import type { DataTreeEntityConfig } from "ee/entities/DataTree/types";
 import type {
   ConfigTree,
   DataTree,
@@ -13,7 +13,7 @@ import { addFn } from "workers/Evaluation/fns/utils/fnGuard";
 import {
   getEntityFunctions,
   getPlatformFunctions,
-} from "@appsmith/workers/Evaluation/fns";
+} from "ee/workers/Evaluation/fns";
 import { getEntityForEvalContext } from "workers/Evaluation/getEntityForContext";
 import { klona } from "klona/full";
 import { isEmpty } from "lodash";
@@ -40,8 +40,7 @@ export enum ExecutionType {
 /**
  * This method returns new dataTree with entity function and platform function
  */
-export const addDataTreeToContext = (args: {
-  EVAL_CONTEXT: EvalContext;
+export const getDataTreeContext = (args: {
   dataTree: Readonly<DataTree>;
   removeEntityFunctions?: boolean;
   isTriggerBased: boolean;
@@ -50,10 +49,11 @@ export const addDataTreeToContext = (args: {
   const {
     configTree,
     dataTree,
-    EVAL_CONTEXT,
     isTriggerBased,
     removeEntityFunctions = false,
   } = args;
+  const EVAL_CONTEXT: EvalContext = {};
+
   const dataTreeEntries = Object.entries(dataTree);
   const entityFunctionCollection: Record<string, Record<string, Function>> = {};
 
@@ -69,8 +69,10 @@ export const addDataTreeToContext = (args: {
 
     for (const entityFn of getEntityFunctions()) {
       if (!entityFn.qualifier(entity)) continue;
+
       const func = entityFn.fn(entity, entityName);
       const fullPath = `${entityFn.path || `${entityName}.${entityFn.name}`}`;
+
       set(entityFunctionCollection, fullPath, func);
     }
 
@@ -85,6 +87,7 @@ export const addDataTreeToContext = (args: {
     );
 
     if (isEmpty(entityMethodMap)) continue;
+
     EVAL_CONTEXT[entityName] = Object.assign(
       {},
       dataTree[entityName],
@@ -92,15 +95,23 @@ export const addDataTreeToContext = (args: {
     );
   }
 
-  if (removeEntityFunctions)
-    return removeEntityFunctionsFromEvalContext(
+  if (removeEntityFunctions) {
+    removeEntityFunctionsFromEvalContext(
       entityFunctionCollection,
       EVAL_CONTEXT,
     );
 
-  if (!isTriggerBased) return;
+    return EVAL_CONTEXT;
+  }
+
+  if (!isTriggerBased) {
+    return EVAL_CONTEXT;
+  }
+
   // if eval is not trigger based i.e., sync eval then we skip adding entity function to evalContext
   addEntityFunctionsToEvalContext(EVAL_CONTEXT, entityFunctionCollection);
+
+  return EVAL_CONTEXT;
 };
 
 export const addEntityFunctionsToEvalContext = (
@@ -118,6 +129,8 @@ export const addEntityFunctionsToEvalContext = (
   }
 };
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const addPlatformFunctionsToEvalContext = (context: any) => {
   for (const fnDef of getPlatformFunctions()) {
     addFn(context, fnDef.name, fnDef.fn.bind(context));
@@ -130,6 +143,7 @@ export function getAllSetterFunctions(
 ) {
   const entitiesSetterFunctions: Record<string, true> = {};
   const dataTreeEntries = Object.entries(dataTree);
+
   for (const [entityName, entity] of dataTreeEntries) {
     const entityConfig = configTree[entityName];
     const entityMethodMap = setters.getEntitySettersFromConfig(
@@ -144,6 +158,7 @@ export function getAllSetterFunctions(
       entitiesSetterFunctions[`${entityName}.${methodName}`] = true;
     }
   }
+
   return entitiesSetterFunctions;
 }
 
@@ -162,6 +177,7 @@ export function getEntitySetterFunctions(
   for (const methodName of Object.keys(entityMethodMap)) {
     entitySetterFunctions[`${entityName}.${methodName}`] = true;
   }
+
   return entitySetterFunctions;
 }
 
@@ -171,18 +187,25 @@ export const getAllAsyncFunctions = (
 ) => {
   let allAsyncFunctions: Record<string, true> = {};
   const dataTreeEntries = Object.entries(dataTree);
+
   for (const [entityName, entity] of dataTreeEntries) {
     for (const entityFn of getEntityFunctions()) {
       if (!entityFn.qualifier(entity)) continue;
+
       const fullPath = `${entityFn.path || `${entityName}.${entityFn.name}`}`;
+
       allAsyncFunctions[fullPath] = true;
     }
   }
+
   const setterMethods = getAllSetterFunctions(dataTree, configTree);
+
   allAsyncFunctions = { ...allAsyncFunctions, ...setterMethods };
+
   for (const platformFn of getPlatformFunctions()) {
     allAsyncFunctions[platformFn.name] = true;
   }
+
   return allAsyncFunctions;
 };
 
@@ -194,6 +217,7 @@ export const removeEntityFunctionsFromEvalContext = (
     entityFunctionCollection,
   )) {
     const entity = klona(evalContext[entityName]);
+
     Object.keys(funcObj).forEach((entityFn) => {
       delete entity[entityFn];
     });

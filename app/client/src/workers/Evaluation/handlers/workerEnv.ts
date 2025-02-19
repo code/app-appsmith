@@ -1,7 +1,7 @@
-import type { FeatureFlags } from "@appsmith/entities/FeatureFlag";
+import type { FeatureFlags } from "ee/entities/FeatureFlag";
 
 export class WorkerEnv {
-  static flags: any;
+  static flags: FeatureFlags = {} as FeatureFlags;
   static cloudHosting: boolean;
 
   static setFeatureFlags(featureFlags: FeatureFlags) {

@@ -1,8 +1,8 @@
-import type { AppState } from "@appsmith/reducers";
-import { PluginPackageName } from "entities/Action";
+import type { AppState } from "ee/reducers";
+import { PluginPackageName } from "entities/Plugin";
 import React, { useContext } from "react";
 import { useSelector } from "react-redux";
-import { getPluginPackageFromDatasourceId } from "@appsmith/selectors/entitiesSelector";
+import { getPluginPackageFromDatasourceId } from "ee/selectors/entitiesSelector";
 import { WidgetQueryGeneratorFormContext } from "..";
 import { Section } from "../styles";
 import { GoogleSheetControls } from "./GoogleSheetControls";

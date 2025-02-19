@@ -39,8 +39,8 @@
           return result;
         };
         const CLOUD_HOSTING = parseConfig('{{env "APPSMITH_CLOUD_HOSTING"}}');
-        const ZIPY_KEY = parseConfig('{{env "APPSMITH_ZIPY_SDK_KEY"}}');
         const AIRGAPPED = parseConfig('{{env "APPSMITH_AIRGAP_ENABLED"}}');
+        const REO_CLIENT_ID = parseConfig('{{env "APPSMITH_REO_CLIENT_ID"}}');
       </script>
     <script>
         window.__APPSMITH_CHUNKS_TO_PRELOAD =
@@ -51,7 +51,7 @@
           //  1) Give your import a name (use the `webpackChunkName` comment: `import(/* webpackChunkName: "my-name" */ "./my-file")`)
           //  2) Add the name into the `chunksToPreload` array below
           let chunksToPreload = {
-            'edit-mode': [...getChunkUrls("editor"), ...getChunkUrls("global-search")],
+            'edit-mode': [...getChunkUrls("AppIDE"), ...getChunkUrls("global-search")],
             'view-mode': getChunkUrls("AppViewer")
           };
 
@@ -63,21 +63,14 @@
         })()
           %>
     </script>
-    <script>
-      if (CLOUD_HOSTING && ZIPY_KEY) {
-        const script = document.createElement("script");
-        script.crossOrigin = "anonymous";
-        script.defer = true;
-        script.src = "https://cdn.zipy.ai/sdk/v1.0/zipy.min.umd.js";
-        script.onload = () => {
-          window.zipy && window.zipy.init(ZIPY_KEY);
-        };
-        const head = document.getElementsByTagName("head")[0];
-        head && head.appendChild(script);
+
+    <!-- Start of Reo Javascript -->
+    <script type="text/javascript">
+      if (CLOUD_HOSTING && REO_CLIENT_ID) {
+        !function(){var e,t,n;e=REO_CLIENT_ID,t=function(){Reo.init({clientID:REO_CLIENT_ID})},(n=document.createElement("script")).src="https://static.reo.dev/"+e+"/reo.js",n.async=!0,n.onload=t,document.head.appendChild(n)}();
       }
-
-
     </script>
+    <!-- End of Reo Javascript -->
   </head>
 
   <body class="appsmith-light-theme">
@@ -219,26 +212,17 @@
           apiKey: parseConfig('{{env "APPSMITH_SEGMENT_KEY"}}'),
           ceKey: parseConfig('{{env "APPSMITH_SEGMENT_CE_KEY"}}'),
         },
-        newRelic:{
-          enableNewRelic: parseConfig('{{env "APPSMITH_NEW_RELIC_ACCOUNT_ENABLE"}}'),
-          accountId: parseConfig('{{env "APPSMITH_NEW_RELIC_ACCOUNT_ID"}}'),
-          applicationId: parseConfig('{{env "APPSMITH_NEW_RELIC_APPLICATION_ID"}}'),
-          browserAgentlicenseKey: parseConfig('{{env "APPSMITH_NEW_RELIC_BROWSER_AGENT_LICENSE_KEY"}}'),
-          browserAgentEndpoint: parseConfig('{{env "APPSMITH_NEW_RELIC_BROWSER_AGENT_ENDPOINT"}}'),
-          otlpLicenseKey: parseConfig('{{env "APPSMITH_NEW_RELIC_OTLP_LICENSE_KEY"}}'),
-          //OTLP following the naming convention of Sdk initialisation
-          otlpServiceName: parseConfig('{{env "APPSMITH_NEW_RELIC_OTEL_SERVICE_NAME"}}'),
-          otlpEndpoint:parseConfig('{{env "APPSMITH_NEW_RELIC_OTEL_EXPORTER_OTLP_ENDPOINT"}}'),
-
+        observability: {
+          deploymentName: parseConfig('{{env "APPSMITH_DEPLOYMENT_NAME"}}'),
+          serviceInstanceId: parseConfig('{{env "APPSMITH_HOSTNAME"}}'),
+          tracingUrl: parseConfig('{{env "APPSMITH_FRONTEND_TRACING_URL"}}'),
         },
         fusioncharts: {
           licenseKey: parseConfig('{{env "APPSMITH_FUSIONCHARTS_LICENSE_KEY"}}'),
         },
-        enableMixpanel: parseConfig('{{env "APPSMITH_SEGMENT_KEY"}}'),
-        algolia: {
-          apiId: parseConfig('{{env "APPSMITH_ALGOLIA_API_ID"}}'),
-          apiKey: parseConfig('{{env "APPSMITH_ALGOLIA_API_KEY"}}'),
-          indexName: parseConfig('{{env "APPSMITH_ALGOLIA_SEARCH_INDEX_NAME"}}'),
+        mixpanel: {
+          enabled: parseConfig('{{env "APPSMITH_SEGMENT_KEY"}}'),
+          apiKey: parseConfig('{{env "APPSMITH_MIXPANEL_KEY"}}'),
         },
         logLevel:
           CONFIG_LOG_LEVEL_INDEX > -1
@@ -246,15 +230,12 @@
             : LOG_LEVELS[1],
         cloudHosting: CLOUD_HOSTING,
         appVersion: {
-          id: parseConfig('{{env "APPSMITH_VERSION_ID"}}'),
+          id: parseConfig('{{env "APPSMITH_VERSION_ID"}}') || "UNKNOWN",
           sha: parseConfig('{{env "APPSMITH_VERSION_SHA"}}'),
           releaseDate: parseConfig('{{env "APPSMITH_VERSION_RELEASE_DATE"}}'),
         },
         intercomAppID: INTERCOM_APP_ID,
         mailEnabled: parseConfig('{{env "APPSMITH_MAIL_ENABLED"}}'),
-        cloudServicesBaseUrl:
-          parseConfig('{{env "APPSMITH_CLOUD_SERVICES_BASE_URL"}}') ||
-          "https://cs.appsmith.com",
         googleRecaptchaSiteKey: parseConfig('{{env "APPSMITH_RECAPTCHA_SITE_KEY"}}'),
         hideWatermark: parseConfig('{{env "APPSMITH_HIDE_WATERMARK"}}'),
         disableIframeWidgetSandbox: parseConfig(

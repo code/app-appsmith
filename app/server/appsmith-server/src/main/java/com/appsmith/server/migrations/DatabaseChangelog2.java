@@ -2,8 +2,8 @@ package com.appsmith.server.migrations;
 
 import com.appsmith.external.converters.ISOStringToInstantConverter;
 import com.appsmith.external.models.BaseDomain;
-import com.appsmith.external.models.BranchAwareDomain;
 import com.appsmith.external.models.Datasource;
+import com.appsmith.external.models.GitSyncedDomain;
 import com.appsmith.external.models.PluginType;
 import com.appsmith.external.models.Policy;
 import com.appsmith.server.acl.AclPermission;
@@ -25,7 +25,6 @@ import com.appsmith.server.domains.UsagePulse;
 import com.appsmith.server.domains.User;
 import com.appsmith.server.domains.Workspace;
 import com.appsmith.server.dtos.Permission;
-import com.appsmith.server.helpers.TextUtils;
 import com.appsmith.server.migrations.solutions.UpdateSuperUserMigrationHelper;
 import com.appsmith.server.repositories.CacheableRepositoryHelper;
 import com.appsmith.server.solutions.PolicySolution;
@@ -62,15 +61,12 @@ import static com.appsmith.server.acl.AclPermission.READ_INSTANCE_CONFIGURATION;
 import static com.appsmith.server.acl.AclPermission.READ_PERMISSION_GROUP_MEMBERS;
 import static com.appsmith.server.acl.AclPermission.READ_THEMES;
 import static com.appsmith.server.acl.AppsmithRole.TENANT_ADMIN;
-import static com.appsmith.server.constants.EnvVariables.APPSMITH_ADMIN_EMAILS;
 import static com.appsmith.server.constants.FieldName.DEFAULT_PERMISSION_GROUP;
 import static com.appsmith.server.constants.FieldName.PERMISSION_GROUP_ID;
-import static com.appsmith.server.helpers.CollectionUtils.findSymmetricDiff;
 import static com.appsmith.server.migrations.DatabaseChangelog1.dropIndexIfExists;
 import static com.appsmith.server.migrations.DatabaseChangelog1.ensureIndexes;
 import static com.appsmith.server.migrations.DatabaseChangelog1.installPluginToAllWorkspaces;
 import static com.appsmith.server.migrations.DatabaseChangelog1.makeIndex;
-import static com.appsmith.server.migrations.MigrationHelperMethods.evictPermissionCacheForUsers;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static org.springframework.data.mongodb.core.query.Query.query;
 import static org.springframework.data.mongodb.core.query.Update.update;
@@ -109,13 +105,12 @@ public class DatabaseChangelog2 {
     }
 
     public static void doAddIndexesForGit(MongoTemplate mongoTemplate) {
-        String defaultResources = BranchAwareDomain.Fields.defaultResources;
         ensureIndexes(
                 mongoTemplate,
                 ActionCollection.class,
                 makeIndex(
-                                defaultResources + "." + FieldName.APPLICATION_ID,
-                                BaseDomain.Fields.gitSyncId,
+                                "defaultResources." + FieldName.APPLICATION_ID,
+                                GitSyncedDomain.Fields.gitSyncId,
                                 FieldName.DELETED)
                         .named("defaultApplicationId_gitSyncId_deleted"));
 
@@ -123,8 +118,8 @@ public class DatabaseChangelog2 {
                 mongoTemplate,
                 NewAction.class,
                 makeIndex(
-                                defaultResources + "." + FieldName.APPLICATION_ID,
-                                BaseDomain.Fields.gitSyncId,
+                                "defaultResources." + FieldName.APPLICATION_ID,
+                                GitSyncedDomain.Fields.gitSyncId,
                                 FieldName.DELETED)
                         .named("defaultApplicationId_gitSyncId_deleted"));
 
@@ -132,8 +127,8 @@ public class DatabaseChangelog2 {
                 mongoTemplate,
                 NewPage.class,
                 makeIndex(
-                                defaultResources + "." + FieldName.APPLICATION_ID,
-                                BaseDomain.Fields.gitSyncId,
+                                "defaultResources." + FieldName.APPLICATION_ID,
+                                GitSyncedDomain.Fields.gitSyncId,
                                 FieldName.DELETED)
                         .named("defaultApplicationId_gitSyncId_deleted"));
     }
@@ -264,7 +259,7 @@ public class DatabaseChangelog2 {
                 .permissionGroups(Set.of(savedPermissionGroup.getId()))
                 .build();
 
-        savedInstanceConfig.setPolicies(new HashSet<>(Set.of(editConfigPolicy, readConfigPolicy)));
+        savedInstanceConfig.setPolicies(new HashSet<>(Set.of(editConfigPolicy, readConfigPolicy)), false);
 
         mongoTemplate.save(savedInstanceConfig);
 
@@ -280,7 +275,7 @@ public class DatabaseChangelog2 {
                 .build();
 
         savedPermissionGroup.setPolicies(
-                new HashSet<>(Set.of(updatePermissionGroupPolicy, assignPermissionGroupPolicy)));
+                new HashSet<>(Set.of(updatePermissionGroupPolicy, assignPermissionGroupPolicy)), false);
 
         Set<Permission> permissions = new HashSet<>(savedPermissionGroup.getPermissions());
         permissions.addAll(Set.of(
@@ -387,18 +382,18 @@ public class DatabaseChangelog2 {
         for (Theme theme : themes) {
             theme.setSystemTheme(true);
             theme.setCreatedAt(Instant.now());
-            theme.setPolicies(new HashSet<>(Set.of(policyWithCurrentPermission)));
             Query query = new Query(Criteria.where(Theme.Fields.name)
                     .is(theme.getName())
                     .and(Theme.Fields.isSystemTheme)
                     .is(true));
-
+            Set<Policy> themePolicies = new HashSet<>(Set.of(policyWithCurrentPermission));
             Theme savedTheme = mongoTemplate.findOne(query, Theme.class);
             if (savedTheme == null) { // this theme does not exist, create it
+                theme.setPolicies(themePolicies);
                 savedTheme = mongoTemplate.save(theme);
             } else { // theme already found, update
                 savedTheme.setDisplayName(theme.getDisplayName());
-                savedTheme.setPolicies(theme.getPolicies());
+                savedTheme.setPolicies(themePolicies);
                 savedTheme.setConfig(theme.getConfig());
                 savedTheme.setProperties(theme.getProperties());
                 savedTheme.setStylesheet(theme.getStylesheet());
@@ -444,68 +439,6 @@ public class DatabaseChangelog2 {
         ensureIndexes(mongoTemplate, PermissionGroup.class, assignedToUserIds_deleted_compound_index);
     }
 
-    /**
-     * Changing the order of this function to 10000 so that it always gets executed at the end.
-     * This ensures that any permission changes for super users happen once all other migrations are completed
-     *
-     * @param mongoTemplate
-     * @param cacheableRepositoryHelper
-     */
-    @ChangeSet(order = "10000", id = "update-super-users", author = "", runAlways = true)
-    public void updateSuperUsers(
-            MongoTemplate mongoTemplate,
-            CacheableRepositoryHelper cacheableRepositoryHelper,
-            PolicySolution policySolution,
-            PolicyGenerator policyGenerator) {
-        // Read the admin emails from the environment and update the super users accordingly
-        String adminEmailsStr = System.getenv(String.valueOf(APPSMITH_ADMIN_EMAILS));
-
-        Set<String> adminEmails = TextUtils.csvToSet(adminEmailsStr);
-
-        Query instanceConfigurationQuery = new Query();
-        instanceConfigurationQuery.addCriteria(where(Config.Fields.name).is(FieldName.INSTANCE_CONFIG));
-        Config instanceAdminConfiguration = mongoTemplate.findOne(instanceConfigurationQuery, Config.class);
-
-        String instanceAdminPermissionGroupId =
-                (String) instanceAdminConfiguration.getConfig().get(DEFAULT_PERMISSION_GROUP);
-
-        Query permissionGroupQuery = new Query();
-        permissionGroupQuery
-                .addCriteria(where(PermissionGroup.Fields.id).is(instanceAdminPermissionGroupId))
-                .fields()
-                .include(PermissionGroup.Fields.assignedToUserIds);
-        PermissionGroup instanceAdminPG = mongoTemplate.findOne(permissionGroupQuery, PermissionGroup.class);
-
-        Query tenantQuery = new Query();
-        tenantQuery.addCriteria(where(Tenant.Fields.slug).is("default"));
-        Tenant tenant = mongoTemplate.findOne(tenantQuery, Tenant.class);
-
-        Set<String> userIds = adminEmails.stream()
-                .map(email -> email.trim())
-                .map(String::toLowerCase)
-                .map(email -> {
-                    Query userQuery = new Query();
-                    userQuery.addCriteria(where(User.Fields.email).is(email));
-                    User user = mongoTemplate.findOne(userQuery, User.class);
-
-                    if (user == null) {
-                        log.info("Creating super user with username {}", email);
-                        user = updateSuperUserMigrationHelper.createNewUser(
-                                email, tenant, instanceAdminPG, mongoTemplate, policySolution, policyGenerator);
-                    }
-
-                    return user.getId();
-                })
-                .collect(Collectors.toSet());
-
-        Set<String> oldSuperUsers = instanceAdminPG.getAssignedToUserIds();
-        Set<String> updatedUserIds = findSymmetricDiff(oldSuperUsers, userIds);
-        evictPermissionCacheForUsers(updatedUserIds, mongoTemplate, cacheableRepositoryHelper);
-
-        Update update = new Update().set(PermissionGroup.Fields.assignedToUserIds, userIds);
-        mongoTemplate.updateFirst(permissionGroupQuery, update, PermissionGroup.class);
-    }
-
     @ChangeSet(order = "034", id = "update-bad-theme-state", author = "")
     public void updateBadThemeState(
             MongoTemplate mongoTemplate,
@@ -535,7 +468,7 @@ public class DatabaseChangelog2 {
                     if (i == 0) {
                         // Don't create a new theme for the first application
                         // Just update the policies
-                        theme.setPolicies(themePolicies);
+                        theme.setPolicies(themePolicies, false);
                         mongoTemplate.save(theme);
                     } else {
 
@@ -548,7 +481,7 @@ public class DatabaseChangelog2 {
                         newTheme.setProperties(theme.getProperties());
                         newTheme.setCreatedAt(Instant.now());
                         newTheme.setUpdatedAt(Instant.now());
-                        newTheme.setPolicies(themePolicies);
+                        newTheme.setPolicies(themePolicies, false);
 
                         newTheme = mongoTemplate.save(newTheme);
 
@@ -623,17 +556,18 @@ public class DatabaseChangelog2 {
         HashSet<Permission> permissions = new HashSet<>(instanceAdminPG.getPermissions());
         permissions.addAll(tenantPermissions);
         instanceAdminPG.setPermissions(permissions);
+        instanceAdminPG.setPolicies(instanceAdminPG.getPolicies(), false);
         mongoTemplate.save(instanceAdminPG);
 
         Map<String, Policy> tenantPolicy =
                 policySolution.generatePolicyFromPermissionGroupForObject(instanceAdminPG, defaultTenant.getId());
         Tenant updatedTenant = policySolution.addPoliciesToExistingObject(tenantPolicy, defaultTenant);
+        updatedTenant.setPolicies(updatedTenant.getPolicies(), false);
         mongoTemplate.save(updatedTenant);
     }
 
     @ChangeSet(order = "039", id = "change-readPermissionGroup-to-readPermissionGroupMembers", author = "")
-    public void modifyReadPermissionGroupToReadPermissionGroupMembers(
-            MongoTemplate mongoTemplate, @NonLockGuarded PolicySolution policySolution) {
+    public void modifyReadPermissionGroupToReadPermissionGroupMembers(MongoTemplate mongoTemplate) {
 
         Query query = new Query(Criteria.where("policies.permission").is("read:permissionGroups"));
         Update update = new Update().set("policies.$.permission", "read:permissionGroupMembers");

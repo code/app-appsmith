@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import SpinnerLoader from "pages/common/SpinnerLoader";
-import { Text } from "design-system";
+import { Text } from "@appsmith/ads";
 
 const LoaderWrapper = styled.div`
   display: flex;
@@ -12,7 +12,7 @@ const LoaderWrapper = styled.div`
 
 function StatusLoader({ loaderMsg }: { loaderMsg: string }) {
   return (
-    <LoaderWrapper data-testId="t--git-merge-loader">
+    <LoaderWrapper data-testid="t--git-merge-loader">
       <SpinnerLoader size="md" />
       <Text kind={"body-m"} style={{ marginLeft: 8 }}>
         {loaderMsg}

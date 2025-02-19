@@ -54,6 +54,36 @@
         background: var(--color-bg-$(color)-subtle-active);
       }
     }
+
+    &[data-variant="subtle"][data-color="$(color)"] {
+      background-color: var(--color-bg-$(color)-subtle);
+      color: var(--color-fg-$(color));
+
+      &[data-hovered]:not([data-loading]) {
+        background-color: var(--color-bg-$(color)-subtle-hover);
+      }
+
+      &[data-pressed]:not([data-loading]) {
+        background-color: var(--color-bg-$(color)-subtle-active);
+      }
+    }
+  }
+
+  /*
+    This is a special case for the "neutral" color for "subtle" variant. The subtle color is lighter than required.
+    So we added the soft token for neutral color which is little more darker than the subtle color tokens.
+  */
+  &[data-variant="subtle"][data-color="neutral"] {
+    background-color: var(--color-bg-neutral-soft);
+    color: var(--color-fg-neutral);
+
+    &[data-hovered]:not([data-loading]) {
+      background-color: var(--color-bg-neutral-soft-hover);
+    }
+
+    &[data-pressed]:not([data-loading]) {
+      background-color: var(--color-bg-neutral-soft-active);
+    }
   }
 
   /**
@@ -77,8 +107,19 @@
     margin-block-start: var(--body-margin-start);
     margin-block-end: var(--body-margin-end);
     inline-size: var(--body-line-height);
-    margin-inline-start: var(--body-margin-start);
-    margin-inline-end: var(--body-margin-end);
+    margin-inline: calc(
+      (var(--body-margin-start) + var(--body-margin-end)) / 2
+    );
+  }
+
+  &[data-size="xSmall"] [data-empty-text] {
+    block-size: var(--footnote-line-height);
+    margin-block-start: var(--footnote-margin-start);
+    margin-block-end: var(--footnote-margin-end);
+    inline-size: var(--footnote-line-height);
+    margin-inline: calc(
+      (var(--footnote-margin-start) + var(--footnote-margin-end)) / 2
+    );
   }
 
   /**
@@ -156,14 +197,52 @@
   * SIZES
   *-----------------------------------------------------------------------------
   */
+  &[data-size="xSmall"] {
+    padding-inline: var(--inner-spacing-1);
+    padding-block: var(--inner-spacing-1);
+  }
+
+  &[data-size="xSmall"]:has([data-icon]):has([data-text]) {
+    min-inline-size: var(--sizing-13);
+  }
+
+  &[data-size="xSmall"]:has([data-text]) {
+    min-inline-size: var(--sizing-9);
+  }
+
+  &[data-icon-position="start"][data-size="xSmall"]:has([data-icon]):has(
+      [data-text]
+    ) {
+    padding-inline: var(--inner-spacing-1) var(--inner-spacing-2);
+  }
+
+  &[data-icon-position="start"][data-size="xSmall"]
+    [data-content]:has([data-icon]):has([data-text]) {
+    padding-inline-start: calc(var(--icon-size-1) + var(--inner-spacing-1));
+  }
+
+  &[data-icon-position="end"][data-size="xSmall"]:has([data-icon]):has(
+      [data-text]
+    ) {
+    padding-inline: var(--inner-spacing-2) var(--inner-spacing-1);
+  }
+
+  &[data-icon-position="end"][data-size="xSmall"]
+    [data-content]:has([data-icon]):has([data-text]) {
+    padding-inline-end: calc(var(--icon-size-1) + var(--inner-spacing-1));
+  }
+
   &[data-size="small"] {
-    min-inline-size: var(--sizing-7);
-    padding-inline: var(--inner-spacing-2);
-    padding-block: var(--inner-spacing-2);
+    padding-inline: var(--inner-spacing-1);
+    padding-block: var(--inner-spacing-1);
   }
 
   &[data-size="small"]:has([data-icon]):has([data-text]) {
-    min-inline-size: var(--sizing-12);
+    min-inline-size: var(--sizing-15);
+  }
+
+  &[data-size="small"]:has([data-text]) {
+    min-inline-size: var(--sizing-13);
   }
 
   &[data-icon-position="start"][data-size="small"]:has([data-icon]):has(
@@ -174,7 +253,7 @@
 
   &[data-icon-position="start"][data-size="small"]
     [data-content]:has([data-icon]):has([data-text]) {
-    padding-inline-start: calc(var(--icon-size-1) + var(--inner-spacing-1));
+    padding-inline-start: calc(var(--icon-size-2) + var(--inner-spacing-1));
   }
 
   &[data-icon-position="end"][data-size="small"]:has([data-icon]):has(
@@ -185,17 +264,20 @@
 
   &[data-icon-position="end"][data-size="small"]
     [data-content]:has([data-icon]):has([data-text]) {
-    padding-inline-end: calc(var(--icon-size-1) + var(--inner-spacing-1));
+    padding-inline-end: calc(var(--icon-size-2) + var(--inner-spacing-1));
   }
 
   &[data-size="medium"] {
-    min-inline-size: var(--sizing-9);
     padding-inline: var(--inner-spacing-3);
     padding-block: var(--inner-spacing-3);
   }
 
   &[data-size="medium"]:has([data-icon]):has([data-text]) {
     min-inline-size: var(--sizing-22);
+  }
+
+  &[data-size="medium"]:has([data-text]) {
+    min-inline-size: var(--sizing-17);
   }
 
   &[data-icon-position="start"][data-size="medium"]:has([data-icon]):has(
@@ -206,7 +288,7 @@
 
   &[data-icon-position="start"][data-size="medium"]
     [data-content]:has([data-icon]):has([data-text]) {
-    padding-inline-start: calc(var(--icon-size-2) + var(--inner-spacing-1));
+    padding-inline-start: calc(var(--icon-size-3) + var(--inner-spacing-1));
   }
 
   &[data-icon-position="end"][data-size="medium"]:has([data-icon]):has(
@@ -217,6 +299,6 @@
 
   &[data-icon-position="end"][data-size="medium"]
     [data-content]:has([data-icon]):has([data-text]) {
-    padding-inline-end: calc(var(--icon-size-2) + var(--inner-spacing-1));
+    padding-inline-end: calc(var(--icon-size-3) + var(--inner-spacing-1));
   }
 }

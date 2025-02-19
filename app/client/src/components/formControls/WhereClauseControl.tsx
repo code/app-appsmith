@@ -8,7 +8,7 @@ import { useSelector } from "react-redux";
 import { getBindingOrConfigPathsForWhereClauseControl } from "entities/Action/actionProperties";
 import { WhereClauseSubComponent } from "./utils";
 import useResponsiveBreakpoints from "utils/hooks/useResponsiveBreakpoints";
-import { Button, Tooltip } from "design-system";
+import { Button, Tooltip } from "@appsmith/ads";
 
 //Dropdwidth and Icon have fixed widths
 const DropdownWidth = 82; //pixel value
@@ -24,6 +24,8 @@ export interface whereClauseValueType {
 }
 
 // Form config for the value field
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const valueFieldConfig: any = {
   key: "value",
   controlType: "QUERY_DYNAMIC_INPUT_TEXT",
@@ -31,6 +33,8 @@ const valueFieldConfig: any = {
 };
 
 // Form config for the key field
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const keyFieldConfig: any = {
   key: "key",
   controlType: "QUERY_DYNAMIC_INPUT_TEXT",
@@ -38,6 +42,8 @@ const keyFieldConfig: any = {
 };
 
 // Form config for the condition field
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const conditionFieldConfig: any = {
   key: "operator",
   controlType: "DROP_DOWN",
@@ -46,12 +52,16 @@ const conditionFieldConfig: any = {
 };
 
 // Form config for the operator field
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const logicalFieldConfig: any = {
   key: "condition",
   controlType: "DROP_DOWN",
   initialValue: "EQ",
 };
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const LogicalFieldValue: any = styled.p<{
   width: string | undefined;
   size: string;
@@ -80,7 +90,7 @@ const CenteredIconButton = styled(Button)<{
 `;
 
 // We are setting a background color for the last two nested levels
-const handleSecondaryBoxBackgroudColor = (
+const handleSecondaryBoxBackgroundColor = (
   currentNestingLevel: number,
   nestedLevels: number,
 ) => {
@@ -103,11 +113,12 @@ const SecondaryBox = styled.div<{
   display: flex;
   flex-direction: column;
   position: relative;
-  border-radius: var(--ads-v2-border-radius);
   border: solid 1px var(--ads-v2-color-border);
+  border-radius: var(--ads-v2-border-radius);
   border-width: ${(props) => (props?.showBorder ? "1px" : "0px")};
   padding: ${(props) =>
-    props?.showBorder ? "0px 12px 12px 8px" : "4px 12px 12px 0px"};
+    props?.showBorder ? "0px 12px 12px 8px" : "4px 0px 12px 0px"};
+
   width: 100%;
   // Setting a max width to not have it really elongate on very large screens
   max-width: 2000px;
@@ -115,11 +126,10 @@ const SecondaryBox = styled.div<{
   ${(props) =>
     props.size === "small" &&
     `
-    ${handleSecondaryBoxBackgroudColor(
+    ${handleSecondaryBoxBackgroundColor(
       props.currentNestingLevel,
       props.nestedLevels,
     )}
-    padding-bottom: 12px;
   `}
 `;
 
@@ -129,14 +139,13 @@ const ConditionWrapper = styled.div<{ size: string }>`
   flex-direction: row;
   align-items: center;
   width: 100%;
-  gap: 5px;
+  gap: var(--ads-v2-spaces-4);
   margin-top: var(--ads-v2-spaces-3);
   margin-bottom: 5px;
 
   ${(props) =>
     props.size === "small" &&
     `
-    // margin-top: 0px;
     gap: 0px;
     flex-direction: column;
     align-items: start;
@@ -153,8 +162,8 @@ const ConditionBox = styled.div<{ size?: string }>`
   // The 4 elements(3 input fields and a close button) are horizontally aligned
   // by default
   grid-template-columns: auto 100px auto max-content;
-  grid-column-gap: 5px;
-  grid-row-gap: 5px;
+  column-gap: var(--ads-v2-spaces-4);
+  row-gap: var(--ads-v2-spaces-2);
   width: 100%;
 
   ${(props) =>
@@ -168,7 +177,7 @@ const ConditionBox = styled.div<{ size?: string }>`
     // are verticall aligned one below the other.
     grid-template-columns: repeat(2, max-content);
     grid-template-rows: repeat(3, max-content);
-    grid-column-gap: 5px;
+    column-gap: var(--ads-v2-spaces-4);
     // The three input fields will be in the first column
     & :not(:nth-child(4)) {
       grid-column-start: 1;
@@ -186,7 +195,7 @@ const ConditionBox = styled.div<{ size?: string }>`
 const ActionBox = styled.div<{ marginLeft: string; size: string }>`
   display: flex;
   flex-direction: row;
-  gap: 5px;
+  row-gap: var(--ads-v2-spaces-2);
   background-color: inherit;
   margin-left: ${(props) => props.marginLeft};
 
@@ -200,20 +209,21 @@ const ActionBox = styled.div<{ marginLeft: string; size: string }>`
 const GroupConditionBox = styled.div<{ size: string }>`
   display: flex;
   flex-direction: row;
-  gap: 5px;
+  gap: var(--ads-v2-spaces-4);
   width: 100%;
 
   ${(props) =>
     props.size === "small" &&
     `
-  gap: 5px;
-  margin: 5px 0px;
-  flex-direction: row;
-  min-width: max-content;
+    margin: 5px 0px;
+    flex-direction: row;
+    min-width: max-content;
   `}
 `;
 
 // Component to display single line of condition, includes 2 inputs and 1 dropdown
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ConditionComponent(props: any, index: number) {
   // Custom styles have to be passed as props, otherwise the UI will be disproportional
 
@@ -289,12 +299,15 @@ function ConditionComponent(props: any, index: number) {
 }
 
 // This is the block which contains an operator and multiple conditions/ condition blocks
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ConditionBlock(props: any) {
   const targetRef = useRef<HTMLDivElement>(null);
   // Smallest width of the component below which the individual input fields don't
   // decrease in width anymore so we decide to shift to small space layout at this point
   const size = useResponsiveBreakpoints(targetRef, [{ small: 505 }]);
-  const formValues: any = useSelector((state) =>
+
+  const formValues = useSelector((state) =>
     getFormValues(props.formName)(state),
   );
 
@@ -307,6 +320,7 @@ function ConditionBlock(props: any) {
     // so make sure the new formValue has been initialized with the where object,
     // especially when switching between various queries across the same Query editor form.
     const whereConfigValue = _.get(formValues, props.configProperty);
+
     // if the where object exists then it means the initialization of the form has been completed.
     // if the where object exists and the length of children field is less than one, add a new field.
     if (props.fields.length < 1 && !!whereConfigValue) {
@@ -321,9 +335,11 @@ function ConditionBlock(props: any) {
   }, [props.fields.length]);
 
   let isDisabled = false;
+
   if (props.logicalTypes.length === 1) {
     isDisabled = true;
   }
+
   const logicalFieldPath = getBindingOrConfigPathsForWhereClauseControl(
     props.configProperty,
     WhereClauseSubComponent.Condition,
@@ -341,8 +357,11 @@ function ConditionBlock(props: any) {
     >
       {props.fields &&
         props.fields.length > 0 &&
+        // TODO: Fix this the next time the file is edited
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         props.fields.map((field: any, index: number) => {
           const fieldValue: whereClauseValueType = props.fields.get(index);
+
           return (
             <ConditionWrapper key={`where-${index}`} size={size}>
               {/* Component to render the joining operator between multiple conditions */}
@@ -391,6 +410,7 @@ function ConditionBlock(props: any) {
                   <CenteredIconButton
                     alignSelf={"start"}
                     data-testid={`t--where-clause-delete-[${index}]`}
+                    isIconButton
                     kind="tertiary"
                     onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
@@ -484,6 +504,7 @@ export default function WhereClauseControl(props: WhereClauseControlProps) {
 
   // Max width is designed in a way that the proportion stays same even after nesting
   const maxWidth = 60; //in vw
+
   return (
     <FieldArray
       component={ConditionBlock}

@@ -2,48 +2,43 @@ import type { BottomTab } from "components/editorComponents/EntityBottomTabs";
 import EntityBottomTabs from "components/editorComponents/EntityBottomTabs";
 import React, { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import styled from "styled-components";
 import { getErrorCount } from "selectors/debuggerSelectors";
-import { Text, TextType } from "design-system-old";
-import { DEBUGGER_TAB_KEYS } from "components/editorComponents/Debugger/helpers";
+import { DEBUGGER_TAB_KEYS } from "components/editorComponents/Debugger/constants";
 import {
   DEBUGGER_ERRORS,
   DEBUGGER_LOGS,
   DEBUGGER_RESPONSE,
   createMessage,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 import DebuggerLogs from "components/editorComponents/Debugger/DebuggerLogs";
 import ErrorLogs from "components/editorComponents/Debugger/Errors";
-import Schema from "components/editorComponents/Debugger/Schema";
+import { DatasourceTab } from "PluginActionEditor/components/PluginActionResponse/components/DatasourceTab";
 import type { ActionResponse } from "api/ActionAPI";
-import { isString } from "lodash";
 import type { SourceEntity } from "entities/AppsmithConsole";
 import type { Action } from "entities/Action";
-import QueryResponseTab from "./QueryResponseTab";
+import { Response } from "PluginActionEditor/components/PluginActionResponse/components/Response";
 import {
+  getDatasource,
   getDatasourceStructureById,
   getPluginDatasourceComponentFromId,
-} from "@appsmith/selectors/entitiesSelector";
-import { DatasourceComponentTypes } from "api/PluginApi";
+} from "ee/selectors/entitiesSelector";
+import { DatasourceComponentTypes } from "entities/Plugin";
 import { fetchDatasourceStructure } from "actions/datasourceActions";
 import { DatasourceStructureContext } from "entities/Datasource";
-import { getQueryPaneDebuggerState } from "selectors/queryPaneSelectors";
-import { setQueryPaneDebuggerState } from "actions/queryPaneActions";
+import {
+  getPluginActionDebuggerState,
+  setPluginActionEditorDebuggerState,
+} from "PluginActionEditor/store";
 import { actionResponseDisplayDataFormats } from "../utils";
 import { getIDEViewMode } from "selectors/ideSelectors";
-import { EditorViewMode } from "@appsmith/entities/IDE/constants";
-import { IDEBottomView, ViewHideBehaviour } from "../../../IDE";
-
-const ResultsCount = styled.div`
-  position: absolute;
-  right: ${(props) => props.theme.spaces[17] + 1}px;
-  top: 9px;
-  color: var(--ads-v2-color-fg);
-`;
+import { EditorViewMode } from "IDE/Interfaces/EditorTypes";
+import { IDEBottomView, ViewHideBehaviour } from "IDE";
+import { EditorTheme } from "components/editorComponents/CodeEditor/EditorConfig";
 
 interface QueryDebuggerTabsProps {
   actionSource: SourceEntity;
   currentActionConfig?: Action;
+  isRunDisabled?: boolean;
   isRunning: boolean;
   actionName: string; // Check what and how to get
   runErrorMessage?: string;
@@ -55,18 +50,16 @@ interface QueryDebuggerTabsProps {
 function QueryDebuggerTabs({
   actionName,
   actionResponse,
-  actionSource,
   currentActionConfig,
+  isRunDisabled = false,
   isRunning,
   onRunClick,
-  runErrorMessage,
   showSchema,
 }: QueryDebuggerTabsProps) {
-  let output: Record<string, any>[] | null = null;
   const dispatch = useDispatch();
 
   const { open, responseTabHeight, selectedTab } = useSelector(
-    getQueryPaneDebuggerState,
+    getPluginActionDebuggerState,
   );
 
   const { responseDisplayFormat } =
@@ -91,6 +84,10 @@ function QueryDebuggerTabs({
     ),
   );
 
+  const datasource = useSelector((state) =>
+    getDatasource(state, currentActionConfig?.datasource?.id ?? ""),
+  );
+
   useEffect(() => {
     if (
       currentActionConfig?.datasource?.id &&
@@ -105,7 +102,12 @@ function QueryDebuggerTabs({
         ),
       );
     }
-  }, []);
+  }, [
+    currentActionConfig,
+    datasourceStructure,
+    dispatch,
+    pluginDatasourceForm,
+  ]);
 
   // These useEffects are used to open the response tab by default for page load queries
   // as for page load queries, query response is available and can be shown in response tab
@@ -119,25 +121,30 @@ function QueryDebuggerTabs({
       !showResponseOnFirstLoad
     ) {
       dispatch(
-        setQueryPaneDebuggerState({
+        setPluginActionEditorDebuggerState({
           open: true,
           selectedTab: DEBUGGER_TAB_KEYS.RESPONSE_TAB,
         }),
       );
       setShowResponseOnFirstLoad(true);
     }
-  }, [responseDisplayFormat, actionResponse, showResponseOnFirstLoad]);
+  }, [
+    responseDisplayFormat,
+    actionResponse,
+    showResponseOnFirstLoad,
+    dispatch,
+  ]);
 
   useEffect(() => {
     if (showSchema && !selectedTab) {
       dispatch(
-        setQueryPaneDebuggerState({
+        setPluginActionEditorDebuggerState({
           open: true,
-          selectedTab: DEBUGGER_TAB_KEYS.SCHEMA_TAB,
+          selectedTab: DEBUGGER_TAB_KEYS.DATASOURCE_TAB,
         }),
       );
     }
-  }, [showSchema, currentActionConfig?.id, selectedTab]);
+  }, [showSchema, selectedTab, dispatch]);
 
   // When multiple page load queries exist, we want to response tab by default for all of them
   // Hence this useEffect will reset showResponseOnFirstLoad flag used to track whether to show response tab or not
@@ -147,36 +154,27 @@ function QueryDebuggerTabs({
     }
   }, [currentActionConfig?.id]);
 
-  // Query is executed even once during the session, show the response data.
-  if (actionResponse) {
-    if (isString(actionResponse.body)) {
-      try {
-        // Try to parse response as JSON array to be displayed in the Response tab
-        output = JSON.parse(actionResponse.body);
-      } catch (e) {
-        // In case the string is not a JSON, wrap it in a response object
-        output = [
-          {
-            response: actionResponse.body,
-          },
-        ];
-      }
-    } else {
-      output = actionResponse.body as any;
-    }
-  }
-
-  const setQueryResponsePaneHeight = useCallback((height: number) => {
-    dispatch(setQueryPaneDebuggerState({ responseTabHeight: height }));
-  }, []);
+  const setQueryResponsePaneHeight = useCallback(
+    (height: number) => {
+      dispatch(
+        setPluginActionEditorDebuggerState({ responseTabHeight: height }),
+      );
+    },
+    [dispatch],
+  );
 
   const onToggle = useCallback(() => {
-    dispatch(setQueryPaneDebuggerState({ open: !open }));
-  }, [open]);
+    dispatch(setPluginActionEditorDebuggerState({ open: !open }));
+  }, [dispatch, open]);
 
-  const setSelectedResponseTab = useCallback((tabKey: string) => {
-    dispatch(setQueryPaneDebuggerState({ open: true, selectedTab: tabKey }));
-  }, []);
+  const setSelectedResponseTab = useCallback(
+    (tabKey: string) => {
+      dispatch(
+        setPluginActionEditorDebuggerState({ open: true, selectedTab: tabKey }),
+      );
+    },
+    [dispatch],
+  );
 
   const ideViewMode = useSelector(getIDEViewMode);
 
@@ -185,30 +183,32 @@ function QueryDebuggerTabs({
   if (ideViewMode === EditorViewMode.FullScreen) {
     responseTabs.push(
       {
+        key: DEBUGGER_TAB_KEYS.LOGS_TAB,
+        title: createMessage(DEBUGGER_LOGS),
+        panelComponent: <DebuggerLogs searchQuery={actionName} />,
+      },
+      {
         key: DEBUGGER_TAB_KEYS.ERROR_TAB,
         title: createMessage(DEBUGGER_ERRORS),
         count: errorCount,
         panelComponent: <ErrorLogs />,
-      },
-      {
-        key: DEBUGGER_TAB_KEYS.LOGS_TAB,
-        title: createMessage(DEBUGGER_LOGS),
-        panelComponent: <DebuggerLogs searchQuery={actionName} />,
       },
     );
   }
 
   if (currentActionConfig) {
     responseTabs.unshift({
-      key: "response",
+      key: DEBUGGER_TAB_KEYS.RESPONSE_TAB,
       title: createMessage(DEBUGGER_RESPONSE),
       panelComponent: (
-        <QueryResponseTab
-          actionSource={actionSource}
-          currentActionConfig={currentActionConfig}
+        <Response
+          action={currentActionConfig}
+          actionResponse={actionResponse}
+          isRunDisabled={isRunDisabled}
           isRunning={isRunning}
           onRunClick={onRunClick}
-          runErrorMessage={runErrorMessage}
+          responseTabHeight={responseTabHeight}
+          theme={EditorTheme.LIGHT}
         />
       ),
     });
@@ -216,13 +216,15 @@ function QueryDebuggerTabs({
 
   if (showSchema && currentActionConfig && currentActionConfig.datasource) {
     responseTabs.unshift({
-      key: "schema",
-      title: "Schema",
+      key: DEBUGGER_TAB_KEYS.DATASOURCE_TAB,
+      title: "Datasource",
       panelComponent: (
-        <Schema
+        <DatasourceTab
           currentActionId={currentActionConfig.id}
           datasourceId={currentActionConfig.datasource.id || ""}
-          datasourceName={currentActionConfig.datasource.name || ""}
+          datasourceName={
+            datasource?.name || currentActionConfig.datasource.name || ""
+          }
         />
       ),
     });
@@ -237,17 +239,6 @@ function QueryDebuggerTabs({
       onHideClick={onToggle}
       setHeight={setQueryResponsePaneHeight}
     >
-      {output && !!output.length && (
-        <ResultsCount>
-          <Text type={TextType.P3}>
-            Result:
-            <Text type={TextType.H5}>{` ${output.length} Record${
-              output.length > 1 ? "s" : ""
-            }`}</Text>
-          </Text>
-        </ResultsCount>
-      )}
-
       <EntityBottomTabs
         isCollapsed={!open}
         onSelect={setSelectedResponseTab}

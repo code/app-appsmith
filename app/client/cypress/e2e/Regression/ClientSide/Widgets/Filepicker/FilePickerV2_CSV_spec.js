@@ -12,7 +12,7 @@ const ARRAY_CSV_HELPER_TEXT = `All non CSV, XLS(X), JSON or TSV filetypes will h
 
 describe(
   "File picker widget v2",
-  { tags: ["@tag.Widget", "@tag.Filepicker"] },
+  { tags: ["@tag.Widget", "@tag.Filepicker", "@tag.Binding"] },
   () => {
     before(() => {
       agHelper.AddDsl("filePickerTableDSL");
@@ -29,7 +29,7 @@ describe(
       );
 
       agHelper.AssertText(
-        commonlocators.filePickerDataFormat,
+        `${commonlocators.filePickerDataFormat} .rc-select-selection-item .ads-v2-text`,
         "text",
         "Array of Objects (CSV, XLS(X), JSON, TSV)",
       );

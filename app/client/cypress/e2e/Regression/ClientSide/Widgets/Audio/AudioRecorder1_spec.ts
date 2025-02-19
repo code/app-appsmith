@@ -13,7 +13,7 @@ import EditorNavigation, {
 
 describe(
   "Audio Recorder functionality tests",
-  { tags: ["@tag.Widget", "@tag.Audio"] },
+  { tags: ["@tag.Widget", "@tag.Audio", "@tag.Binding"] },
   () => {
     before(() => {
       entityExplorer.DragDropWidgetNVerify(
@@ -135,18 +135,18 @@ describe(
       agHelper.Sleep(1000);
       propPane.SelectColorFromColorPicker("iconcolor", -15);
       agHelper.AssertCSS(
-        widgetLocators.recorderComplete,
+        widgetLocators.recorderPrompt,
         "background-color",
         "rgb(255, 193, 61)",
       );
       propPane.EnterJSContext("Box shadow", "Small");
       agHelper
-        .GetElement(widgetLocators.recorderComplete)
+        .GetElement(widgetLocators.recorderPrompt)
         .should("have.css", "box-shadow")
         .and("not.eq", "none");
       propPane.EnterJSContext("Border radius", "none");
       agHelper.AssertCSS(
-        widgetLocators.recorderComplete,
+        widgetLocators.recorderPrompt,
         "border-radius",
         "3px",
         0,

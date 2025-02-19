@@ -5,18 +5,21 @@ import { uniqueId } from "lodash";
 import log from "loglevel";
 import type { TMessage } from "./MessageUtil";
 import { MessageType, sendMessage } from "./MessageUtil";
-import type { OtlpSpan, SpanAttributes } from "UITelemetry/generateTraces";
 import {
   endSpan,
   setAttributesToSpan,
   startRootSpan,
-} from "UITelemetry/generateTraces";
-import type { WebworkerSpanData } from "UITelemetry/generateWebWorkerTraces";
-import {
   convertWebworkerSpansToRegularSpans,
+} from "instrumentation/generateTraces";
+import type {
+  WebworkerSpanData,
+  Attributes,
+  Span,
+} from "instrumentation/types";
+import {
   filterSpanData,
   newWebWorkerSpanData,
-} from "UITelemetry/generateWebWorkerTraces";
+} from "instrumentation/generateWebWorkerTraces";
 
 /**
  * Wrap a webworker to provide a synchronous request-response semantic.
@@ -50,6 +53,8 @@ import {
 // TODO: Add a readiness + liveness probes.
 export class GracefulWorkerService {
   // We keep track of all in-flight requests with these channels.
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly _channels: Map<string, Channel<any>>;
   // The actual WebWorker
   private _Worker: Worker | undefined;
@@ -60,10 +65,14 @@ export class GracefulWorkerService {
   // If isReady is false, wait on `this._readyChan` to get the pulse signal.
   private _isReady: boolean;
   // Channel to signal all waiters that we're ready. Always use it with `this._isReady`.
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly _readyChan: Channel<any>;
 
   private readonly _workerClass: Worker;
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private listenerChannel: Channel<TMessage<any>>;
 
   constructor(workerClass: Worker) {
@@ -77,6 +86,8 @@ export class GracefulWorkerService {
     // Do not buffer messages on this channel
     this._readyChan = channel(buffers.none());
     this._isReady = false;
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this._channels = new Map<string, Channel<any>>();
     this._workerClass = workerClass;
     this.listenerChannel = channel();
@@ -88,11 +99,13 @@ export class GracefulWorkerService {
    */
   *start() {
     if (this._isReady || this._Worker) return;
+
     this._Worker = this._workerClass;
     this._Worker.addEventListener("message", this._broker);
     // Inform all pending requests that we're good to go!
     this._isReady = true;
     yield put(this._readyChan, true);
+
     return this.listenerChannel;
   }
 
@@ -102,14 +115,18 @@ export class GracefulWorkerService {
    */
   *shutdown() {
     if (!this._isReady) return;
+
     // stop accepting new requests
     this._isReady = false;
+
     // wait for current responses to drain, check every 10 milliseconds
     while (this._channels.size > 0) {
       yield delay(10);
     }
+
     // close the worker
     if (!this._Worker) return;
+
     this._Worker.removeEventListener("message", this._broker);
     this._Worker.terminate();
     this._Worker = undefined;
@@ -121,17 +138,25 @@ export class GracefulWorkerService {
    */
   *ready(block = false) {
     if (this._isReady && this._Worker) return true;
+
     if (block) {
       yield take(this._readyChan);
+
       return true;
     }
+
     return false;
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   *respond(messageId = "", data = {}): any {
     if (!messageId) return;
+
     yield this.ready(true);
+
     if (!this._Worker) return;
+
     const messageType = MessageType.RESPONSE;
 
     sendMessage.call(this._Worker, {
@@ -143,10 +168,15 @@ export class GracefulWorkerService {
     });
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   *ping(data = {}, messageId?: string): any {
     yield this.ready(true);
+
     if (!this._Worker) return;
+
     const messageType = MessageType.DEFAULT;
+
     sendMessage.call(this._Worker, {
       body: data,
       messageId,
@@ -162,9 +192,9 @@ export class GracefulWorkerService {
     webworkerTelemetry,
   }: {
     webworkerTelemetry:
-      | Record<string, WebworkerSpanData | SpanAttributes>
+      | Record<string, WebworkerSpanData | Attributes>
       | undefined;
-    rootSpan: OtlpSpan | undefined;
+    rootSpan: Span | undefined;
     method: string;
     startTime: number;
     endTime: number;
@@ -174,9 +204,11 @@ export class GracefulWorkerService {
     }
 
     const { transferDataToMainThread } = webworkerTelemetry;
+
     if (transferDataToMainThread) {
       transferDataToMainThread.endTime = Date.now();
     }
+
     /// Add the completeWebworkerComputation span to the root span
     webworkerTelemetry["completeWebworkerComputation"] = {
       startTime,
@@ -198,9 +230,11 @@ export class GracefulWorkerService {
       undefined,
       startTime,
     );
+
     completeWebworkerComputationRoot?.setAttribute("taskType", method);
     completeWebworkerComputationRoot?.end(endTime);
   }
+
   /**
    * Send a request to the worker for processing.
    * If the worker isn't ready, we wait for it to become ready.
@@ -210,8 +244,11 @@ export class GracefulWorkerService {
    *
    * @returns response from the worker
    */
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   *request(method: string, data = {}): any {
     yield this.ready(true);
+
     // Impossible case, but helps avoid `?` later in code and makes it clearer.
     if (!this._Worker) return;
 
@@ -220,6 +257,7 @@ export class GracefulWorkerService {
      */
     const messageId = `${method}__${uniqueId()}`;
     const ch = channel();
+
     this._channels.set(messageId, ch);
     const mainThreadStartTime = Date.now();
     let timeTaken;
@@ -227,7 +265,7 @@ export class GracefulWorkerService {
 
     const webworkerTelemetryData: Record<
       string,
-      WebworkerSpanData | SpanAttributes
+      WebworkerSpanData | Attributes
     > = {
       transferDataToWorkerThread: newWebWorkerSpanData(
         "transferDataToWorkerThread",
@@ -244,7 +282,7 @@ export class GracefulWorkerService {
 
     let webworkerTelemetryResponse: Record<
       string,
-      WebworkerSpanData | SpanAttributes
+      WebworkerSpanData | Attributes
     > = {};
 
     try {
@@ -257,6 +295,7 @@ export class GracefulWorkerService {
       // The `this._broker` method is listening to events and will pass response to us over this channel.
       const response = yield take(ch);
       const { data, endTime, startTime } = response;
+
       webworkerTelemetryResponse = data.webworkerTelemetry;
 
       this.addChildSpansToRootSpan({
@@ -268,11 +307,13 @@ export class GracefulWorkerService {
       });
 
       timeTaken = endTime - startTime;
+
       return data;
     } finally {
       // Log perf of main thread and worker
       const mainThreadEndTime = Date.now();
       const timeTakenOnMainThread = mainThreadEndTime - mainThreadStartTime;
+
       if (yield cancelled()) {
         rootSpan?.setAttribute("cancelled", true);
         log.debug(`Main ${method} cancelled in ${timeTakenOnMainThread}ms`);
@@ -282,6 +323,7 @@ export class GracefulWorkerService {
 
       if (timeTaken) {
         const transferTime = timeTakenOnMainThread - timeTaken;
+
         log.debug(` Worker ${method} took ${timeTaken}ms`);
         log.debug(` Transfer ${method} took ${transferTime}ms`);
       }
@@ -292,7 +334,7 @@ export class GracefulWorkerService {
       ) {
         setAttributesToSpan(
           rootSpan,
-          webworkerTelemetryResponse.__spanAttributes as SpanAttributes,
+          webworkerTelemetryResponse.__spanAttributes as Attributes,
         );
       }
 
@@ -303,13 +345,20 @@ export class GracefulWorkerService {
     }
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _broker(event: MessageEvent<TMessage<any>>) {
     if (!event || !event.data) return;
+
     const { body, messageType } = event.data;
+
     if (messageType === MessageType.RESPONSE) {
       const { messageId } = event.data;
+
       if (!messageId) return;
+
       const ch = this._channels.get(messageId);
+
       if (ch) {
         ch.put(body);
         this._channels.delete(messageId);

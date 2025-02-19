@@ -23,17 +23,13 @@ export class DebuggerHelper {
     _logState: ".t--debugger-log-state",
     _errorCount: ".t--debugger-count",
     _clearLogs: ".t--debugger-clear-logs",
-    _logMessageOccurence: ".t--debugger-log-message-occurence",
+    _logMessageOccurence: ".t--debugger-log-message-occurrence",
     _debuggerMessage: "[data-testid=t--debugger-log-message]",
     _contextMenuIcon: ".t--debugger-contextual-error-menu ",
     _contextMenuItem: ".t--debugger-contextual-menuitem",
     _debuggerLabel: "span.debugger-label",
-    _bottomPaneContainer: {
-      [PageType.API]: ".t--api-bottom-pane-container",
-      [PageType.Query]: ".t--query-bottom-pane-container",
-      [PageType.JsEditor]: ".t--js-editor-bottom-pane-container",
-      [PageType.DataSources]: ".t--datasource-bottom-pane-container",
-    },
+    _bottomPaneContainer: ".t--ide-bottom-view",
+    _ideBottomViewContainer: ".t--ide-bottom-view",
     _debuggerList: ".debugger-list",
     _debuggerFilter: "input[data-testid=t--debugger-search]",
     _debuggerSelectedTab: ".ads-v2-tabs__list-tab",
@@ -46,20 +42,19 @@ export class DebuggerHelper {
     _logsGroup: "[data-testid='t--log-filter']",
     _logGroupOption: (option: string) =>
       `[data-testid='t--log-filter-${option}']`,
-    _downStreamLogMessage: ".t--debugger-log-downstream-message",
+    _downStreamLogMessage: "[data-testid='t--response-error']",
   };
 
-  ClickDebuggerIcon(
-    index?: number,
-    force?: boolean,
-    waitTimeInterval?: number,
-  ) {
-    this.agHelper.GetNClick(
-      this.locators._debuggerIcon,
-      index,
-      force,
-      waitTimeInterval,
-    );
+  OpenDebugger() {
+    // Open opens if it is not open yet
+    cy.get("body").then(($body) => {
+      if ($body.find(this.locators._ideBottomViewContainer).length === 0) {
+        this.agHelper.GetNClick(this.locators._debuggerIcon, 0, false);
+      } else {
+        this.agHelper.GetNClick(this.commonLocators._errorTab, 0, true, 0);
+      }
+    });
+    this.AssertOpen();
   }
 
   ClickDebuggerToggle(expand = true, index = 0) {
@@ -93,7 +88,7 @@ export class DebuggerHelper {
     this.agHelper.GetNClick(this.locators._closeButton);
   }
 
-  AssertOpen(pageType: PageType) {
+  AssertOpen(pageType?: PageType) {
     switch (pageType) {
       case PageType.Canvas:
         this.agHelper.AssertElementExist(this.locators._tabsContainer);
@@ -103,9 +98,13 @@ export class DebuggerHelper {
       case PageType.Query:
       case PageType.DataSources:
         this.agHelper.AssertElementVisibility(
-          this.locators._bottomPaneContainer[pageType],
+          this.locators._bottomPaneContainer,
         );
         break;
+      default:
+        this.agHelper.AssertElementVisibility(
+          this.locators._ideBottomViewContainer,
+        );
     }
   }
 
@@ -118,12 +117,19 @@ export class DebuggerHelper {
     this.agHelper.AssertSelectedTab(this.locators._debuggerSelectedTab, "true");
   }
 
-  DoesConsoleLogExist(text: string, exists = true) {
+  DoesConsoleLogExist(text: string, exists = true, entityName?: string) {
     this.agHelper.GetNAssertContains(
       this.locators._logMessage,
       text,
       exists ? "exist" : "not.exist",
     );
+    if (entityName) {
+      this.agHelper
+        .GetElement(this.locators._logMessage)
+        .contains(text)
+        .closest(".error")
+        .contains(this.locators._logEntityLink, entityName);
+    }
   }
 
   DebuggerLogsFilter(text: string) {
@@ -135,7 +141,8 @@ export class DebuggerHelper {
   }
 
   AssertErrorCount(count: number) {
-    this.agHelper.GetNAssertContains(this.locators._errorCount, count);
+    const assertion = count > 0 ? `Debug (${count})` : "Debug";
+    this.agHelper.GetNAssertContains(this.locators._errorCount, assertion);
   }
 
   changeLogsGroup(option: string) {
@@ -187,9 +194,10 @@ export class DebuggerHelper {
     message: string,
     shouldOpenDebugger = true,
     shouldToggleDebugger = true,
+    errorLabelIndex = 0,
   ) {
     if (shouldOpenDebugger) {
-      this.ClickDebuggerIcon();
+      this.OpenDebugger();
     }
     this.agHelper.GetNClick(this.commonLocators._errorTab, 0, true, 0);
 
@@ -198,7 +206,7 @@ export class DebuggerHelper {
     }
 
     this.agHelper
-      .GetText(this.locators._debuggerLabel, "text", 0)
+      .GetText(this.locators._debuggerLabel, "text", errorLabelIndex)
       .then(($text) => {
         expect($text).to.eq(label);
       });
@@ -222,7 +230,7 @@ export class DebuggerHelper {
 
   AssertDownStreamLogError(message: string, shouldOpenDebugger = true) {
     if (shouldOpenDebugger) {
-      this.ClickDebuggerIcon();
+      this.OpenDebugger();
     }
 
     this.agHelper.GetNClick(this.commonLocators._responseTab, 0, true, 0);

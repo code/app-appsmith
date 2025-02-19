@@ -92,7 +92,7 @@
         <dependency>
             <groupId>com.graphql-java</groupId>
             <artifactId>graphql-java</artifactId>
-            <version>21.1</version>
+            <version>21.5</version>
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
@@ -133,7 +133,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
-            <version>${spring-boot.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

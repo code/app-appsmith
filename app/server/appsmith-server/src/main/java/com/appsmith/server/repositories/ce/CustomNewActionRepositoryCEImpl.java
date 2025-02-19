@@ -1,6 +1,5 @@
 package com.appsmith.server.repositories.ce;
 
-import com.appsmith.external.models.BranchAwareDomain;
 import com.appsmith.external.models.CreatorContextType;
 import com.appsmith.external.models.PluginType;
 import com.appsmith.server.acl.AclPermission;
@@ -10,6 +9,7 @@ import com.appsmith.server.helpers.ce.bridge.Bridge;
 import com.appsmith.server.helpers.ce.bridge.BridgeQuery;
 import com.appsmith.server.helpers.ce.bridge.BridgeUpdate;
 import com.appsmith.server.repositories.BaseAppsmithRepositoryImpl;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
@@ -29,6 +29,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.StreamSupport;
 
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.group;
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.match;
@@ -42,6 +43,8 @@ public class CustomNewActionRepositoryCEImpl extends BaseAppsmithRepositoryImpl<
         implements CustomNewActionRepositoryCE {
 
     private final ReactiveMongoOperations mongoOperations;
+
+    private final ObservationRegistry observationRegistry;
 
     @Override
     public Flux<NewAction> findByApplicationId(String applicationId, AclPermission aclPermission) {
@@ -200,6 +203,47 @@ public class CustomNewActionRepositoryCEImpl extends BaseAppsmithRepositoryImpl<
         return Bridge.equal(NewAction.Fields.applicationId, applicationId);
     }
 
+    public Flux<NewAction> findPublishedActionsByAppIdAndExcludedPluginType(
+            String applicationId, List<String> excludedPluginTypes, AclPermission aclPermission, Sort sort) {
+        return queryBuilder()
+                .criteria(getCriterionForFindPublishedActionsByAppIdAndExcludedPluginType(
+                        applicationId, excludedPluginTypes))
+                .permission(aclPermission)
+                .sort(sort)
+                .all();
+    }
+
+    protected BridgeQuery<NewAction> getCriterionForFindPublishedActionsByAppIdAndExcludedPluginType(
+            String applicationId, List<String> excludedPluginTypes) {
+        final BridgeQuery<NewAction> q = getCriterionForFindByApplicationId(applicationId);
+        q.and(Bridge.or(
+                Bridge.notIn(NewAction.Fields.pluginType, excludedPluginTypes),
+                Bridge.isNull(NewAction.Fields.pluginType)));
+
+        q.isNotNull(NewAction.Fields.publishedAction_pageId);
+        return q;
+    }
+
+    @Override
+    public Flux<NewAction> findPublishedActionsByPageIdAndExcludedPluginType(
+            String pageId, List<String> excludedPluginTypes, AclPermission aclPermission, Sort sort) {
+        return queryBuilder()
+                .criteria(getCriterionForFindPublishedActionsByPageIdAndExcludedPluginType(pageId, excludedPluginTypes))
+                .permission(aclPermission)
+                .sort(sort)
+                .all();
+    }
+
+    protected BridgeQuery<NewAction> getCriterionForFindPublishedActionsByPageIdAndExcludedPluginType(
+            String pageId, List<String> excludedPluginTypes) {
+        final BridgeQuery<NewAction> q = Bridge.equal(NewAction.Fields.publishedAction_pageId, pageId);
+        q.and(Bridge.or(
+                Bridge.notIn(NewAction.Fields.pluginType, excludedPluginTypes),
+                Bridge.isNull(NewAction.Fields.pluginType)));
+
+        return q;
+    }
+
     @Override
     public Flux<NewAction> findByApplicationIdAndViewMode(
             String applicationId, Boolean viewMode, AclPermission aclPermission) {
@@ -229,22 +273,6 @@ public class CustomNewActionRepositoryCEImpl extends BaseAppsmithRepositoryImpl<
                 Bridge.equal(NewAction.Fields.publishedAction + ".datasource._id", new ObjectId(datasourceId)));
 
         return queryBuilder().criteria(q).count();
-    }
-
-    @Override
-    public Mono<NewAction> findByBranchNameAndDefaultActionId(
-            String branchName, String defaultActionId, Boolean viewMode, AclPermission permission) {
-        final BridgeQuery<NewAction> q = Bridge.<NewAction>equal(
-                        NewAction.Fields.defaultResources_actionId, defaultActionId)
-                .equal(NewAction.Fields.defaultResources_branchName, branchName);
-
-        if (Boolean.FALSE.equals(viewMode)) {
-            // In case an action has been deleted in edit mode, but still exists in deployed mode, NewAction object
-            // would exist. To handle this, only fetch non-deleted actions
-            q.isNull(NewAction.Fields.unpublishedAction_deletedAt);
-        }
-
-        return queryBuilder().criteria(q).permission(permission).one();
     }
 
     @Override
@@ -327,16 +355,6 @@ public class CustomNewActionRepositoryCEImpl extends BaseAppsmithRepositoryImpl<
         }
 
         return q;
-    }
-
-    @Override
-    public Flux<NewAction> findByDefaultApplicationId(String defaultApplicationId, Optional<AclPermission> permission) {
-        final String defaultResources = BranchAwareDomain.Fields.defaultResources;
-        return queryBuilder()
-                .criteria(Bridge.equal(NewAction.Fields.defaultResources_applicationId, defaultApplicationId)
-                        .isNull(NewAction.Fields.unpublishedAction_deletedAt))
-                .permission(permission.orElse(null))
-                .all();
     }
 
     @Override
@@ -447,5 +465,33 @@ public class CustomNewActionRepositoryCEImpl extends BaseAppsmithRepositoryImpl<
         }
 
         return queryBuilder().criteria(q).permission(permission).all();
+    }
+
+    @Override
+    public Flux<NewAction> findAllByApplicationIds(List<String> applicationIds, List<String> includedFields) {
+        return queryBuilder()
+                .criteria(Bridge.in(NewAction.Fields.applicationId, applicationIds))
+                .fields(includedFields)
+                .all();
+    }
+
+    @Override
+    public Flux<NewAction> findByApplicationId(String applicationId) {
+        return queryBuilder()
+                .criteria(Bridge.equal(NewAction.Fields.applicationId, applicationId))
+                .all();
+    }
+
+    @Override
+    public Flux<NewAction> findAllByIdIn(Iterable<String> ids) {
+        List<String> idList = StreamSupport.stream(ids.spliterator(), false).toList();
+        return queryBuilder().criteria(Bridge.in(NewAction.Fields.id, idList)).all();
+    }
+
+    @Override
+    public Mono<Long> countByDeletedAtNull() {
+        return queryBuilder()
+                .criteria(Bridge.exists(NewAction.Fields.deletedAt))
+                .count();
     }
 }

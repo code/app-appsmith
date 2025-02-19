@@ -3,7 +3,7 @@ import { agHelper, homePage } from "../../../../support/Objects/ObjectsCore";
 
 describe(
   "Workspace Import Application",
-  { tags: ["@tag.Workspace"] },
+  { tags: ["@tag.Workspace", "@tag.Sanity", "@tag.AccessControl"] },
   function () {
     let workspaceId;
     let newWorkspaceName;

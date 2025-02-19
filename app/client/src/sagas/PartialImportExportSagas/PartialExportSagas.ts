@@ -1,19 +1,16 @@
 import ApplicationApi, {
   type exportApplicationRequest,
-} from "@appsmith/api/ApplicationApi";
-import type {
-  ApplicationPayload,
-  ReduxAction,
-} from "@appsmith/constants/ReduxActionConstants";
+} from "ee/api/ApplicationApi";
+import type { ApplicationPayload } from "entities/Application";
+import type { ReduxAction } from "actions/ReduxActionTypes";
 import {
   ReduxActionErrorTypes,
   ReduxActionTypes,
-} from "@appsmith/constants/ReduxActionConstants";
-import { getCurrentApplication } from "@appsmith/selectors/applicationSelectors";
-import { toast } from "design-system";
+} from "ee/constants/ReduxActionConstants";
+import { getCurrentApplication } from "ee/selectors/applicationSelectors";
 import { getFlexLayersForSelectedWidgets } from "layoutSystems/autolayout/utils/AutoLayoutUtils";
 import type { FlexLayer } from "layoutSystems/autolayout/utils/types";
-import type { FlattenedWidgetProps } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { FlattenedWidgetProps } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import { all, call, put, select } from "redux-saga/effects";
 import {
   getCurrentApplicationId,
@@ -22,10 +19,9 @@ import {
 import { validateResponse } from "../ErrorSagas";
 import { createWidgetCopy } from "../WidgetOperationUtils";
 import { getWidgets } from "../selectors";
-import {
-  createMessage,
-  ERROR_IN_EXPORTING_APP,
-} from "@appsmith/constants/messages";
+import { createMessage, ERROR_IN_EXPORTING_APP } from "ee/constants/messages";
+import type { LayoutSystemTypes } from "layoutSystems/types";
+import { getLayoutSystemType } from "selectors/layoutSystemSelectors";
 
 export interface PartialExportParams {
   jsObjects: string[];
@@ -58,6 +54,7 @@ export function* partialExportSaga(action: ReduxAction<PartialExportParams>) {
       body,
     );
     const isValid: boolean = yield validateResponse(response);
+
     if (isValid) {
       const application: ApplicationPayload = yield select(
         getCurrentApplication,
@@ -68,6 +65,7 @@ export function* partialExportSaga(action: ReduxAction<PartialExportParams>) {
           "data:text/json;charset=utf-8," +
           encodeURIComponent(JSON.stringify(response));
         const downloadAnchorNode = document.createElement("a");
+
         downloadAnchorNode.setAttribute("href", dataStr);
         downloadAnchorNode.setAttribute("download", `${application.name}.json`);
         document.body.appendChild(downloadAnchorNode); // required for firefox
@@ -79,13 +77,13 @@ export function* partialExportSaga(action: ReduxAction<PartialExportParams>) {
       });
     }
   } catch (e) {
-    toast.show(createMessage(ERROR_IN_EXPORTING_APP), {
-      kind: "error",
-    });
     yield put({
       type: ReduxActionErrorTypes.PARTIAL_EXPORT_ERROR,
       payload: {
-        error: "Error exporting application",
+        show: true,
+        error: {
+          message: createMessage(ERROR_IN_EXPORTING_APP),
+        },
       },
     });
   }
@@ -95,6 +93,7 @@ export function* partialExportWidgetSaga(widgetIds: string[]) {
   const canvasWidgets: {
     [widgetId: string]: FlattenedWidgetProps;
   } = yield select(getWidgets);
+  const layoutSystemType: LayoutSystemTypes = yield select(getLayoutSystemType);
   const selectedWidgets = widgetIds.map((each) => canvasWidgets[each]);
 
   if (!selectedWidgets || !selectedWidgets.length) return;
@@ -114,8 +113,10 @@ export function* partialExportWidgetSaga(widgetIds: string[]) {
     canvasId ? canvasWidgets[canvasId] : undefined,
   );
   const widgetsDSL = {
+    layoutSystemType, // We pass the layout system type, so that we can check if the widgets are compatible when importing
     widgets: widgetListsToStore,
     flexLayers,
   };
+
   return widgetsDSL;
 }

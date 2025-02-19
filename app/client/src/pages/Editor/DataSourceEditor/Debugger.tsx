@@ -5,24 +5,22 @@ import {
   createMessage,
   DEBUGGER_ERRORS,
   DEBUGGER_LOGS,
-  INSPECT_ENTITY,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 import {
   setDebuggerSelectedTab,
   setResponsePaneHeight,
   showDebugger,
 } from "actions/debuggerActions";
 import EntityBottomTabs from "components/editorComponents/EntityBottomTabs";
-import { DEBUGGER_TAB_KEYS } from "components/editorComponents/Debugger/helpers";
+import { DEBUGGER_TAB_KEYS } from "components/editorComponents/Debugger/constants";
 import Errors from "components/editorComponents/Debugger/Errors";
 import DebuggerLogs from "components/editorComponents/Debugger/DebuggerLogs";
-import EntityDeps from "components/editorComponents/Debugger/EntityDependecies";
 import {
   getDebuggerSelectedTab,
   getErrorCount,
   getResponsePaneHeight,
 } from "selectors/debuggerSelectors";
-import { ActionExecutionResizerHeight } from "../APIEditor/constants";
+import { ActionExecutionResizerHeight } from "PluginActionEditor/components/PluginActionResponse/constants";
 import { IDEBottomView, ViewHideBehaviour } from "IDE";
 
 export const ResizerMainContainer = styled.div`
@@ -37,30 +35,38 @@ export const ResizerContentContainer = styled.div`
   flex: 1;
   position: relative;
   display: flex;
+
   &.db-form-resizer-content,
   &.saas-form-resizer-content,
   &.api-datasource-content-container {
     flex-direction: column;
     padding: 0 var(--ads-v2-spaces-7) 0 var(--ads-v2-spaces-7);
+
     & .t--ds-form-header {
       border-bottom: 1px solid var(--ads-v2-color-border);
     }
   }
+
   &.db-form-resizer-content.db-form-resizer-content-show-tabs,
   &.saas-form-resizer-content.saas-form-resizer-content-show-tabs {
     padding: 0;
+
     & .t--ds-form-header {
       border-bottom: none;
     }
   }
+
   &.saas-form-resizer-content.saas-form-resizer-content-show-tabs form {
     padding-bottom: 0;
   }
+
   border-top: none;
+
   .db-form-content-container {
     display: flex;
     flex-direction: column;
     width: 100%;
+
     form {
       flex-grow: 1;
     }
@@ -82,20 +88,15 @@ export default function Debugger() {
   // define the tabs for the debugger
   const DEBUGGER_TABS = [
     {
-      key: DEBUGGER_TAB_KEYS.ERROR_TAB,
-      title: createMessage(DEBUGGER_ERRORS),
-      count: errorCount,
-      panelComponent: <Errors hasShortCut />,
-    },
-    {
       key: DEBUGGER_TAB_KEYS.LOGS_TAB,
       title: createMessage(DEBUGGER_LOGS),
       panelComponent: <DebuggerLogs hasShortCut />,
     },
     {
-      key: DEBUGGER_TAB_KEYS.INSPECT_TAB,
-      title: createMessage(INSPECT_ENTITY),
-      panelComponent: <EntityDeps />,
+      key: DEBUGGER_TAB_KEYS.ERROR_TAB,
+      title: createMessage(DEBUGGER_ERRORS),
+      count: errorCount,
+      panelComponent: <Errors hasShortCut />,
     },
   ];
 
@@ -117,7 +118,7 @@ export default function Debugger() {
   const shouldRender = !(
     selectedResponseTab === DEBUGGER_TAB_KEYS.RESPONSE_TAB ||
     selectedResponseTab === DEBUGGER_TAB_KEYS.HEADER_TAB ||
-    selectedResponseTab === DEBUGGER_TAB_KEYS.SCHEMA_TAB
+    selectedResponseTab === DEBUGGER_TAB_KEYS.DATASOURCE_TAB
   );
 
   return (

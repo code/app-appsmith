@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.0.9</version>
+        <version>3.3.3</version>
         <relativePath/>
         <!-- lookup parent from repository -->
     </parent>
@@ -31,7 +31,6 @@
         <jackson.version>2.17.0</jackson.version>
         <java.version>17</java.version>
         <javadoc.disabled>true</javadoc.disabled>
-        <logback.version>1.4.14</logback.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <mockito.version>4.4.0</mockito.version>
@@ -44,12 +43,14 @@
         <reactor-test.version>3.5.1</reactor-test.version>
         <!-- By default skip the dockerization step. Only activate if necessary -->
         <skipDockerBuild>true</skipDockerBuild>
+        <skipITs>${skipTests}</skipITs>
+        <skipTests>false</skipTests>
+        <skipUTs>${skipTests}</skipUTs>
         <!-- We're forcing this version temporarily to fix CVE-2022-1471-->
         <snakeyaml.version>2.0</snakeyaml.version>
         <source.disabled>true</source.disabled>
         <spotless.version>2.36.0</spotless.version>
-        <spring-boot.version>3.0.9</spring-boot.version>
-        <testcontainers.version>1.19.3</testcontainers.version>
+        <testcontainers.version>1.20.1</testcontainers.version>
     </properties>
 
     <build>
@@ -77,6 +78,30 @@
                 <version>3.4.0</version>
             </plugin>
             <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>add-test-source</id>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <phase>generate-test-sources</phase>
+                        <configuration>
+                            <sources>
+                                <source>src/test/java</source>
+                                <!-- Default test directory -->
+                                <source>src/test/it</source>
+                                <!-- Additional test directory -->
+                                <source>src/test/utils</source>
+                                <!-- Another additional directory -->
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M5</version>
@@ -86,6 +111,41 @@
                     <argLine>--add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens java.base/java.time=ALL-UNNAMED
                         --add-opens java.base/java.util=ALL-UNNAMED</argLine>
+                    <testSourceDirectory>src/test/java</testSourceDirectory>
+                    <skipTests>${skipUTs}</skipTests>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.junit.jupiter</groupId>
+                        <artifactId>junit-jupiter-engine</artifactId>
+                        <version>5.6.2</version>
+                        <exclusions>
+                            <exclusion>
+                                <groupId>org.junit.platform</groupId>
+                                <artifactId>junit-platform-commons</artifactId>
+                            </exclusion>
+                        </exclusions>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.0.0-M5</version>
+                <configuration>
+                    <printSummary>true</printSummary>
+                    <!-- Allow JUnit to access the test classes -->
+                    <argLine>-ea
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                        --add-opens java.base/java.time=ALL-UNNAMED
+                        --add-opens java.base/java.util=ALL-UNNAMED</argLine>
+                    <systemPropertyVariables>
+                        <pf4j.pluginsDir>../dist/plugins</pf4j.pluginsDir>
+                        <!-- Specify plugin directory -->
+                    </systemPropertyVariables>
+                    <testSourceDirectory>src/test/it</testSourceDirectory>
+                    <skipITs>${skipITs}</skipITs>
+                    <!-- Property for skipping integration tests -->
                 </configuration>
                 <dependencies>
                     <dependency>
@@ -136,6 +196,7 @@
                             <includes>
                                 <include>*.md</include>
                                 <include>.gitignore</include>
+                                <include>**/*.sql</include>
                             </includes>
                             <!-- define the steps to apply to those files -->
                             <trimTrailingWhitespace/>
@@ -158,6 +219,19 @@
                         <removeUnusedImports/>
                         <formatAnnotations/>
                     </java>
+                    <json>
+                        <excludes>
+                            <exclude>**/target/**/*.json</exclude>
+                        </excludes>
+                        <includes>
+                            <include>**/*.json</include>
+                        </includes>
+                        <prettier>
+                            <config>
+                                <tabWidth>2</tabWidth>
+                            </config>
+                        </prettier>
+                    </json>
                     <pom>
                         <includes>
                             <include>pom.xml</include>
@@ -178,8 +252,6 @@
                         <goals>
                             <goal>apply</goal>
                         </goals>
-                        <!-- This gets triggered automatically when we run the build script -->
-                        <phase>compile</phase>
                     </execution>
                 </executions>
             </plugin>

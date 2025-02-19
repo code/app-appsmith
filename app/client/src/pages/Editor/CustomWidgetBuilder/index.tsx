@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from "react";
 import Header from "./header";
 import styles from "./styles.module.css";
 import Preview from "./Preview";
-import { Spinner } from "design-system";
+import { Spinner } from "@appsmith/ads";
 import Editor from "./Editor";
 import type { CustomWidgetBuilderContextType } from "./types";
 import ConnectionLost from "./connectionLost";
@@ -29,14 +29,6 @@ const ResizerHandler = styled.div<{ resizing: boolean }>`
     background: var(--ads-v2-color-border);
     border-color: transparent;
   }
-`;
-
-const Overlay = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
 `;
 
 const EDITOR_WIDTH_KEY = "CUSTOM_WIDGET_BUILDER_EDITOR_WIDTH";
@@ -83,8 +75,7 @@ export default function CustomWidgetBuilder() {
       ) : (
         <div className={styles.content}>
           <div className={styles.contentLeft} ref={previewRef}>
-            {resizing && <Overlay />}
-            <Preview width={editorWidth} />
+            <Preview className={styles.preview} width={editorWidth} />
           </div>
           <div
             className={`w-2 h-full -ml-2 group  cursor-ew-resize ${tailwindLayers.resizer}`}
@@ -96,6 +87,7 @@ export default function CustomWidgetBuilder() {
               className={classNames({
                 "transform transition": true,
               })}
+              data-resizing={resizing ? "" : undefined}
               resizing={resizing}
             />
           </div>

@@ -4,9 +4,9 @@ run-name: >
   ${{ github.workflow }} with TED:${{ inputs.ted_tag || 'latest' }}
 
 on:
-  # This workflow will run everyday at 7:00AM, 1:00PM IST on weekdays
+  # This workflow will run everyday at 7:00AM, 11:00AM and 3:00PM IST on weekdays
   schedule:
-    - cron: "30 1-12/6 * * 1-5"
+    - cron: "30 1-11/4 * * 1-5"
   # This line enables manual triggering of this workflow.
   workflow_dispatch:
     inputs:
@@ -21,7 +21,7 @@ on:
         type: string
         default: latest
 
-  # trigger for pushes to master
+  # trigger for pushes to master and pg
   push:
     branches: [master]
     paths:
@@ -58,6 +58,18 @@ jobs:
             echo "tags=" >> $GITHUB_OUTPUT
             echo "matrix=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]" >> $GITHUB_OUTPUT
           fi
+
+  invoke-tbp-workflow-for-pg:
+    needs: [setup]
+    if: github.event_name != 'push' && github.ref == 'refs/heads/release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger TBP on pg branch
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: test-build-docker-image.yml
+          inputs: '{ "tags": "${{needs.setup.outputs.tags}}", "ted_tag": "${{inputs.ted_tag}}" }'
+          ref: refs/heads/pg
 
   server-build:
     needs: [setup]
@@ -100,7 +112,7 @@ jobs:
   ci-test:
     needs: [setup, build-docker-image]
     # Only run if the build step is successful
-    if: success() && ( github.event_name != 'push' || github.ref == 'refs/heads/master' )
+    if: success() && ( github.event_name != 'push' || github.ref == 'refs/heads/master')
     name: ci-test
     uses: ./.github/workflows/ci-test-custom-script.yml
     secrets: inherit
@@ -113,17 +125,18 @@ jobs:
   server-unit-tests:
     name: server-unit-tests
     needs: [build-docker-image]
-    if: success() && ( github.event_name != 'push' || github.ref == 'refs/heads/master' )
+    if: success() && ( github.event_name != 'push' || github.ref == 'refs/heads/master')
     uses: ./.github/workflows/server-build.yml
     secrets: inherit
     with:
       pr: 0
       skip-tests: false
+      is-pg-build: ${{ github.ref == 'refs/heads/pg' }}
 
   client-unit-tests:
     name: client-unit-tests
     needs: [build-docker-image]
-    if: success() && ( github.event_name != 'push' || github.ref == 'refs/heads/master' )
+    if: success() && ( github.event_name != 'push' || github.ref == 'refs/heads/master')
     uses: ./.github/workflows/client-unit-tests.yml
     secrets: inherit
     with:
@@ -227,20 +240,22 @@ jobs:
 
       # This step triggers an external workflow for automated analysis of Cypress test runs.
       - name: Invoke Automated analysis workflow
+        if: (always() && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/master') && github.run_attempt <= 2)
         run: |
           curl --location --request POST ${{secrets.CYPRESS_WORKFLOW_API}}    \
           --header 'x-appsmith-key: ${{ secrets.CYPRESS_WORKFLOW_KEY }}'      \
           --header 'Content-Type: application/json' \
-          --data-raw '{ "workflow_id" : ${{ github.run_id }} , 
-                        "commit_id" : "${{ github.sha }}" , 
-                        "repo" : "${{  github.event.repository.full_name }}" , 
-                        "task" : "${{  github.job }}" ,   
-                        "workflow_type" : "${{ github.event_name }}",  
-                        "workflow_name" : "${{ github.workflow }}", 
-                        "job_id" : "",     
-                        "job_data": { 
-                            "ci_test_result_sample_data" : "sample_data" 
-                         }  
+          --data-raw '{ "workflow_id" : ${{ github.run_id }} ,
+                        "commit_id" : "${{ github.sha }}" ,
+                        "repo" : "${{  github.event.repository.full_name }}" ,
+                        "task" : "${{  github.job }}" ,
+                        "workflow_type" : "${{ github.event_name }}",
+                        "workflow_name" : "TBD",
+                        "job_id" : "",
+                        "attempt" : "${{ github.run_attempt }}",
+                        "job_data": {
+                            "ci_test_result_sample_data" : "sample_data"
+                         }
            }'
 
       # Force save the CI failed spec list into a cache
@@ -334,9 +349,21 @@ jobs:
           rm app/client/packages/rts/dist/rts-dist.tar
 
       - name: Generate info.json
+        id: info_json
         run: |
-          if [[ -f scripts/generate_info_json.sh ]]; then
-            scripts/generate_info_json.sh
+          content="$(scripts/generate_info_json.sh)"
+          echo "$content"
+          echo "commitSha=$(echo "$content" | jq -r .commitSha)" | tee -a "$GITHUB_OUTPUT"
+          echo "repo=$(echo "$content" | jq -r .commitUrl | sed 's,/commit/.*$,,')" | tee -a "$GITHUB_OUTPUT"
+          echo "version=$(echo "$content" | jq -r .version)" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Place server artifacts-es
+        run: |
+          if [[ -f scripts/prepare_server_artifacts.sh ]]; then
+            scripts/prepare_server_artifacts.sh
+          else
+            echo "No script found to prepare server artifacts"
+            exit 1
           fi
 
       - name: Set up Depot CLI
@@ -360,7 +387,12 @@ jobs:
             APPSMITH_CLOUD_SERVICES_BASE_URL=https://release-cs.appsmith.com
             BASE=${{ vars.DOCKER_HUB_ORGANIZATION }}/base-${{ vars.EDITION }}:release
           tags: |
-            ${{ vars.DOCKER_HUB_ORGANIZATION }}/appsmith-${{ vars.EDITION }}:release
+            ${{ vars.DOCKER_HUB_ORGANIZATION }}/appsmith-${{ vars.EDITION }}:${{ github.ref_name }}
+          # Labels taken from https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys
+          labels: |
+            org.opencontainers.image.revision=${{ steps.info_json.outputs.commitSha }}
+            org.opencontainers.image.source=${{ steps.info_json.outputs.repo }}
+            org.opencontainers.image.version=${{ steps.info_json.outputs.version }}
 
   package-master:
     needs: [ci-test, client-unit-tests, server-unit-tests]
@@ -414,6 +446,15 @@ jobs:
             scripts/generate_info_json.sh
           fi
 
+      - name: Place server artifacts-es
+        run: |
+          if [[ -f scripts/prepare_server_artifacts.sh ]]; then
+            scripts/prepare_server_artifacts.sh
+          else
+            echo "No script found to prepare server artifacts"
+            exit 1
+          fi
+
       - name: Set up Depot CLI
         uses: depot/setup-action@v1
 
@@ -460,6 +501,35 @@ jobs:
             '$ARGS.named'
           )"
 
+          curl -v https://slack.com/api/chat.postMessage \
+            --fail-with-body \
+            --header 'Authorization: Bearer ${{ secrets.SLACK_APPSMITH_ALERTS_TOKEN }}' \
+            --header 'Content-Type: application/json; charset=utf-8' \
+            --data-raw "$body"
+
+
+  notify-slack-for-pg:
+    needs: ci-test-result
+    runs-on: ubuntu-latest
+
+    if: ( failure() && github.ref == 'refs/heads/pg' )
+
+    steps:
+      - name: Notify failure on workflow run and on Slack
+        run: |
+          set -o errexit
+          set -o nounset
+          set -o xtrace
+
+          run_url='${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}'
+          slack_message="🚨 TBP workflow failed in <$run_url|${{ vars.EDITION }} attempt ${{ github.run_attempt }} (run ${{ github.run_id }})>."
+
+          # This is the ChannelId of the proj-postgres-sync channel.
+          body="$(jq -nc \
+            --arg channel C07JMLWEXDJ \
+            --arg text "$slack_message" \
+            '$ARGS.named'
+          )"
           curl -v https://slack.com/api/chat.postMessage \
             --fail-with-body \
             --header 'Authorization: Bearer ${{ secrets.SLACK_APPSMITH_ALERTS_TOKEN }}' \

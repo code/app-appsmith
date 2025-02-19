@@ -1,6 +1,7 @@
 import { CURRENT_REPO, REPO } from "../../../fixtures/REPO";
 import {
   agHelper,
+  apiPage,
   dataManager,
   dataSources,
   draggableWidgets,
@@ -21,7 +22,14 @@ import EditorNavigation, {
 if (CURRENT_REPO == REPO.CE) {
   describe(
     "Validate Arango & CURL Import Datasources",
-    { tags: ["@tag.Datasource", "@tag.Sanity"] },
+    {
+      tags: [
+        "@tag.Datasource",
+        "@tag.Sanity",
+        "@tag.Git",
+        "@tag.AccessControl",
+      ],
+    },
     () => {
       let dsName: any,
         collectionName = "countries_places_to_visit",
@@ -56,7 +64,7 @@ if (CURRENT_REPO == REPO.CE) {
           "allowUserKeys": false
       }
     }'`;
-        dataSources.FillCurlNImport(curlCollectionCreate);
+        apiPage.FillCurlNImport(curlCollectionCreate);
         agHelper.ActionContextMenuWithInPane({
           action: "Delete",
           entityType: entityItems.Api,
@@ -137,7 +145,7 @@ if (CURRENT_REPO == REPO.CE) {
       }
     ]'`;
 
-        dataSources.FillCurlNImport(curlDataAdd);
+        apiPage.FillCurlNImport(curlDataAdd);
         agHelper.ActionContextMenuWithInPane({
           action: "Delete",
           entityType: entityItems.Api,
@@ -211,7 +219,7 @@ if (CURRENT_REPO == REPO.CE) {
     }
     INTO ${collectionName}`;
         dataSources.EnterQuery(query);
-        dataSources.RunQueryNVerifyResponseViews();
+        dataSources.runQueryAndVerifyResponseViews();
         dataSources.AssertQueryResponseHeaders([
           "writesExecuted",
           "writesIgnored",
@@ -224,7 +232,7 @@ if (CURRENT_REPO == REPO.CE) {
       FILTER place.type == "Natural"
         RETURN { country: doc.country, name: place.name }`;
         dataSources.EnterQuery(query);
-        dataSources.RunQueryNVerifyResponseViews(5); //Verify all records are filtered
+        dataSources.runQueryAndVerifyResponseViews({ count: 5 }); //Verify all records are filtered
         dataSources.AssertQueryTableResponse(0, "Japan");
         dataSources.AssertQueryTableResponse(1, "Mount Fuji");
         dataSources.AssertQueryTableResponse(6, "Brazil"); //Widget binding is verified here
@@ -257,7 +265,7 @@ if (CURRENT_REPO == REPO.CE) {
     }
     IN ${collectionName}`;
         dataSources.EnterQuery(query);
-        dataSources.RunQueryNVerifyResponseViews();
+        dataSources.runQueryAndVerifyResponseViews();
 
         dataSources.createQueryWithDatasourceSchemaTemplate(
           dsName,
@@ -268,7 +276,7 @@ if (CURRENT_REPO == REPO.CE) {
     FILTER document._key == "1"
     RETURN document`;
         dataSources.EnterQuery(query);
-        dataSources.RunQueryNVerifyResponseViews(1);
+        dataSources.runQueryAndVerifyResponseViews();
         dataSources.AssertQueryTableResponse(3, "Australia");
 
         //Delete record from collection
@@ -279,7 +287,7 @@ if (CURRENT_REPO == REPO.CE) {
         );
         query = `REMOVE "1" in ${collectionName}`;
         dataSources.EnterQuery(query);
-        dataSources.RunQueryNVerifyResponseViews(1); //Removing Australia
+        dataSources.runQueryAndVerifyResponseViews(); //Removing Australia
 
         //Verify no records return for the deleted key
         query = `FOR document IN ${collectionName}
@@ -326,14 +334,14 @@ if (CURRENT_REPO == REPO.CE) {
         dataSources.EnterQuery(query);
         dataSources.RunQuery();
         dataSources.AddSuggestedWidget(Widgets.Table); //Binding to new table from schema explorer
-        propPane.AssertPropertiesDropDownCurrentValue("Table data", "Query6");
+        propPane.ValidatePropertyFieldValue("Table data", "{{Query6.data}}");
 
         EditorNavigation.SelectEntityByName("Query6", EntityType.Query);
         dataSources.AddSuggestedWidget(
           Widgets.Table,
           dataSources._addSuggestedExisting,
         );
-        propPane.AssertPropertiesDropDownCurrentValue("Table data", "Query6");
+        propPane.ValidatePropertyFieldValue("Table data", "{{Query6.data}}");
       });
 
       //To add test for duplicate collection name
@@ -352,7 +360,7 @@ if (CURRENT_REPO == REPO.CE) {
           dataManager.dsValues[dataManager.defaultEnviorment].arango_port +
           `/_db/_system/_api/collection/${collectionName} --header 'authorization: Basic cm9vdDpBcmFuZ28='`;
         //dataSources.ImportCurlNRun(curlDeleteCol);
-        dataSources.FillCurlNImport(curlDeleteCol);
+        apiPage.FillCurlNImport(curlDeleteCol);
         agHelper.ActionContextMenuWithInPane({
           action: "Delete",
           entityType: entityItems.Api,

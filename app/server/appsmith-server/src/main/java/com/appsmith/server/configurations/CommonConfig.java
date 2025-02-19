@@ -1,9 +1,9 @@
 package com.appsmith.server.configurations;
 
+import com.appsmith.server.helpers.LoadShifter;
 import com.appsmith.util.JSONPrettyPrinter;
 import com.appsmith.util.SerializationUtils;
 import com.fasterxml.jackson.core.PrettyPrinter;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -18,10 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.util.StringUtils;
 import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,7 +34,6 @@ import java.util.Set;
 @Configuration
 public class CommonConfig {
 
-    private static final String ELASTIC_THREAD_POOL_NAME = "appsmith-elastic-pool";
     public static final Integer LATEST_INSTANCE_SCHEMA_VERSION = 2;
 
     @Setter(AccessLevel.NONE)
@@ -67,8 +64,14 @@ public class CommonConfig {
     @Value("${disable.telemetry:true}")
     private boolean isTelemetryDisabled;
 
-    @Value("${appsmith.micrometer.tracing.detail.enabled:false}")
+    @Value("${appsmith.observability.tracing.detail.enabled:false}")
     private boolean tracingDetail;
+
+    @Value("${appsmith.observability.metrics.detail.enabled:false}")
+    private boolean metricsDetail;
+
+    @Value("${appsmith.observability.metrics.interval.millis:60000}")
+    private int metricsIntervalMillis;
 
     private List<String> allowedDomains;
 
@@ -79,11 +82,8 @@ public class CommonConfig {
     private static String adminEmailDomainHash;
 
     @Bean
-    public Scheduler scheduler() {
-        return Schedulers.newBoundedElastic(
-                Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE,
-                Schedulers.DEFAULT_BOUNDED_ELASTIC_QUEUESIZE,
-                ELASTIC_THREAD_POOL_NAME);
+    public Scheduler elasticScheduler() {
+        return LoadShifter.elasticScheduler;
     }
 
     @Bean
@@ -101,16 +101,6 @@ public class CommonConfig {
     @Bean
     public ObjectMapper objectMapper() {
         return SerializationUtils.getDefaultObjectMapper(null);
-    }
-
-    @Bean
-    public MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter() {
-        final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
-
-        converter.setObjectMapper(objectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, "CE".equals(ProjectProperties.EDITION)));
-
-        return converter;
     }
 
     @Bean

@@ -502,7 +502,7 @@ public enum AppsmithError {
     DATASOURCE_HAS_ACTIONS(
             409,
             AppsmithErrorCode.DATASOURCE_HAS_ACTIONS.getCode(),
-            "Cannot delete datasource since it has {0} action(s) using it.",
+            "Cannot delete datasource since it has {0} {1} using it.",
             AppsmithErrorAction.DEFAULT,
             "Datasource cannot be deleted",
             ErrorType.BAD_REQUEST,
@@ -912,9 +912,9 @@ public enum AppsmithError {
             ErrorType.INTERNAL_ERROR,
             null),
 
-    TENANT_EMAIL_VERIFICATION_NOT_ENABLED(
+    ORGANIZATION_EMAIL_VERIFICATION_NOT_ENABLED(
             400,
-            AppsmithErrorCode.TENANT_EMAIL_VERIFICATION_NOT_ENABLED.getCode(),
+            AppsmithErrorCode.ORGANIZATION_EMAIL_VERIFICATION_NOT_ENABLED.getCode(),
             "Email verification is not enabled. Please contact your admin",
             AppsmithErrorAction.DEFAULT,
             "Email verification not enabled",

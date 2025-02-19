@@ -1,8 +1,10 @@
+import { clsx } from "clsx";
 import React, { forwardRef } from "react";
-import { Checkbox as HeadlessCheckbox } from "react-aria-components";
-import { Text, Icon } from "@design-system/widgets";
-import styles from "./styles.module.css";
 import type { ForwardedRef } from "react";
+import { Text, Icon } from "@appsmith/wds";
+import { Checkbox as HeadlessCheckbox } from "react-aria-components";
+
+import styles from "./styles.module.css";
 import type { CheckboxProps } from "./types";
 
 const _Checkbox = (
@@ -11,6 +13,7 @@ const _Checkbox = (
 ) => {
   const {
     children,
+    className,
     isIndeterminate,
     isRequired,
     labelPosition = "end",
@@ -21,7 +24,7 @@ const _Checkbox = (
     <HeadlessCheckbox
       ref={ref}
       {...rest}
-      className={styles.checkbox}
+      className={clsx(styles.checkbox, className)}
       data-label-position={labelPosition}
       isIndeterminate={isIndeterminate}
     >

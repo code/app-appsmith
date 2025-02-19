@@ -6,6 +6,7 @@ import type { COLORS, SIZES } from "../../../shared";
 export const BUTTON_VARIANTS = {
   filled: "Filled",
   outlined: "Outlined",
+  subtle: "Subtle",
   ghost: "Ghost",
 } as const;
 
@@ -39,5 +40,9 @@ export interface ButtonProps extends HeadlessButtonProps {
   /** Size of the button
    * @default medium
    */
-  size?: Omit<keyof typeof SIZES, "large">;
+  size?: Exclude<keyof typeof SIZES, "large">;
+  /** Indicates if the button should be disabled when the form is invalid */
+  disableOnInvalidForm?: boolean;
+  /** Indicates if the button should reset the form when clicked */
+  resetFormOnClick?: boolean;
 }

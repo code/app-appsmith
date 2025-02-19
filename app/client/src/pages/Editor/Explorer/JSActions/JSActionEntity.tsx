@@ -3,55 +3,50 @@ import Entity, { EntityClassNames } from "../Entity";
 import history, { NavigationMethod } from "utils/history";
 import JSCollectionEntityContextMenu from "./JSActionContextMenu";
 import { useSelector } from "react-redux";
-import { getJSCollection } from "@appsmith/selectors/entitiesSelector";
-import type { AppState } from "@appsmith/reducers";
+import { getJsCollectionByBaseId } from "ee/selectors/entitiesSelector";
+import type { AppState } from "ee/reducers";
 import type { JSCollection } from "entities/JSCollection";
 import { JsFileIconV2 } from "../ExplorerIcons";
-import type { PluginType } from "entities/Action";
-import { jsCollectionIdURL } from "@appsmith/RouteBuilder";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import { jsCollectionIdURL } from "ee/RouteBuilder";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import { useLocation } from "react-router";
 import {
   getHasDeleteActionPermission,
   getHasManageActionPermission,
-} from "@appsmith/utils/BusinessFeatures/permissionPageHelpers";
+} from "ee/utils/BusinessFeatures/permissionPageHelpers";
 import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
-import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
-import { saveJSObjectNameBasedOnParentEntity } from "@appsmith/actions/helpers";
-import type { ActionParentEntityTypeInterface } from "@appsmith/entities/Engine/actionHelpers";
+import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
+import { saveJSObjectNameBasedOnIdeType } from "ee/actions/helpers";
+import { convertToBaseParentEntityIdSelector } from "selectors/pageListSelectors";
+import { getIDETypeByUrl } from "ee/entities/IDE/utils";
 
 interface ExplorerJSCollectionEntityProps {
   step: number;
   searchKeyword?: string;
-  id: string;
+  baseCollectionId: string;
   isActive: boolean;
-  type: PluginType;
   parentEntityId: string;
-  parentEntityType: ActionParentEntityTypeInterface;
 }
-
-const getUpdateJSObjectName = (
-  id: string,
-  name: string,
-  parentEntityType: ActionParentEntityTypeInterface,
-) => {
-  return saveJSObjectNameBasedOnParentEntity(id, name, parentEntityType);
-};
 
 export const ExplorerJSCollectionEntity = memo(
   (props: ExplorerJSCollectionEntityProps) => {
     const jsAction = useSelector((state: AppState) =>
-      getJSCollection(state, props.id),
+      getJsCollectionByBaseId(state, props.baseCollectionId),
     ) as JSCollection;
     const location = useLocation();
-    const { parentEntityId, parentEntityType } = props;
+    const { parentEntityId } = props;
+    const baseParentEntityId = useSelector((state) =>
+      convertToBaseParentEntityIdSelector(state, parentEntityId),
+    );
+    const ideType = getIDETypeByUrl(location.pathname);
+
     const navigateToUrl = jsCollectionIdURL({
-      parentEntityId,
-      collectionId: jsAction.id,
+      baseParentEntityId,
+      baseCollectionId: jsAction.baseId,
       params: {},
     });
     const navigateToJSCollection = useCallback(() => {
-      if (jsAction.id) {
+      if (jsAction.baseId) {
         AnalyticsUtil.logEvent("ENTITY_EXPLORER_CLICK", {
           type: "JSOBJECT",
           fromUrl: location.pathname,
@@ -62,7 +57,7 @@ export const ExplorerJSCollectionEntity = memo(
           invokedBy: NavigationMethod.EntityExplorer,
         });
       }
-    }, [parentEntityId, jsAction.id, jsAction.name, location.pathname]);
+    }, [baseParentEntityId, jsAction.baseId, jsAction.name, location.pathname]);
 
     const jsActionPermissions = jsAction.userPermissions || [];
 
@@ -88,6 +83,7 @@ export const ExplorerJSCollectionEntity = memo(
         name={jsAction.name}
       />
     );
+
     return (
       <Entity
         action={navigateToJSCollection}
@@ -104,7 +100,7 @@ export const ExplorerJSCollectionEntity = memo(
         searchKeyword={props.searchKeyword}
         step={props.step}
         updateEntityName={(id, name) =>
-          getUpdateJSObjectName(id, name, parentEntityType)
+          saveJSObjectNameBasedOnIdeType(id, name, ideType)
         }
       />
     );

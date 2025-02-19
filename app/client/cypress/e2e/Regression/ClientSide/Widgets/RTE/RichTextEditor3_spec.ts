@@ -10,12 +10,14 @@ import EditorNavigation, {
 
 describe(
   "Rich Text Editor widget Tests",
-  { tags: ["@tag.Widget", "@tag.TextEditor"] },
+  { tags: ["@tag.Widget", "@tag.TextEditor", "@tag.Binding"] },
   function () {
     before(() => {
       agHelper.AddDsl("richTextEditorDsl");
       EditorNavigation.SelectEntityByName("RichTextEditor1", EntityType.Widget);
-      //   entityExplorer.DragDropWidgetNVerify("richtexteditorwidget", 500, 200);
+      cy.waitUntil(() =>
+        cy.get(locators._richText_TitleBlock).should("be.visible"),
+      );
     });
 
     it("1. Verify deleting text in default text property, updates data in widget", function () {
@@ -47,7 +49,7 @@ describe(
     });
 
     it("3. Verify applying style in one line should be observed in next line", function () {
-      agHelper.GetNClick(locators._richText_Text_Color);
+      agHelper.GetNClick(locators._richText_Text_Color("Black"));
       agHelper.GetNClick(locators._richText_color("Red"));
       agHelper
         .GetElement(

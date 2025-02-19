@@ -1,19 +1,22 @@
 import {
   createMessage,
   TRIGGER_ACTION_VALIDATION_ERROR,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 import type { ApiResponse } from "api/ApiResponses";
 import { isString } from "lodash";
 import type { Types } from "utils/TypeHelpers";
-import type { ActionTriggerKeys } from "@appsmith/workers/Evaluation/fns/index";
-import { getActionTriggerFunctionNames } from "@appsmith/workers/Evaluation/fns/index";
-import { getAppMode } from "@appsmith/selectors/applicationSelectors";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
-import { setDebuggerSelectedTab, showDebugger } from "actions/debuggerActions";
-import { DEBUGGER_TAB_KEYS } from "components/editorComponents/Debugger/helpers";
+import type { ActionTriggerKeys } from "ee/workers/Evaluation/fns";
+import { getActionTriggerFunctionNames } from "ee/workers/Evaluation/fns";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
+import {
+  setDebuggerSelectedTab,
+  showDebugger,
+  showDebuggerLogs,
+} from "actions/debuggerActions";
+import { DEBUGGER_TAB_KEYS } from "components/editorComponents/Debugger/constants";
 import store from "store";
 import showToast from "sagas/ToastSagas";
-import { call } from "redux-saga/effects";
+import { call, put } from "redux-saga/effects";
 
 /*
  * The base trigger error that also logs the errors in the debugger.
@@ -51,60 +54,40 @@ export class ActionValidationError extends TriggerFailureError {
       expectedType,
       received,
     );
+
     super(errorMessage);
   }
 }
 
-export function* logActionExecutionError(
+export function* showToastOnExecutionError(
   errorMessage: string,
-  isExecuteJSFunc = true,
+  showCTA = true,
 ) {
-  //Commenting as per decision taken for the error hanlding epic to not show the trigger errors in the debugger.
-  // if (triggerPropertyName) {
-  //   AppsmithConsole.addErrors([
-  //     {
-  //       payload: {
-  //         id: `${source?.id}-${triggerPropertyName}`,
-  //         logType: LOG_TYPE.TRIGGER_EVAL_ERROR,
-  //         text: createMessage(DEBUGGER_TRIGGER_ERROR, triggerPropertyName),
-  //         source: {
-  //           type: ENTITY_TYPE.WIDGET,
-  //           id: source?.id ?? "",
-  //           name: source?.name ?? "",
-  //           propertyPath: triggerPropertyName,
-  //         },
-  //         messages: [
-  //           {
-  //             type: errorType,
-  //             message: { name: "TriggerExecutionError", message: errorMessage },
-  //           },
-  //         ],
-  //       },
-  //     },
-  //   ]);
-  // }
-
   function onDebugClick() {
-    const appMode = getAppMode(store.getState());
-    if (appMode === "PUBLISHED") return null;
-
     AnalyticsUtil.logEvent("OPEN_DEBUGGER", {
       source: "TOAST",
     });
-    store.dispatch(showDebugger(true));
-    store.dispatch(setDebuggerSelectedTab(DEBUGGER_TAB_KEYS.ERROR_TAB));
+    store.dispatch(showDebuggerLogs());
   }
 
-  if (isExecuteJSFunc)
-    // This is the toast that is rendered when any unhandled error occurs in JS object.
-    yield call(showToast, errorMessage, {
-      kind: "error",
-      action: {
+  const action = showCTA
+    ? {
         text: "debug",
         effect: () => onDebugClick(),
         className: "t--toast-debug-button",
-      },
-    });
+      }
+    : undefined;
+
+  // This is the toast that is rendered when any unhandled error occurs in JS object.
+  yield call(showToast, errorMessage, {
+    kind: "error",
+    action,
+  });
+}
+
+export function* showDebuggerOnExecutionError() {
+  yield put(showDebugger(true));
+  yield put(setDebuggerSelectedTab(DEBUGGER_TAB_KEYS.ERROR_TAB));
 }
 
 /*

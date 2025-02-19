@@ -4,21 +4,21 @@ import type { DropdownOptionType } from "../../../types";
 import {
   getEnvironmentConfiguration,
   isEnvironmentValid,
-} from "@appsmith/utils/Environments";
-import { getCurrentEnvironmentId } from "@appsmith/selectors/environmentSelectors";
+} from "ee/utils/Environments";
+import { getCurrentEnvironmentId } from "ee/selectors/environmentSelectors";
 import { DatasourceImage, ImageWrapper } from "../../../styles";
 import {
   type Datasource,
   DatasourceConnectionMode,
   type MockDatasource,
 } from "entities/Datasource";
-import { PluginPackageName } from "entities/Action";
+import { PluginPackageName } from "entities/Plugin";
 import {
   addAndFetchMockDatasourceStructure,
   fetchDatasourceStructure,
   fetchGheetSpreadsheets,
 } from "actions/datasourceActions";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import { invert } from "lodash";
 import { DatasourceCreateEntryPoints } from "constants/Datasource";
 import { useDispatch, useSelector } from "react-redux";
@@ -28,12 +28,13 @@ import {
   getMockDatasources,
   getPluginIdPackageNamesMap,
   getPlugins,
-} from "@appsmith/selectors/entitiesSelector";
-import { getCurrentWorkspaceId } from "@appsmith/selectors/selectedWorkspaceSelectors";
+} from "ee/selectors/entitiesSelector";
+import { getCurrentWorkspaceId } from "ee/selectors/selectedWorkspaceSelectors";
 import type { WidgetProps } from "widgets/BaseWidget";
 import { WidgetQueryGeneratorFormContext } from "components/editorComponents/WidgetQueryGeneratorForm/index";
-import { getAssetUrl } from "@appsmith/utils/airgapHelpers";
+import { getAssetUrl } from "ee/utils/airgapHelpers";
 import { getDatasourceConnectionMode } from "components/editorComponents/WidgetQueryGeneratorForm/utils";
+import { DROPDOWN_VARIANT } from "../types";
 
 interface DatasourceOptionsProps {
   widget: WidgetProps;
@@ -41,9 +42,8 @@ interface DatasourceOptionsProps {
 }
 
 function useDatasourceOptions(props: DatasourceOptionsProps) {
-  const { config, propertyName, updateConfig } = useContext(
-    WidgetQueryGeneratorFormContext,
-  );
+  const { config, datasourceDropdownVariant, propertyName, updateConfig } =
+    useContext(WidgetQueryGeneratorFormContext);
   const { pluginImages, widget } = props;
   const dispatch = useDispatch();
   const datasources: Datasource[] = useSelector(getDatasources);
@@ -58,6 +58,11 @@ function useDatasourceOptions(props: DatasourceOptionsProps) {
     useState(false);
 
   const [actualDatasourceOptions, mockDatasourceOptions] = useMemo(() => {
+    // we don't want to show the datasource options for connect to query variant
+    if (datasourceDropdownVariant === DROPDOWN_VARIANT.CONNECT_TO_QUERY) {
+      return [[], []];
+    }
+
     const availableDatasources = datasources.filter(({ pluginId }) =>
       WidgetQueryGeneratorRegistry.has(pluginsPackageNamesMap[pluginId]),
     );
@@ -72,7 +77,9 @@ function useDatasourceOptions(props: DatasourceOptionsProps) {
         );
       });
     }
+
     let datasourceOptions: DropdownOptionType[] = [];
+
     if (filteredDatasources.length) {
       datasourceOptions = datasourceOptions.concat(
         filteredDatasources.map((datasource) => ({
@@ -115,6 +122,7 @@ function useDatasourceOptions(props: DatasourceOptionsProps) {
                   valueOption?.data.connectionMode ||
                   DatasourceConnectionMode.READ_ONLY,
               });
+
               if (valueOption?.id) {
                 switch (pluginsPackageNamesMap[pluginId]) {
                   case PluginPackageName.GOOGLE_SHEETS:

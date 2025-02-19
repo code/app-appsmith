@@ -8,6 +8,7 @@ import com.appsmith.external.exceptions.pluginExceptions.AppsmithPluginError;
 import com.appsmith.external.exceptions.pluginExceptions.AppsmithPluginException;
 import com.appsmith.external.exceptions.pluginExceptions.StaleConnectionException;
 import com.appsmith.external.helpers.MustacheHelper;
+import com.appsmith.external.models.ActionConfiguration;
 import com.appsmith.external.models.ActionDTO;
 import com.appsmith.external.models.ActionExecutionRequest;
 import com.appsmith.external.models.ActionExecutionResult;
@@ -19,6 +20,7 @@ import com.appsmith.external.models.RequestParamDTO;
 import com.appsmith.external.plugins.PluginExecutor;
 import com.appsmith.server.acl.AclPermission;
 import com.appsmith.server.applications.base.ApplicationService;
+import com.appsmith.server.configurations.CommonConfig;
 import com.appsmith.server.constants.Constraint;
 import com.appsmith.server.constants.FieldName;
 import com.appsmith.server.datasources.base.DatasourceService;
@@ -32,6 +34,7 @@ import com.appsmith.server.domains.User;
 import com.appsmith.server.dtos.ExecuteActionMetaDTO;
 import com.appsmith.server.exceptions.AppsmithError;
 import com.appsmith.server.exceptions.AppsmithException;
+import com.appsmith.server.helpers.ActionExecutionSolutionHelper;
 import com.appsmith.server.helpers.DatasourceAnalyticsUtils;
 import com.appsmith.server.helpers.DateUtils;
 import com.appsmith.server.helpers.PluginExecutorHelper;
@@ -42,8 +45,9 @@ import com.appsmith.server.services.AnalyticsService;
 import com.appsmith.server.services.AuthenticationValidator;
 import com.appsmith.server.services.ConfigService;
 import com.appsmith.server.services.DatasourceContextService;
+import com.appsmith.server.services.FeatureFlagService;
+import com.appsmith.server.services.OrganizationService;
 import com.appsmith.server.services.SessionUserService;
-import com.appsmith.server.services.TenantService;
 import com.appsmith.server.solutions.ActionPermission;
 import com.appsmith.server.solutions.DatasourcePermission;
 import com.appsmith.server.solutions.EnvironmentPermission;
@@ -70,6 +74,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -116,7 +121,10 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
     private final DatasourceStorageService datasourceStorageService;
     private final EnvironmentPermission environmentPermission;
     private final ConfigService configService;
-    private final TenantService tenantService;
+    private final OrganizationService organizationService;
+    private final ActionExecutionSolutionHelper actionExecutionSolutionHelper;
+    private final CommonConfig commonConfig;
+    private final FeatureFlagService featureFlagService;
 
     static final String PARAM_KEY_REGEX = "^k\\d+$";
     static final String BLOB_KEY_REGEX =
@@ -143,7 +151,10 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
             DatasourceStorageService datasourceStorageService,
             EnvironmentPermission environmentPermission,
             ConfigService configService,
-            TenantService tenantService) {
+            OrganizationService organizationService,
+            CommonConfig commonConfig,
+            ActionExecutionSolutionHelper actionExecutionSolutionHelper,
+            FeatureFlagService featureFlagService) {
         this.newActionService = newActionService;
         this.actionPermission = actionPermission;
         this.observationRegistry = observationRegistry;
@@ -161,7 +172,10 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
         this.datasourceStorageService = datasourceStorageService;
         this.environmentPermission = environmentPermission;
         this.configService = configService;
-        this.tenantService = tenantService;
+        this.organizationService = organizationService;
+        this.commonConfig = commonConfig;
+        this.actionExecutionSolutionHelper = actionExecutionSolutionHelper;
+        this.featureFlagService = featureFlagService;
 
         this.patternList.add(Pattern.compile(PARAM_KEY_REGEX));
         this.patternList.add(Pattern.compile(BLOB_KEY_REGEX));
@@ -185,11 +199,7 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
             ExecuteActionDTO executeActionDTO, ExecuteActionMetaDTO executeActionMetaDTO) {
         AclPermission executePermission = getPermission(executeActionMetaDTO, actionPermission.getExecutePermission());
         Mono<NewAction> newActionMono = newActionService
-                .findByBranchNameAndDefaultActionId(
-                        executeActionMetaDTO.getBranchName(),
-                        executeActionDTO.getActionId(),
-                        executeActionDTO.getViewMode(),
-                        executePermission)
+                .findById(executeActionDTO.getActionId(), executePermission)
                 .cache();
 
         Mono<ExecuteActionDTO> populatedExecuteActionDTOMono =
@@ -242,38 +252,44 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
      */
     private Mono<ExecuteActionDTO> populateExecuteActionDTO(ExecuteActionDTO executeActionDTO, NewAction newAction) {
         Mono<String> instanceIdMono = configService.getInstanceId();
-        Mono<String> defaultTenantIdMono = tenantService.getDefaultTenantId();
+        Mono<String> defaultOrganizationIdMono = organizationService.getDefaultOrganizationId();
 
-        return Mono.zip(instanceIdMono, defaultTenantIdMono).map(tuple -> {
-            String instanceId = tuple.getT1();
-            String tenantId = tuple.getT2();
-            executeActionDTO.setActionId(newAction.getId());
-            executeActionDTO.setWorkspaceId(newAction.getWorkspaceId());
-            executeActionDTO.setInstanceId(instanceId);
-            executeActionDTO.setTenantId(tenantId);
-            return executeActionDTO;
-        });
+        Mono<ExecuteActionDTO> systemInfoPopulatedExecuteActionDTOMono =
+                actionExecutionSolutionHelper.populateExecuteActionDTOWithSystemInfo(executeActionDTO);
+
+        return systemInfoPopulatedExecuteActionDTOMono.flatMap(populatedExecuteActionDTO -> Mono.zip(
+                        instanceIdMono, defaultOrganizationIdMono)
+                .map(tuple -> {
+                    String instanceId = tuple.getT1();
+                    String organizationId = tuple.getT2();
+                    populatedExecuteActionDTO.setActionId(newAction.getId());
+                    populatedExecuteActionDTO.setWorkspaceId(newAction.getWorkspaceId());
+                    if (TRUE.equals(executeActionDTO.getViewMode())) {
+                        populatedExecuteActionDTO.setDatasourceId(
+                                newAction.getPublishedAction().getDatasource().getId());
+                    } else {
+                        populatedExecuteActionDTO.setDatasourceId(
+                                newAction.getUnpublishedAction().getDatasource().getId());
+                    }
+                    populatedExecuteActionDTO.setInstanceId(instanceId);
+                    populatedExecuteActionDTO.setOrganizationId(organizationId);
+                    return populatedExecuteActionDTO;
+                }));
     }
 
     /**
      * Executes the action(queries) by creating executeActionDTO and sending it to the plugin for further execution
      *
      * @param partFlux
-     * @param branchName
      * @param environmentId
      * @return Mono of actionExecutionResult if the query succeeds, error messages otherwise
      */
     @Override
     public Mono<ActionExecutionResult> executeAction(
-            Flux<Part> partFlux,
-            String branchName,
-            String environmentId,
-            HttpHeaders httpHeaders,
-            Boolean operateWithoutPermission) {
+            Flux<Part> partFlux, String environmentId, HttpHeaders httpHeaders, Boolean operateWithoutPermission) {
         ExecuteActionMetaDTO executeActionMetaDTO = ExecuteActionMetaDTO.builder()
                 .headers(httpHeaders)
                 .operateWithoutPermission(operateWithoutPermission)
-                .branchName(branchName)
                 .environmentId(environmentId)
                 .build();
         Mono<ExecuteActionDTO> executeActionDTOMono = createExecuteActionDTO(partFlux);
@@ -715,13 +731,22 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
                     // Now that we have the context (connection details), execute the action.
 
                     Instant requestedAt = Instant.now();
+                    Map<String, Boolean> features = featureFlagService.getCachedOrganizationFeatureFlags() != null
+                            ? featureFlagService
+                                    .getCachedOrganizationFeatureFlags()
+                                    .getFeatures()
+                            : Collections.emptyMap();
+
+                    // TODO: Flags are needed here for google sheets integration to support shared drive behind a flag
+                    // Once thoroughly tested, this flag can be removed
                     return ((PluginExecutor<Object>) pluginExecutor)
-                            .executeParameterizedWithMetrics(
+                            .executeParameterizedWithMetricsAndFlags(
                                     resourceContext.getConnection(),
                                     executeActionDTO,
                                     datasourceStorage1.getDatasourceConfiguration(),
                                     actionDTO.getActionConfiguration(),
-                                    observationRegistry)
+                                    observationRegistry,
+                                    features)
                             .map(actionExecutionResult -> {
                                 ActionExecutionRequest actionExecutionRequest = actionExecutionResult.getRequest();
                                 if (actionExecutionRequest == null) {
@@ -776,6 +801,25 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
     }
 
     /**
+     * This function deep copies the actionConfiguration object to send the original object to mixpanel which contains
+     * the actual user query with bindings
+     * @param actionConfiguration
+     * @return
+     */
+    private ActionConfiguration deepCopyActionConfiguration(ActionConfiguration actionConfiguration) {
+        try {
+            // Convert the ActionConfiguration object to JSON string
+            String json = objectMapper.writeValueAsString(actionConfiguration);
+
+            // Convert the JSON string back to an ActionConfiguration object
+            return objectMapper.readValue(json, ActionConfiguration.class);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
      * Handles the execution logic, call to pluginExecutor with the payload post retrieval and validation of action, datasource, and plugin
      *
      * @param executeActionDTO
@@ -799,6 +843,12 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
                     final DatasourceStorage datasourceStorage = tuple.getT2();
                     final PluginExecutor pluginExecutor = tuple.getT3();
                     final Plugin plugin = tuple.getT4();
+                    // This is to return the raw user query including bindings
+                    ActionConfiguration rawActionConfiguration = null;
+                    if (actionDTO != null && actionDTO.getActionConfiguration() != null) {
+                        // deep copying the actionConfiguration to avoid any changes in the original object
+                        rawActionConfiguration = this.deepCopyActionConfiguration(actionDTO.getActionConfiguration());
+                    }
 
                     log.debug(
                             "[{}]Execute Action called in Page {}, for action id : {}  action name : {}",
@@ -817,6 +867,7 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
                                             executeActionDTO, actionDTO, datasourceStorage, plugin, pluginExecutor)
                                     .timeout(Duration.ofMillis(timeoutDuration)));
 
+                    ActionConfiguration finalRawActionConfiguration = rawActionConfiguration;
                     return actionExecutionResultMono
                             .onErrorMap(executionExceptionMapper(actionDTO, timeoutDuration))
                             .onErrorResume(executionExceptionHandler(actionDTO))
@@ -834,7 +885,12 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
                                         timeElapsed);
 
                                 return sendExecuteAnalyticsEvent(
-                                                actionDTO, datasourceStorage, executeActionDTO, result, timeElapsed)
+                                                actionDTO,
+                                                datasourceStorage,
+                                                executeActionDTO,
+                                                result,
+                                                timeElapsed,
+                                                finalRawActionConfiguration)
                                         .thenReturn(result);
                             });
                 });
@@ -935,7 +991,8 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
             DatasourceStorage datasourceStorage,
             ExecuteActionDTO executeActionDto,
             ActionExecutionResult actionExecutionResult,
-            Long timeElapsed) {
+            Long timeElapsed,
+            ActionConfiguration rawActionConfiguration) {
 
         if (!isSendExecuteAnalyticsEvent()) {
             return Mono.empty();
@@ -1026,7 +1083,7 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
                             actionDTO.getName(),
                             "datasource",
                             Map.of("name", datasourceStorage.getName()),
-                            "orgId",
+                            "workspaceId",
                             application.getWorkspaceId(),
                             "appId",
                             actionDTO.getApplicationId(),
@@ -1123,8 +1180,19 @@ public class ActionExecutionSolutionCEImpl implements ActionExecutionSolutionCE 
                     } else {
                         eventData.put(FieldName.ACTION_EXECUTION_REQUEST_PARAMS, REDACTED_DATA);
                     }
+                    if (executeActionDto != null) {
+                        // Remove the value from the executeActionDto.params before sending to mixpanel as it contains
+                        // user submitted data
+                        if (executeActionDto.getParams() != null) {
+                            executeActionDto.getParams().forEach(param -> param.setValue(REDACTED_DATA));
+                        }
+                        data.put(FieldName.ACTION_EXECUTION_REQUEST_PARAMS_VALUE_MAP, executeActionDto.getParams());
+                        data.put(
+                                FieldName.ACTION_EXECUTION_INVERT_PARAMETER_MAP,
+                                executeActionDto.getInvertParameterMap());
+                    }
+                    data.put(FieldName.ACTION_CONFIGURATION, rawActionConfiguration);
                     data.put(FieldName.EVENT_DATA, eventData);
-
                     return analyticsService
                             .sendObjectEvent(AnalyticsEvents.EXECUTE_ACTION, actionDTO, data)
                             .thenReturn(request);

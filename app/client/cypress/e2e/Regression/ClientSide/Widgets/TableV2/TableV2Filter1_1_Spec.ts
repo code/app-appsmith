@@ -1,20 +1,28 @@
+import { demoTableDataForSelect } from "../../../../../fixtures/Table/DemoTableData";
 import {
-  entityExplorer,
-  propPane,
-  deployMode,
-  table,
+  agHelper,
   assertHelper,
-  locators,
+  deployMode,
   draggableWidgets,
+  entityExplorer,
+  locators,
+  propPane,
+  table,
 } from "../../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+} from "../../../../../support/Pages/EditorNavigation";
 
 describe(
   "Verify various Table_Filter combinations",
-  { tags: ["@tag.Widget", "@tag.Table"] },
+  { tags: ["@tag.Widget", "@tag.Table", "@tag.Binding"] },
   function () {
     it("1. Adding Data to Table Widget", function () {
       entityExplorer.DragDropWidgetNVerify("tablewidgetv2", 650, 250);
       //propPane.EnterJSContext("Table data", JSON.stringify(this.dataSet.TableInput));
+      // turn on filtering for the table - it is disabled by default in this PR(#34593)
+      propPane.ExpandIfCollapsedSection("search\\&filters");
+      agHelper.GetNClick(".t--property-control-allowfiltering input");
       table.AddSampleTableData();
       //propPane.EnterJSContext("Table Data", JSON.stringify(this.dataSet.TableInput));
       propPane.UpdatePropertyFieldValue(
@@ -132,6 +140,47 @@ describe(
       table.OpenNFilterTable("productName", "is exactly", "Beef STEAK");
       table.WaitForTableEmpty("v2");
       table.RemoveFilterNVerify("2381224", true, true, 0, "v2");
+    });
+
+    it("11. Verify table search includes label and value for table with select column type", () => {
+      deployMode.NavigateBacktoEditor();
+      EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
+      propPane.EnterJSContext("Table data", demoTableDataForSelect);
+
+      // Edit role column to select type
+      table.ChangeColumnType("role", "Select", "v2");
+      table.EditColumn("role", "v2");
+      agHelper.UpdateCodeInput(
+        locators._controlOption,
+        `
+         {{
+           [
+             {"label": "Software Engineer",
+             "value": 10,},
+             {"label": "Product Manager",
+             "value": 20,},
+             {"label": "UX Designer",
+             "value": 30,}
+           ]
+         }}
+       `,
+      );
+      // Search for a label in the table
+      table.SearchTable("Software Engineer");
+      table.ReadTableRowColumnData(0, 2, "v2").then((afterSearch) => {
+        expect(afterSearch).to.eq("Software Engineer");
+      });
+      table.RemoveSearchTextNVerify("1", "v2");
+    });
+
+    it("12. Verify table filter for select column type", function () {
+      table.OpenNFilterTable("role", "is exactly", "Product Manager");
+      table.ReadTableRowColumnData(0, 2, "v2").then(($cellData) => {
+        expect($cellData).to.eq("Product Manager");
+      });
+      table.ReadTableRowColumnData(1, 2, "v2").then(($cellData) => {
+        expect($cellData).to.eq("Product Manager");
+      });
     });
   },
 );

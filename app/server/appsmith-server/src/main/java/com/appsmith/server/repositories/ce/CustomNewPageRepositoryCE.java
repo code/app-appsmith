@@ -1,5 +1,6 @@
 package com.appsmith.server.repositories.ce;
 
+import com.appsmith.external.git.constants.ce.RefType;
 import com.appsmith.server.acl.AclPermission;
 import com.appsmith.server.domains.NewPage;
 import com.appsmith.server.repositories.AppsmithRepository;
@@ -9,11 +10,14 @@ import reactor.core.publisher.Mono;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 public interface CustomNewPageRepositoryCE extends AppsmithRepository<NewPage> {
 
+    Mono<NewPage> findById(String id, AclPermission permission, List<String> projectedFields);
+
     Flux<NewPage> findByApplicationId(String applicationId, AclPermission aclPermission);
+
+    Flux<NewPage> findByApplicationId(String applicationId, AclPermission aclPermission, List<String> includeFields);
 
     Flux<NewPage> findByApplicationIdAndNonDeletedEditMode(String applicationId, AclPermission aclPermission);
 
@@ -29,20 +33,22 @@ public interface CustomNewPageRepositoryCE extends AppsmithRepository<NewPage> {
 
     Mono<String> getNameByPageId(String pageId, boolean isPublishedName);
 
-    Mono<NewPage> findPageByBranchNameAndDefaultPageId(
-            String branchName, String defaultPageId, AclPermission permission);
+    Mono<NewPage> findPageByRefTypeAndRefNameAndBasePageId(
+            RefType refType,
+            String refName,
+            String basePageId,
+            AclPermission permission,
+            List<String> projectedFieldNames);
 
-    Mono<NewPage> findByGitSyncIdAndDefaultApplicationId(
-            String defaultApplicationId, String gitSyncId, AclPermission permission);
-
-    Mono<NewPage> findByGitSyncIdAndDefaultApplicationId(
-            String defaultApplicationId, String gitSyncId, Optional<AclPermission> permission);
+    Flux<NewPage> findAllByApplicationIds(List<String> branchedArtifactIds, List<String> includedFields);
 
     Mono<Void> publishPages(Collection<String> pageIds, AclPermission permission);
 
     Flux<NewPage> findAllByApplicationIdsWithoutPermission(List<String> applicationIds, List<String> includeFields);
 
-    Mono<String> findBranchedPageId(String branchName, String defaultPageId, AclPermission permission);
-
     Mono<Integer> updateDependencyMap(String pageId, Map<String, List<String>> dependencyMap);
+
+    Flux<NewPage> findByApplicationId(String applicationId);
+
+    Mono<Long> countByDeletedAtNull();
 }

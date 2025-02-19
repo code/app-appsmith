@@ -33,7 +33,7 @@ import type {
 import { BlueprintOperationTypes } from "WidgetProvider/constants";
 import IconSVG from "../icon.svg";
 import ThumbnailSVG from "../thumbnail.svg";
-import type { CanvasWidgetsReduxState } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import { getWidgetBluePrintUpdates } from "utils/WidgetBlueprintUtils";
 import { DynamicHeight } from "utils/WidgetFeatures";
 import type { FlexLayer } from "layoutSystems/autolayout/utils/types";
@@ -180,6 +180,11 @@ export class ModalWidget extends BaseWidget<ModalWidgetProps, WidgetState> {
                             propertyName: "onClick",
                             propertyValue: `{{closeModal(${parent.widgetName}.name);}}`,
                           },
+                          {
+                            widgetId: iconChild.widgetId,
+                            propertyName: "dynamicTriggerPathList",
+                            propertyValue: [{ key: "onClick" }],
+                          },
                         ];
                       }
                     },
@@ -206,6 +211,11 @@ export class ModalWidget extends BaseWidget<ModalWidgetProps, WidgetState> {
                             propertyName: "onClick",
                             propertyValue: `{{closeModal(${parent.widgetName}.name);}}`,
                           },
+                          {
+                            widgetId: cancelBtnChild.widgetId,
+                            propertyName: "dynamicTriggerPathList",
+                            propertyValue: [{ key: "onClick" }],
+                          },
                         ];
                       }
                     },
@@ -227,6 +237,7 @@ export class ModalWidget extends BaseWidget<ModalWidgetProps, WidgetState> {
               if (layoutSystemType === LayoutSystemTypes.FIXED) {
                 return [];
               }
+
               //get Canvas Widget
               const canvasWidget: FlattenedWidgetProps = get(
                 widget,
@@ -486,6 +497,7 @@ export class ModalWidget extends BaseWidget<ModalWidgetProps, WidgetState> {
         !!this.props.isVisible
       );
     }
+
     return !!this.props.isVisible;
   }
 
@@ -501,6 +513,8 @@ export class ModalWidget extends BaseWidget<ModalWidgetProps, WidgetState> {
     }
   };
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   closeModal = (e: any) => {
     this.props.updateWidgetMetaProperty("isVisible", false);
     this.selectWidgetRequest(SelectionRequestType.Empty);

@@ -8,7 +8,7 @@ import {
   propPane,
 } from "../../../../../support/Objects/ObjectsCore";
 
-import { format } from "date-fns";
+import { format } from "date-fns/format.cjs";
 import { datePickerlocators } from "../../../../../locators/WidgetLocators";
 import EditorNavigation, {
   EntityType,
@@ -16,7 +16,7 @@ import EditorNavigation, {
 
 describe(
   "Date picker widget testcases",
-  { tags: ["@tag.Widget", "@tag.Datepicker"] },
+  { tags: ["@tag.Widget", "@tag.Datepicker", "@tag.Binding"] },
   () => {
     before(() => {
       entityExplorer.DragDropWidgetNVerify(draggableWidgets.DATEPICKER);
@@ -255,7 +255,14 @@ describe(
       agHelper.GetNClick(locators._existingFieldTextByName("Max Date"));
       agHelper.GetNClick(datePickerlocators.calendarHeader, 1);
       agHelper.GetNClick(dataSources._visibleTextSpan("Feb"), 0, true);
-      agHelper.GetNClick(datePickerlocators.calendarHeader, 2);
+      agHelper.GetNClick(datePickerlocators.calendarHeader, 2, true);
+      agHelper
+        .GetAttribute(datePickerlocators.calendarHeader, "data-state", 2)
+        .then((state) => {
+          if (state === "closed") {
+            agHelper.GetNClick(datePickerlocators.calendarHeader, 2, true);
+          }
+        });
       agHelper.GetNClick(datePickerlocators.year("2023"), 0, true);
       agHelper.GetNClick(datePickerlocators.date("010"));
       deployMode.DeployApp();

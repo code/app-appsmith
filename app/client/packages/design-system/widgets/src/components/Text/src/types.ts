@@ -1,7 +1,7 @@
 import type {
   TYPOGRAPHY_VARIANTS,
   TYPOGRAPHY_FONT_WEIGHTS,
-} from "@design-system/theming";
+} from "@appsmith/wds-theming";
 import type { ReactNode } from "react";
 import type { COLORS } from "../../../shared";
 
@@ -13,7 +13,7 @@ export interface TextProps {
   /** Color of the text
    * @default inherit
    */
-  color?: keyof typeof COLORS;
+  color?: keyof typeof COLORS | "neutral-subtle";
   /** Sets the weight (or boldness) of the font
    * @default false
    */
@@ -35,11 +35,13 @@ export interface TextProps {
   /** Sets the CSS [className](https://developer.mozilla.org/en-US/docs/Web/API/Element/className) for the element. Only use as a **last resort**. Use style props instead. */
   className?: string;
   /** The children of the component. */
-  children: ReactNode;
+  children?: ReactNode;
   /** title attribute for the component */
   title?: string;
   /** Sets the HTML [id](https://developer.mozilla.org/en-US/docs/Web/API/Element/id) for the element. */
   id?: string;
-  /** extra style properties to pass to the componetn */
+  /** extra style properties to pass to the component */
   style?: React.CSSProperties;
+  /** The word-break CSS property sets whether line breaks appear wherever the text would otherwise overflow its content box. */
+  wordBreak?: "break-word" | "break-all";
 }

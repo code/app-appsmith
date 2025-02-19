@@ -12,7 +12,15 @@ import EditorNavigation, {
 
 describe(
   "JSObjects OnLoad Actions tests",
-  { tags: ["@tag.PropertyPane", "@tag.JS", "@tag.ImportExport"] },
+  {
+    tags: [
+      "@tag.PropertyPane",
+      "@tag.JS",
+      "@tag.ImportExport",
+      "@tag.Binding",
+      "@tag.Git",
+    ],
+  },
   function () {
     before(() => {
       homePage.CreateNewWorkspace("JSOnLoadTest", true);
@@ -91,10 +99,10 @@ describe(
       EditorNavigation.SelectEntityByName("Page1", EntityType.Page);
       agHelper.RefreshPage();
 
-      debuggerHelper.ClickDebuggerIcon();
+      debuggerHelper.OpenDebugger();
       debuggerHelper.ClickLogsTab();
       debuggerHelper.DebuggerLogsFilter("JSObject1.astros");
-      debuggerHelper.DoesConsoleLogExist("JS Function executed successfully");
+      debuggerHelper.DoesConsoleLogExist("Function executed");
     });
 
     function AssertJSOnPageLoad(

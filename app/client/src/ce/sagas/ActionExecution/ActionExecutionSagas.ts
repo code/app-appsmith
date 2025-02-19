@@ -1,12 +1,12 @@
-import type { ReduxAction } from "@appsmith/constants/ReduxActionConstants";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+import type { ReduxAction } from "actions/ReduxActionTypes";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import type {
   EventType,
   ExecuteTriggerPayload,
   TriggerSource,
 } from "constants/AppsmithActionConstants/ActionConstants";
 import { TriggerKind } from "constants/AppsmithActionConstants/ActionConstants";
-import * as log from "loglevel";
+import log from "loglevel";
 import {
   all,
   call,
@@ -41,9 +41,10 @@ import {
   watchCurrentLocation,
 } from "sagas/ActionExecution/geolocationSaga";
 import { postMessageSaga } from "sagas/ActionExecution/PostMessageSaga";
-import type { ActionDescription } from "@appsmith/workers/Evaluation/fns";
-import { getActionById } from "selectors/editorSelectors";
-import type { AppState } from "@appsmith/reducers";
+import type { ActionDescription } from "ee/workers/Evaluation/fns";
+import type { AppState } from "ee/reducers";
+import { getAction } from "ee/selectors/entitiesSelector";
+import { getSourceFromTriggerMeta } from "ee/entities/AppsmithConsole/utils";
 
 export interface TriggerMeta {
   source?: TriggerSource;
@@ -62,25 +63,23 @@ export function* executeActionTriggers(
   trigger: ActionDescription,
   eventType: EventType,
   triggerMeta: TriggerMeta,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
   // when called via a promise, a trigger can return some value to be used in .then
   let response: unknown[] = [];
+  const source = getSourceFromTriggerMeta(triggerMeta);
+
   switch (trigger.type) {
     case "RUN_PLUGIN_ACTION":
       response = yield call(executePluginActionTriggerSaga, trigger, eventType);
       break;
     case "CLEAR_PLUGIN_ACTION":
       yield put(clearActionResponse(trigger.payload.actionId));
-      const action: ReturnType<typeof getActionById> = yield select(
-        (state: AppState) =>
-          getActionById(state, {
-            match: {
-              params: {
-                apiId: trigger.payload.actionId,
-              },
-            },
-          }),
+      const action: ReturnType<typeof getAction> = yield select(
+        (state: AppState) => getAction(state, trigger.payload.actionId),
       );
+
       if (action) {
         yield put(
           updateActionData([
@@ -92,27 +91,28 @@ export function* executeActionTriggers(
           ]),
         );
       }
+
       break;
     case "NAVIGATE_TO":
-      yield call(navigateActionSaga, trigger);
+      yield call(navigateActionSaga, trigger, source);
       break;
     case "SHOW_ALERT":
-      yield call(showAlertSaga, trigger);
+      yield call(showAlertSaga, trigger, source);
       break;
     case "SHOW_MODAL_BY_NAME":
-      yield call(openModalSaga, trigger);
+      yield call(openModalSaga, trigger, source);
       break;
     case "CLOSE_MODAL":
-      yield call(closeModalSaga, trigger);
+      yield call(closeModalSaga, trigger, source);
       break;
     case "DOWNLOAD":
-      yield call(downloadSaga, trigger);
+      yield call(downloadSaga, trigger, source);
       break;
     case "COPY_TO_CLIPBOARD":
-      yield call(copySaga, trigger);
+      yield call(copySaga, trigger, source);
       break;
     case "RESET_WIDGET_META_RECURSIVE_BY_NAME":
-      yield call(resetWidgetActionSaga, trigger);
+      yield call(resetWidgetActionSaga, trigger, source);
       break;
     case "GET_CURRENT_LOCATION":
       response = yield call(getCurrentLocationSaga, trigger);
@@ -132,14 +132,14 @@ export function* executeActionTriggers(
       yield call(postMessageSaga, trigger);
       break;
     default:
-      log.error("Trigger type unknown", trigger);
+      log.error("Trigger type unknown", trigger, source);
       throw Error("Trigger type unknown");
   }
+
   return response;
 }
 
-// This function gets called when a user clicks on a button on the canvas UI
-export function* executeAppAction(payload: ExecuteTriggerPayload): any {
+export function* executeAppAction(payload: ExecuteTriggerPayload): Generator {
   const {
     callbackData,
     dynamicString,
@@ -150,6 +150,7 @@ export function* executeAppAction(payload: ExecuteTriggerPayload): any {
   } = payload;
 
   log.debug({ dynamicString, callbackData, globalContext });
+
   if (dynamicString === undefined) {
     throw new Error("Executing undefined action");
   }
@@ -173,6 +174,7 @@ function* initiateActionTriggerExecution(
   action: ReduxAction<ExecuteTriggerPayload>,
 ) {
   const { event, source, triggerPropertyName } = action.payload;
+
   // Clear all error for this action trigger. In case the error still exists,
   // it will be created again while execution
   AppsmithConsole.deleteErrors([
@@ -180,6 +182,7 @@ function* initiateActionTriggerExecution(
   ]);
   try {
     yield call(executeAppAction, action.payload);
+
     if (event.callback) {
       event.callback({ success: true });
     }
@@ -187,6 +190,7 @@ function* initiateActionTriggerExecution(
     if (event.callback) {
       event.callback({ success: false });
     }
+
     log.error(e);
   }
 }

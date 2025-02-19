@@ -1,5 +1,5 @@
 import type { DataTree } from "entities/DataTree/dataTreeTypes";
-import { ENTITY_TYPE } from "entities/DataTree/dataTreeFactory";
+import { ENTITY_TYPE } from "ee/entities/DataTree/types";
 import { createEvaluationContext } from "workers/Evaluation/evaluate";
 import JSObjectCollection from "../Collection";
 import ExecutionMetaData from "workers/Evaluation/fns/utils/ExecutionMetaData";
@@ -14,8 +14,11 @@ jest.mock("../../evalTreeWithChanges.ts", () => {
 });
 
 const applyJSVariableUpdatesToEvalTreeMock = jest.fn();
+
 jest.mock("../JSVariableUpdates.ts", () => ({
   ...jest.requireActual("../JSVariableUpdates.ts"),
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   applyJSVariableUpdatesToEvalTree: (...args: any[]) => {
     applyJSVariableUpdatesToEvalTreeMock(args);
   },

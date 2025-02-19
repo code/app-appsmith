@@ -2,8 +2,8 @@ import {
   addWidgetPropertyDependencies,
   getEntityNameAndPropertyPath,
   isATriggerPath,
-} from "@appsmith/workers/Evaluation/evaluationUtils";
-import { ENTITY_TYPE } from "entities/DataTree/dataTreeFactory";
+} from "ee/workers/Evaluation/evaluationUtils";
+import { ENTITY_TYPE } from "ee/entities/DataTree/types";
 import type {
   ActionEntity,
   ActionEntityConfig,
@@ -12,11 +12,11 @@ import type {
   DataTreeEntityConfig,
   WidgetEntity,
   WidgetEntityConfig,
-} from "@appsmith/entities/DataTree/types";
+} from "ee/entities/DataTree/types";
 import type { DataTreeEntity } from "entities/DataTree/dataTreeTypes";
 import { find, union } from "lodash";
 import { getEntityDynamicBindingPathList } from "utils/DynamicBindingUtils";
-import type { DataTreeEntityObject } from "@appsmith/entities/DataTree/types";
+import type { DataTreeEntityObject } from "ee/entities/DataTree/types";
 import { getDependencyFromEntityPath } from "workers/common/DependencyMap/utils/getEntityDependencies";
 
 export const getDependencies = {
@@ -57,21 +57,20 @@ export function getWidgetDependencies(
   widgetEntity: WidgetEntity,
   widgetConfig: WidgetEntityConfig,
 ): Record<string, string[]> {
-  let dependencies: Record<string, string[]> = {};
   const widgetName = widgetEntity.widgetName;
-  const widgetInternalDependencies = addWidgetPropertyDependencies({
+  const dependencies: Record<string, string[]> = addWidgetPropertyDependencies({
     widgetConfig,
     widgetName,
   });
-
-  dependencies = { ...widgetInternalDependencies };
 
   const dependencyMap = widgetConfig.dependencyMap;
 
   for (const source in dependencyMap) {
     if (!dependencyMap.hasOwnProperty(source)) continue;
+
     const targetPaths = dependencyMap[source];
     const fullPropertyPath = `${widgetName}.${source}`;
+
     dependencies[fullPropertyPath] = dependencies[fullPropertyPath] || [];
     dependencies[fullPropertyPath].push(
       ...targetPaths.map((p) => `${widgetName}.${p}`),
@@ -94,7 +93,8 @@ export function getWidgetDependencies(
     );
     const existingDeps = dependencies[fullPropertyPath] || [];
     const newDeps = union(existingDeps, dynamicPathDependencies);
-    dependencies = { ...dependencies, [fullPropertyPath]: newDeps };
+
+    dependencies[fullPropertyPath] = newDeps;
   }
 
   return dependencies;
@@ -116,6 +116,7 @@ export function getJSDependencies(
     const propertyPathDependencies: string[] = pathDeps
       .map((dependentPath) => `${jsObjectName}.${dependentPath}`)
       .filter((path) => allKeys.hasOwnProperty(path));
+
     dependencies[fullPropertyPath] = propertyPathDependencies;
   }
 
@@ -127,6 +128,7 @@ export function getJSDependencies(
     );
     const existingDeps = dependencies[fullPropertyPath] || [];
     const newDeps = union(existingDeps, reactivePathDependencies);
+
     dependencies = { ...dependencies, [fullPropertyPath]: newDeps };
   }
 
@@ -147,6 +149,7 @@ export function getActionDependencies(
     const propertyPathDependencies: string[] = pathDeps
       .map((dependentPath) => `${actionName}.${dependentPath}`)
       .filter((path) => allKeys.hasOwnProperty(path));
+
     dependencies[fullPropertyPath] = propertyPathDependencies;
   }
 
@@ -159,6 +162,7 @@ export function getActionDependencies(
     );
     const existingDeps = dependencies[fullPropertyPath] || [];
     const newDependencies = union(existingDeps, dynamicPathDependencies);
+
     dependencies = { ...dependencies, [fullPropertyPath]: newDependencies };
   }
 
@@ -222,7 +226,9 @@ function getWidgetPropertyPathDependencies(
     widgetInternalDependencies[fullPropertyPath];
 
   dependencies = union(dependencies, widgetPathInternalDependencies);
+
   if (isATriggerPath(widgetConfig, propertyPath)) return dependencies;
+
   const isPathADynamicPath =
     bindingPaths.hasOwnProperty(propertyPath) ||
     find(dynamicBindingPathList, { key: propertyPath });
@@ -233,10 +239,12 @@ function getWidgetPropertyPathDependencies(
     propertyPath,
     widgetEntity,
   );
+
   dependencies = union(dependencies, dynamicPathDependencies);
 
   return dependencies;
 }
+
 function getJSPropertyPathDependencies(
   jsEntity: JSActionEntity,
   jsActionConfig: JSActionEntityConfig,
@@ -259,10 +267,13 @@ function getJSPropertyPathDependencies(
       propertyPath,
       jsEntity,
     );
+
     dependencies = union(dependencies, propertyPathDependencies);
   }
+
   return dependencies;
 }
+
 function getActionPropertyPathDependencies(
   actionEntity: ActionEntity,
   actionConfig: ActionEntityConfig,
@@ -276,6 +287,7 @@ function getActionPropertyPathDependencies(
     actionInternalDependencyMap[propertyPath]
       ?.map((dep) => `${actionConfig.name}.${dep}`)
       .filter((path) => allKeys.hasOwnProperty(path)) || [];
+
   actionPathDependencies = union(
     actionPathDependencies,
     actionPathInternalDependencies,
@@ -294,6 +306,7 @@ function getActionPropertyPathDependencies(
     propertyPath,
     actionEntity,
   );
+
   actionPathDependencies = union(
     actionPathDependencies,
     dynamicPathDependencies,

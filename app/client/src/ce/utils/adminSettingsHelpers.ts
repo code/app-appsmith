@@ -1,19 +1,22 @@
-import { tenantConfigConnection } from "@appsmith/constants/tenantConstants";
+import { organizationConfigConnection } from "ee/constants/organizationConstants";
 import type {
   AdminConfigType,
   Category,
-} from "@appsmith/pages/AdminSettings/config/types";
+} from "ee/pages/AdminSettings/config/types";
 import { ADMIN_SETTINGS_CATEGORY_DEFAULT_PATH } from "constants/routes";
 import type { User } from "constants/userConstants";
 
 /* settings is the updated & unsaved settings on Admin settings page */
 export const saveAllowed = (
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   settings: any,
   isFormLoginEnabled: boolean,
   socialLoginList: string[],
 ) => {
   const connectedMethodsCount =
     socialLoginList.length + (isFormLoginEnabled ? 1 : 0);
+
   if (connectedMethodsCount === 1) {
     const checkFormLogin =
         !("APPSMITH_FORM_LOGIN_DISABLED" in settings) && isFormLoginEnabled,
@@ -32,8 +35,9 @@ export const saveAllowed = (
 
 /* get default admin settings path */
 export const getDefaultAdminSettingsPath = (
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  { isSuperUser, tenantPermissions: any = [] }: Record<string, any>,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  { isSuperUser, organizationPermissions: any = [] }: Record<string, any>,
 ): string => {
   return ADMIN_SETTINGS_CATEGORY_DEFAULT_PATH;
 };
@@ -48,8 +52,8 @@ export const getLoginUrl = (method: string): string => {
   return urls[method];
 };
 
-export const isTenantConfig = (name: string): boolean => {
-  const fields: string[] = tenantConfigConnection;
+export const isOrganizationConfig = (name: string): boolean => {
+  const fields: string[] = organizationConfigConnection;
 
   return fields.includes(name);
 };

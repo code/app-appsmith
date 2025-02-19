@@ -1,10 +1,10 @@
 import React from "react";
 import { renderHook, act } from "@testing-library/react-hooks/dom";
 import { Provider } from "react-redux";
-import { EditorViewMode } from "@appsmith/entities/IDE/constants";
+import { EditorViewMode } from "IDE/Interfaces/EditorTypes";
 import { useIsInSideBySideEditor } from "./useIsInSideBySideEditor";
 import { getIDETestState } from "test/factories/AppIDEFactoryUtils";
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 
 import { createMemoryHistory, type MemoryHistory } from "history";
 import { Router } from "react-router";
@@ -17,9 +17,6 @@ import type { Store } from "redux";
 const JS_COLLECTION_EDITOR_PATH =
   "/app/app-name/page-665dd1103e4483728c9ed11a/edit/jsObjects";
 const NON_JS_COLLECTION_EDITOR_PATH = "/some-other-path";
-const FEATURE_FLAGS = {
-  rollout_side_by_side_enabled: true,
-};
 
 const renderUseIsInSideBySideEditor = (
   history: MemoryHistory,
@@ -30,6 +27,7 @@ const renderUseIsInSideBySideEditor = (
       <Router history={history}>{children}</Router>
     </Provider>
   );
+
   return renderHook(() => useIsInSideBySideEditor(), {
     wrapper,
   });
@@ -40,11 +38,11 @@ describe("useIsInSideBySideEditor", () => {
     const store = testStore(
       getIDETestState({
         ideView: EditorViewMode.SplitScreen,
-        featureFlags: FEATURE_FLAGS,
       }),
     );
 
     const ideViewMode = getIDEViewMode(store.getState());
+
     expect(ideViewMode).toBe(EditorViewMode.SplitScreen);
   });
 
@@ -52,7 +50,6 @@ describe("useIsInSideBySideEditor", () => {
     const store = testStore(
       getIDETestState({
         ideView: EditorViewMode.FullScreen,
-        featureFlags: FEATURE_FLAGS,
       }),
     );
 
@@ -61,6 +58,7 @@ describe("useIsInSideBySideEditor", () => {
     });
 
     const { result } = renderUseIsInSideBySideEditor(history, store);
+
     expect(result.current).toBe(false);
   });
 
@@ -68,7 +66,6 @@ describe("useIsInSideBySideEditor", () => {
     const store = testStore(
       getIDETestState({
         ideView: EditorViewMode.SplitScreen,
-        featureFlags: FEATURE_FLAGS,
       }),
     );
 
@@ -85,7 +82,6 @@ describe("useIsInSideBySideEditor", () => {
     const store = testStore(
       getIDETestState({
         ideView: EditorViewMode.SplitScreen,
-        featureFlags: FEATURE_FLAGS,
       }),
     );
 
@@ -94,6 +90,7 @@ describe("useIsInSideBySideEditor", () => {
     });
 
     const { result } = renderUseIsInSideBySideEditor(history, store);
+
     expect(result.current).toBe(true);
   });
 
@@ -101,7 +98,6 @@ describe("useIsInSideBySideEditor", () => {
     const store = testStore(
       getIDETestState({
         ideView: EditorViewMode.SplitScreen,
-        featureFlags: FEATURE_FLAGS,
       }),
     );
 
@@ -126,7 +122,6 @@ describe("useIsInSideBySideEditor", () => {
     const store = testStore(
       getIDETestState({
         ideView: EditorViewMode.SplitScreen,
-        featureFlags: FEATURE_FLAGS,
       }),
     );
 
@@ -135,6 +130,7 @@ describe("useIsInSideBySideEditor", () => {
     });
 
     const { rerender, result } = renderUseIsInSideBySideEditor(history, store);
+
     expect(result.current).toBe(false);
 
     act(() => {

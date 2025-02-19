@@ -4,15 +4,16 @@ import com.appsmith.external.constants.ActionCreationSourceTypeEnum;
 import com.appsmith.external.helpers.AppsmithEventContext;
 import com.appsmith.external.helpers.AppsmithEventContextType;
 import com.appsmith.external.models.ActionDTO;
-import com.appsmith.external.models.DefaultResources;
 import com.appsmith.server.clonepage.ClonePageServiceCE;
 import com.appsmith.server.domains.NewAction;
 import com.appsmith.server.dtos.ClonePageMetaDTO;
+import com.appsmith.server.dtos.CreateActionMetaDTO;
 import com.appsmith.server.newactions.base.NewActionService;
 import com.appsmith.server.services.LayoutActionService;
 import com.appsmith.server.solutions.ActionPermission;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -30,21 +31,18 @@ public class ActionClonePageServiceCEImpl implements ClonePageServiceCE<NewActio
         return getCloneableActions(clonePageMetaDTO.getBranchedSourcePageId())
                 .flatMap(action -> {
                     // Set new page id in the actionDTO
-                    final DefaultResources clonedPageDefaultResources =
-                            clonePageMetaDTO.getClonedPageDTO().getDefaultResources();
                     ActionDTO actionDTO = action.getUnpublishedAction();
-                    DefaultResources defaultResources = new DefaultResources();
-                    defaultResources.setPageId(clonedPageDefaultResources.getPageId());
-                    defaultResources.setBranchName(clonedPageDefaultResources.getBranchName());
-                    defaultResources.setApplicationId(clonedPageDefaultResources.getApplicationId());
-                    actionDTO.setDefaultResources(defaultResources);
+                    actionDTO.setRefType(clonePageMetaDTO.getRefType());
+                    actionDTO.setRefName(clonePageMetaDTO.getRefName());
 
                     actionDTO.setPageId(clonePageMetaDTO.getClonedPageDTO().getId());
-                    if (actionDTO.getCollectionId() != null) {
-                        String clonedActionCollectionId =
+
+                    boolean isJsAction = StringUtils.hasLength(actionDTO.getCollectionId());
+
+                    if (isJsAction) {
+                        String newCollectionId =
                                 clonePageMetaDTO.getOldToNewCollectionIds().get(actionDTO.getCollectionId());
-                        actionDTO.setCollectionId(clonedActionCollectionId);
-                        actionDTO.getDefaultResources().setCollectionId(clonedActionCollectionId);
+                        actionDTO.setCollectionId(newCollectionId);
                     }
                     /*
                      * - Now create the new action from the template of the source action.
@@ -58,7 +56,10 @@ public class ActionClonePageServiceCEImpl implements ClonePageServiceCE<NewActio
                     // Indicates that source of action creation is clone page action
                     cloneActionDTO.setSource(ActionCreationSourceTypeEnum.CLONE_PAGE);
                     copyNestedNonNullProperties(actionDTO, cloneActionDTO);
-                    return layoutActionService.createAction(cloneActionDTO, eventContext, Boolean.FALSE);
+                    CreateActionMetaDTO createActionMetaDTO = new CreateActionMetaDTO();
+                    createActionMetaDTO.setIsJsAction(isJsAction);
+                    createActionMetaDTO.setEventContext(eventContext);
+                    return layoutActionService.createAction(cloneActionDTO, createActionMetaDTO);
                 })
                 .then();
     }

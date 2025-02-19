@@ -5,9 +5,12 @@ import { useFormContext } from "react-hook-form";
 import FormContext from "../FormContext";
 import type { SchemaItem } from "../constants";
 import { FIELD_MAP } from "../constants";
+import useUnmountFieldValidation from "./useUnmountFieldValidation";
 
 interface FieldRendererProps {
   fieldName: ControllerRenderProps["name"];
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   options?: Record<string, any>;
   passedDefaultValue?: unknown;
   propertyPath: string;
@@ -28,6 +31,7 @@ function FieldRenderer({
 
   const FieldComponent = FIELD_MAP[fieldType];
 
+  useUnmountFieldValidation({ fieldName });
   useEffect(() => {
     /**
      * When a component is hidden, the field is removed from the form and the component unmounts.
@@ -42,6 +46,7 @@ function FieldRenderer({
       firstRender.current = false;
     } else {
       const values = getValues();
+
       updateFormData(values);
     }
   }, [isVisible]);

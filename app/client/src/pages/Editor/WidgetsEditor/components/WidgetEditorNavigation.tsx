@@ -1,16 +1,14 @@
 import React, { forwardRef, useEffect, useRef, useState } from "react";
 import NavigationPreview from "./NavigationPreview";
-import { EditorState } from "@appsmith/entities/IDE/constants";
-import { useCurrentAppState } from "pages/Editor/IDE/hooks";
+import { EditorState } from "IDE/enums";
+import { useCurrentAppState } from "IDE/hooks/useCurrentAppState";
 import {
   getAppSettingsPaneContext,
   getIsAppSettingsPaneWithNavigationTabOpen,
 } from "selectors/appSettingsPaneSelectors";
 import { useSelector } from "react-redux";
-import {
-  combinedPreviewModeSelector,
-  getCurrentApplication,
-} from "selectors/editorSelectors";
+import { selectCombinedPreviewMode } from "selectors/gitModSelectors";
+import { getCurrentApplication } from "ee/selectors/applicationSelectors";
 
 /**
  * useNavigationPreviewHeight
@@ -22,9 +20,10 @@ import {
 export const useNavigationPreviewHeight = () => {
   const [navigationHeight, setNavigationHeight] = useState(0);
   const navigationPreviewRef = useRef(null);
-  const isPreviewMode = useSelector(combinedPreviewModeSelector);
+  const isPreviewMode = useSelector(selectCombinedPreviewMode);
   const appSettingsPaneContext = useSelector(getAppSettingsPaneContext);
   const currentApplicationDetails = useSelector(getCurrentApplication);
+
   useEffect(() => {
     if (navigationPreviewRef?.current) {
       const { offsetHeight } = navigationPreviewRef.current;
@@ -39,6 +38,7 @@ export const useNavigationPreviewHeight = () => {
     appSettingsPaneContext?.type,
     currentApplicationDetails?.applicationDetail?.navigationSetting,
   ]);
+
   return {
     navigationPreviewRef,
     navigationHeight,
@@ -54,7 +54,7 @@ type DivRef = React.Ref<HTMLDivElement>;
  */
 export const WidgetEditorNavigation = forwardRef(
   (props, navigationPreviewRef: DivRef) => {
-    const isPreviewMode = useSelector(combinedPreviewModeSelector);
+    const isPreviewMode = useSelector(selectCombinedPreviewMode);
     const isNavigationSelectedInSettings = useSelector(
       getIsAppSettingsPaneWithNavigationTabOpen,
     );

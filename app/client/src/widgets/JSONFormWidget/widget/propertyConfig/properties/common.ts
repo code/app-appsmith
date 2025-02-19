@@ -1,6 +1,6 @@
 import type { ValidationResponse } from "constants/WidgetValidation";
 import { ValidationTypes } from "constants/WidgetValidation";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import { get } from "lodash";
 import { AutocompleteDataType } from "utils/autocomplete/AutocompleteDataType";
 import type { SchemaItem } from "widgets/JSONFormWidget/constants";
@@ -56,9 +56,15 @@ const FIELDS_WITH_ACCENT_COLOR = [
 ];
 
 function accessorValidation(
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   value: any,
   props: JSONFormWidgetProps,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   lodash: any,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   _: any,
   propertyPath: string,
 ): ValidationResponse {
@@ -68,6 +74,7 @@ function accessorValidation(
   const schema = lodash.cloneDeep(lodash.get(props, grandParentPath));
   const RESTRICTED_KEYS = ["__array_item__", "__root_schema__"];
   const currentSchemaItem = lodash.cloneDeep(schema[schemaItemIdentifier]);
+
   // Remove the current edited schemaItem from schema so it doesn't
   // get picked in the existing keys list
   delete schema[schemaItemIdentifier];

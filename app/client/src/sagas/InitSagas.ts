@@ -1,4 +1,4 @@
-import { get, identity, pickBy } from "lodash";
+import get from "lodash/get";
 import {
   all,
   call,
@@ -13,21 +13,19 @@ import {
   takeLeading,
 } from "redux-saga/effects";
 import type {
-  ApplicationPayload,
-  Page,
   ReduxAction,
   ReduxActionWithoutPayload,
-} from "@appsmith/constants/ReduxActionConstants";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+} from "actions/ReduxActionTypes";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import { resetApplicationWidgets, resetPageList } from "actions/pageActions";
-import { resetCurrentApplication } from "@appsmith/actions/applicationActions";
+import { resetCurrentApplication } from "ee/actions/applicationActions";
 import log from "loglevel";
 import * as Sentry from "@sentry/react";
 import { resetRecentEntities } from "actions/globalSearchActions";
 
 import {
-  initAppViewer,
-  initEditor,
+  initAppViewerAction,
+  initEditorAction,
   resetEditorSuccess,
 } from "actions/initActions";
 import {
@@ -46,7 +44,7 @@ import AppEngineFactory from "entities/Engine/factory";
 import type {
   ApplicationPagePayload,
   FetchApplicationResponse,
-} from "@appsmith/api/ApplicationApi";
+} from "ee/api/ApplicationApi";
 import { getSearchQuery, updateSlugNamesInURL } from "utils/helpers";
 import { generateAutoHeightLayoutTreeAction } from "actions/autoHeightActions";
 import { safeCrashAppRequest } from "../actions/errorActions";
@@ -59,16 +57,16 @@ import {
   isEditorPath,
   isViewerPath,
   matchEditorPath,
-} from "@appsmith/pages/Editor/Explorer/helpers";
+} from "ee/pages/Editor/Explorer/helpers";
 import { APP_MODE } from "../entities/App";
 import { GIT_BRANCH_QUERY_KEY, matchViewerPath } from "../constants/routes";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
-import { getAppMode } from "@appsmith/selectors/applicationSelectors";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
+import { getAppMode } from "ee/selectors/applicationSelectors";
 import { getDebuggerErrors } from "selectors/debuggerSelectors";
 import { deleteErrorLog } from "actions/debuggerActions";
 import { getCurrentUser } from "actions/authActions";
 
-import { getCurrentTenant } from "@appsmith/actions/tenantActions";
+import { getCurrentOrganization } from "ee/actions/organizationActions";
 import {
   fetchFeatureFlagsInit,
   fetchProductAlertInit,
@@ -76,15 +74,24 @@ import {
 import { embedRedirectURL, validateResponse } from "./ErrorSagas";
 import type { ApiResponse } from "api/ApiResponses";
 import type { ProductAlert } from "reducers/uiReducers/usersReducer";
-import type { FeatureFlags } from "@appsmith/entities/FeatureFlag";
+import type { FeatureFlags } from "ee/entities/FeatureFlag";
 import type { Action, ActionViewMode } from "entities/Action";
 import type { JSCollection } from "entities/JSCollection";
 import type { FetchPageResponse, FetchPageResponseData } from "api/PageApi";
 import type { AppTheme } from "entities/AppTheming";
 import type { Datasource } from "entities/Datasource";
-import type { Plugin, PluginFormPayload } from "api/PluginApi";
-import ConsolidatedPageLoadApi from "api/ConsolidatedPageLoadApi";
-import { axiosConnectionAbortedCode } from "@appsmith/api/ApiUtils";
+import type { PluginFormPayload } from "api/PluginApi";
+import type { Plugin } from "entities/Plugin";
+import { ConsolidatedPageLoadApi } from "api";
+import { AXIOS_CONNECTION_ABORTED_CODE } from "ee/constants/ApiConstants";
+import {
+  endSpan,
+  startNestedSpan,
+  startRootSpan,
+} from "instrumentation/generateTraces";
+import type { ApplicationPayload } from "entities/Application";
+import type { Page } from "entities/Page";
+import type { PACKAGE_PULL_STATUS } from "ee/constants/ModuleConstants";
 
 export const URL_CHANGE_ACTIONS = [
   ReduxActionTypes.CURRENT_APPLICATION_NAME_UPDATE,
@@ -96,9 +103,10 @@ export interface ReduxURLChangeAction {
   type: typeof URL_CHANGE_ACTIONS;
   payload: ApplicationPagePayload | ApplicationPayload | Page;
 }
+
 export interface DeployConsolidatedApi {
   productAlert: ApiResponse<ProductAlert>;
-  tenantConfig: ApiResponse;
+  organizationConfig: ApiResponse;
   featureFlags: ApiResponse<FeatureFlags>;
   userProfile: ApiResponse;
   pages: FetchApplicationResponse;
@@ -109,9 +117,10 @@ export interface DeployConsolidatedApi {
   currentTheme: ApiResponse<AppTheme[]>;
   themes: ApiResponse<AppTheme>;
 }
+
 export interface EditConsolidatedApi {
   productAlert: ApiResponse<ProductAlert>;
-  tenantConfig: ApiResponse;
+  organizationConfig: ApiResponse;
   featureFlags: ApiResponse<FeatureFlags>;
   userProfile: ApiResponse;
   pages: FetchApplicationResponse;
@@ -128,8 +137,11 @@ export interface EditConsolidatedApi {
   pluginFormConfigs: ApiResponse<PluginFormPayload>[];
   unpublishedActions: ApiResponse<Action[]>;
   unpublishedActionCollections: ApiResponse<JSCollection[]>;
+  packagePullStatus: ApiResponse<PACKAGE_PULL_STATUS>;
 }
+
 export type InitConsolidatedApi = DeployConsolidatedApi | EditConsolidatedApi;
+
 export function* failFastApiCalls(
   triggerActions: Array<ReduxAction<unknown> | ReduxActionWithoutPayload>,
   successActions: string[],
@@ -140,17 +152,21 @@ export function* failFastApiCalls(
     success: all(successActions.map((successAction) => take(successAction))),
     failure: take(failureActions),
   });
+
   if (effectRaceResult.failure) {
     yield put(
       safeCrashAppRequest(get(effectRaceResult, "failure.payload.error.code")),
     );
+
     return false;
   }
+
   return true;
 }
 
 export function* waitForWidgetConfigBuild() {
   const isBuilt: boolean = yield select(getIsWidgetConfigBuilt);
+
   if (!isBuilt) {
     yield take(ReduxActionTypes.WIDGET_INIT_SUCCESS);
   }
@@ -159,7 +175,10 @@ export function* waitForWidgetConfigBuild() {
 export function* reportSWStatus() {
   const mode: APP_MODE = yield select(getAppMode);
   const startTime = Date.now();
+
   if ("serviceWorker" in navigator) {
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result: { success: any; failed: any } = yield race({
       success: navigator.serviceWorker.ready.then((reg) => ({
         reg,
@@ -167,6 +186,7 @@ export function* reportSWStatus() {
       })),
       failed: delay(20000),
     });
+
     if (result.success) {
       AnalyticsUtil.logEvent("SW_REGISTRATION_SUCCESS", {
         message: "Service worker is active",
@@ -194,29 +214,30 @@ function* executeActionDuringUserDetailsInitialisation(
   if (!shouldInitialiseUserDetails) {
     return;
   }
+
   yield put({ type: actionType });
 }
 
 export function* getInitResponses({
   applicationId,
+  basePageId,
+  branch,
   mode,
-  pageId,
   shouldInitialiseUserDetails,
 }: {
   applicationId?: string;
-  pageId?: string;
-  branch?: string;
+  basePageId?: string;
   mode?: APP_MODE;
   shouldInitialiseUserDetails?: boolean;
-}): any {
-  const params = pickBy(
-    {
-      applicationId,
-      defaultPageId: pageId,
-    },
-    identity,
-  );
+  branch?: string;
+}) {
+  const params = {
+    applicationId,
+    defaultPageId: basePageId,
+    branchName: branch,
+  };
   let response: InitConsolidatedApi | undefined;
+
   try {
     yield call(
       executeActionDuringUserDetailsInitialisation,
@@ -224,20 +245,26 @@ export function* getInitResponses({
       shouldInitialiseUserDetails,
     );
 
+    const rootSpan = startRootSpan("fetch-consolidated-api");
     const initConsolidatedApiResponse: ApiResponse<InitConsolidatedApi> =
       yield mode === APP_MODE.EDIT
         ? ConsolidatedPageLoadApi.getConsolidatedPageLoadDataEdit(params)
         : ConsolidatedPageLoadApi.getConsolidatedPageLoadDataView(params);
 
+    endSpan(rootSpan);
+
     const isValidResponse: boolean = yield validateResponse(
       initConsolidatedApiResponse,
     );
+
     response = initConsolidatedApiResponse.data;
 
     if (!isValidResponse) {
       // its only invalid when there is a axios related error
-      throw new Error("Error occured " + axiosConnectionAbortedCode);
+      throw new Error("Error occured " + AXIOS_CONNECTION_ABORTED_CODE);
     }
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     // when the user is an anonymous user we embed the url with the attempted route
     // this is taken care in ce code repo but not on ee
@@ -250,17 +277,21 @@ export function* getInitResponses({
       ReduxActionTypes.END_CONSOLIDATED_PAGE_LOAD,
       shouldInitialiseUserDetails,
     );
-
     Sentry.captureMessage(
       `consolidated api failure for ${JSON.stringify(
         params,
       )} errored message response ${e}`,
     );
-    throw new PageNotFoundError(`Cannot find page with id: ${pageId}`);
+    throw new PageNotFoundError(`Cannot find page with base id: ${basePageId}`);
   }
 
-  const { featureFlags, productAlert, tenantConfig, userProfile, ...rest } =
-    response || {};
+  const {
+    featureFlags,
+    organizationConfig,
+    productAlert,
+    userProfile,
+    ...rest
+  } = response || {};
   //actions originating from INITIALIZE_CURRENT_PAGE should update user details
   //other actions are not necessary
 
@@ -272,7 +303,7 @@ export function* getInitResponses({
 
   yield put(fetchFeatureFlagsInit(featureFlags));
 
-  yield put(getCurrentTenant(false, tenantConfig));
+  yield put(getCurrentOrganization(false, organizationConfig));
 
   yield put(fetchProductAlertInit(productAlert));
   yield call(
@@ -280,43 +311,70 @@ export function* getInitResponses({
     ReduxActionTypes.END_CONSOLIDATED_PAGE_LOAD,
     shouldInitialiseUserDetails,
   );
+
   return rest;
 }
 
 export function* startAppEngine(action: ReduxAction<AppEnginePayload>) {
+  const rootSpan = startRootSpan("startAppEngine", {
+    mode: action.payload.mode,
+    pageId: action.payload.basePageId,
+    applicationId: action.payload.applicationId,
+    branch: action.payload.branch,
+  });
+
   try {
     const engine: AppEngine = AppEngineFactory.create(
       action.payload.mode,
       action.payload.mode,
     );
-    engine.startPerformanceTracking();
-    yield call(engine.setupEngine, action.payload);
+
+    yield call(engine.setupEngine, action.payload, rootSpan);
+
+    const getInitResponsesSpan = startNestedSpan(
+      "getInitResponsesSpan",
+      rootSpan,
+    );
+
     const allResponses: InitConsolidatedApi = yield call(getInitResponses, {
       ...action.payload,
     });
+
+    endSpan(getInitResponsesSpan);
+
     yield put({ type: ReduxActionTypes.LINT_SETUP });
-    const { applicationId, toLoadPageId } = yield call(
+    const { applicationId, toLoadBasePageId, toLoadPageId } = yield call(
       engine.loadAppData,
       action.payload,
       allResponses,
+      rootSpan,
     );
-    yield call(engine.loadAppURL, toLoadPageId, action.payload.pageId);
+
+    yield call(engine.loadAppURL, {
+      basePageId: toLoadBasePageId,
+      basePageIdInUrl: action.payload.basePageId,
+      rootSpan,
+    });
 
     yield call(
       engine.loadAppEntities,
       toLoadPageId,
       applicationId,
       allResponses,
+      rootSpan,
     );
-    yield call(engine.loadGit, applicationId);
-    yield call(engine.completeChore);
+    yield call(engine.loadGit, applicationId, rootSpan);
+    yield call(engine.completeChore, rootSpan);
     yield put(generateAutoHeightLayoutTreeAction(true, false));
-    engine.stopPerformanceTracking();
   } catch (e) {
     log.error(e);
+
     if (e instanceof AppEngineApiError) return;
+
     Sentry.captureException(e);
     yield put(safeCrashAppRequest());
+  } finally {
+    endSpan(rootSpan);
   }
 }
 
@@ -330,6 +388,7 @@ export function* resetDebuggerLogs() {
   const errorsToDelete = existingErrors.map(
     (payload) => payload.id,
   ) as string[];
+
   yield put(deleteErrorLog(errorsToDelete));
 }
 
@@ -353,6 +412,7 @@ function* resetEditorSaga() {
 export function* waitForInit() {
   const isEditorInitialised: boolean = yield select(getIsEditorInitialized);
   const isViewerInitialized: boolean = yield select(getIsViewerInitialized);
+
   if (!isEditorInitialised && !isViewerInitialized) {
     yield take([
       ReduxActionTypes.INITIALIZE_EDITOR_SUCCESS,
@@ -369,18 +429,24 @@ function* updateURLSaga(action: ReduxURLChangeAction) {
 
   if ("applicationVersion" in payload) {
     updateSlugNamesInURL({ applicationSlug: payload.slug });
+
     return;
   }
+
   if ("pageId" in payload) {
     if (payload.pageId !== currentPageId) return;
+
     updateSlugNamesInURL({
       pageSlug: payload.slug,
       customSlug: payload.customSlug || "",
       applicationSlug,
     });
+
     return;
   }
+
   if (payload.id !== currentPageId) return;
+
   updateSlugNamesInURL({
     pageSlug: payload.slug,
     customSlug: payload.customSlug || "",
@@ -398,43 +464,50 @@ function* appEngineSaga(action: ReduxAction<AppEnginePayload>) {
 function* eagerPageInitSaga() {
   const url = window.location.pathname;
   const search = window.location.search;
+
   if (isEditorPath(url)) {
     const matchedEditorParams = matchEditorPath(url);
+
     if (matchedEditorParams) {
       const {
-        params: { applicationId, pageId },
+        params: { baseApplicationId, basePageId },
       } = matchedEditorParams;
       const branch = getSearchQuery(search, GIT_BRANCH_QUERY_KEY);
-      if (pageId) {
+
+      if (basePageId) {
         yield put(
-          initEditor({
-            pageId,
-            applicationId,
+          initEditorAction({
+            basePageId,
+            baseApplicationId,
             branch,
             mode: APP_MODE.EDIT,
             shouldInitialiseUserDetails: true,
           }),
         );
+
         return;
       }
     }
   } else if (isViewerPath(url)) {
     const matchedViewerParams = matchViewerPath(url);
+
     if (matchedViewerParams) {
       const {
-        params: { applicationId, pageId },
+        params: { baseApplicationId, basePageId },
       } = matchedViewerParams;
       const branch = getSearchQuery(search, GIT_BRANCH_QUERY_KEY);
-      if (applicationId || pageId) {
+
+      if (baseApplicationId || basePageId) {
         yield put(
-          initAppViewer({
-            applicationId,
+          initAppViewerAction({
+            baseApplicationId,
             branch,
-            pageId,
+            basePageId,
             mode: APP_MODE.PUBLISHED,
             shouldInitialiseUserDetails: true,
           }),
         );
+
         return;
       }
     }

@@ -71,6 +71,8 @@ interface ReactTableComponentProps {
   columnWidthMap?: { [key: string]: number };
   handleResizeColumn: (columnWidthMap: { [key: string]: number }) => void;
   handleReorderColumn: (columnOrder: string[]) => void;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   searchTableData: (searchKey: any) => void;
   filters?: ReactTableFilter[];
   applyFilter: (filters: ReactTableFilter[]) => void;
@@ -104,6 +106,7 @@ interface ReactTableComponentProps {
   canFreezeColumn?: boolean;
   showConnectDataOverlay: boolean;
   onConnectData: () => void;
+  isInfiniteScrollEnabled: boolean;
 }
 
 function ReactTableComponent(props: ReactTableComponentProps) {
@@ -129,6 +132,7 @@ function ReactTableComponent(props: ReactTableComponentProps) {
     handleResizeColumn,
     height,
     isAddRowInProgress,
+    isInfiniteScrollEnabled,
     isLoading,
     isSortable,
     isVisibleDownload,
@@ -174,6 +178,7 @@ function ReactTableComponent(props: ReactTableComponentProps) {
         } else {
           const column = columns[columnIndex];
           const columnType = column.metaProperties?.type || ColumnTypes.TEXT;
+
           if (
             columnType !== ColumnTypes.IMAGE &&
             columnType !== ColumnTypes.VIDEO
@@ -243,6 +248,7 @@ function ReactTableComponent(props: ReactTableComponentProps) {
       handleResizeColumn={handleResizeColumn}
       height={height}
       isAddRowInProgress={isAddRowInProgress}
+      isInfiniteScrollEnabled={isInfiniteScrollEnabled}
       isLoading={isLoading}
       isSortable={isSortable}
       isVisibleDownload={isVisibleDownload}

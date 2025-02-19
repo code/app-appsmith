@@ -3,11 +3,11 @@ import { ButtonPlacementTypes, ButtonVariantTypes } from "components/constants";
 import type { OnButtonClickProps } from "components/propertyControls/ButtonControl";
 import type { ValidationResponse } from "constants/WidgetValidation";
 import { ValidationTypes } from "constants/WidgetValidation";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import { EVALUATION_PATH } from "utils/DynamicBindingUtils";
 import type { ButtonWidgetProps } from "widgets/ButtonWidget/widget";
 import type { JSONFormWidgetProps } from ".";
-import { FieldType, ROOT_SCHEMA_KEY } from "../constants";
+import { FieldType, MAX_ALLOWED_FIELDS, ROOT_SCHEMA_KEY } from "../constants";
 import { ComputedSchemaStatus, computeSchema } from "./helper";
 import generatePanelPropertyConfig from "./propertyConfig/generatePanelPropertyConfig";
 import { AutocompleteDataType } from "utils/autocomplete/AutocompleteDataType";
@@ -15,7 +15,7 @@ import {
   JSON_FORM_CONNECT_BUTTON_TEXT,
   SUCCESSFULL_BINDING_MESSAGE,
 } from "../constants/messages";
-import { createMessage } from "@appsmith/constants/messages";
+import { createMessage } from "ee/constants/messages";
 import { FieldOptionsType } from "components/editorComponents/WidgetQueryGeneratorForm/WidgetSpecificControls/OtherFields/Field/Dropdown/types";
 import { DROPDOWN_VARIANT } from "components/editorComponents/WidgetQueryGeneratorForm/CommonControls/DatasourceDropdown/types";
 
@@ -24,8 +24,12 @@ const MAX_NESTING_LEVEL = 5;
 const panelConfig = generatePanelPropertyConfig(MAX_NESTING_LEVEL);
 
 export const sourceDataValidationFn = (
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   value: any,
   props: JSONFormWidgetProps,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   _?: any,
 ): ValidationResponse => {
   if (value === "") {
@@ -120,10 +124,14 @@ export const onGenerateFormClick = ({
   props,
 }: OnButtonClickProps) => {
   const widgetProperties: JSONFormWidgetProps = props.widgetProperties;
+
   if (widgetProperties.autoGenerateForm) return;
 
+  // TODO: Fix this the next time the file is edited
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const currSourceData = widgetProperties[EVALUATION_PATH]?.evaluatedValues
     ?.sourceData as Record<string, any> | Record<string, any>[];
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   const prevSourceData = widgetProperties.schema?.__root_schema__?.sourceData;
 
@@ -134,10 +142,12 @@ export const onGenerateFormClick = ({
     prevSchema: widgetProperties.schema,
     prevSourceData,
     widgetName: widgetProperties.widgetName,
+    maxAllowedFields: widgetProperties.maxAllowedFields,
   });
 
   if (status === ComputedSchemaStatus.LIMIT_EXCEEDED) {
     batchUpdateProperties({ fieldLimitExceeded: true });
+
     return;
   }
 
@@ -145,6 +155,7 @@ export const onGenerateFormClick = ({
     if (widgetProperties.fieldLimitExceeded) {
       batchUpdateProperties({ fieldLimitExceeded: false });
     }
+
     return;
   }
 
@@ -204,6 +215,8 @@ export const contentConfig = [
                   id: "edit",
                 },
               ],
+              // TODO: Fix this the next time the file is edited
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               isVisible: (config: Record<string, any>) => {
                 // Whether the field should be visible or not based on the config
                 return config?.tableName !== "";
@@ -215,6 +228,8 @@ export const contentConfig = [
               fieldType: FieldType.SELECT,
               optionType: FieldOptionsType.WIDGETS,
               isRequired: true,
+              // TODO: Fix this the next time the file is edited
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               isVisible: (config: Record<string, any>) => {
                 return config?.otherFields?.formType === "edit";
               },
@@ -229,6 +244,8 @@ export const contentConfig = [
               getDefaultValue: (options: Record<string, unknown>) => {
                 return options?.primaryColumn;
               },
+              // TODO: Fix this the next time the file is edited
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               isVisible: (config: Record<string, any>) => {
                 return config?.otherFields?.formType === "edit";
               },
@@ -344,7 +361,7 @@ export const contentConfig = [
         propertyName: "disabledWhenInvalid",
         helpText:
           "Disables the submit button when the parent form has a required widget that is not filled",
-        label: "Disabled invalid forms",
+        label: "Disable when form is invalid",
         controlType: "SWITCH",
         isJSConvertible: true,
         isBindProperty: true,
@@ -397,6 +414,26 @@ export const contentConfig = [
         isBindProperty: true,
         isTriggerProperty: false,
         validation: { type: ValidationTypes.TEXT },
+      },
+      {
+        propertyName: "maxAllowedFields",
+        label: "Max allowed fields",
+        helperText:
+          "⚠️ Warning: Increasing this value beyond 50 can severely impact performance and responsiveness",
+        helpText:
+          "Sets the maximum number of fields that can be generated in the form. Default value is 50 fields.",
+        controlType: "INPUT_TEXT",
+        isBindProperty: true,
+        isTriggerProperty: false,
+        validation: {
+          type: ValidationTypes.NUMBER,
+          params: {
+            min: 1,
+            max: 200,
+            default: MAX_ALLOWED_FIELDS,
+          },
+        },
+        placeholderText: "1-200",
       },
     ],
     expandedByDefault: false,
@@ -512,12 +549,14 @@ const generateButtonStyleControlsV2For = (prefix: string) => [
           propertyValue: string,
         ) => {
           const propertiesToUpdate = [{ propertyPath, propertyValue }];
+
           if (!props.iconAlign) {
             propertiesToUpdate.push({
               propertyPath: `${prefix}.iconAlign`,
               propertyValue: Alignment.LEFT,
             });
           }
+
           return propertiesToUpdate;
         },
         validation: {

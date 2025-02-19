@@ -6,7 +6,7 @@ import type { TextSize } from "constants/WidgetConstants";
 import type { ValidationResponse } from "constants/WidgetValidation";
 import { ValidationTypes } from "constants/WidgetValidation";
 import type { SetterConfig, Stylesheet } from "entities/AppTheming";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import { isArray } from "lodash";
 import type { DefaultValueType } from "rc-tree-select/lib/interface";
 import type { ReactNode } from "react";
@@ -37,6 +37,7 @@ import { WIDGET_TAGS, layoutConfigurations } from "constants/WidgetConstants";
 
 function defaultOptionValueValidation(value: unknown): ValidationResponse {
   if (typeof value === "string") return { isValid: true, parsed: value.trim() };
+
   if (value === undefined || value === null)
     return {
       isValid: false,
@@ -48,8 +49,10 @@ function defaultOptionValueValidation(value: unknown): ValidationResponse {
         },
       ],
     };
+
   return { isValid: true, parsed: value };
 }
+
 class SingleSelectTreeWidget extends BaseWidget<
   SingleSelectTreeWidgetProps,
   WidgetState
@@ -642,6 +645,8 @@ class SingleSelectTreeWidget extends BaseWidget<
     };
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static getMetaPropertiesMap(): Record<string, any> {
     return {
       selectedOption: undefined,
@@ -711,6 +716,7 @@ class SingleSelectTreeWidget extends BaseWidget<
       if (!this.props.isDirty) {
         this.props.updateWidgetMetaProperty("isDirty", true);
       }
+
       this.props.updateWidgetMetaProperty("selectedOption", value);
       this.props.updateWidgetMetaProperty(
         "selectedLabel",

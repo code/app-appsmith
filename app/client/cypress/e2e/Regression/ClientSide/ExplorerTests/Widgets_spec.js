@@ -7,7 +7,7 @@ import * as _ from "../../../../support/Objects/ObjectsCore";
 
 describe(
   "Entity explorer tests related to widgets and validation",
-  { tags: ["@tag.IDE"] },
+  { tags: ["@tag.IDE", "@tag.PropertyPane"] },
   function () {
     before(() => {
       _.agHelper.AddDsl("displayWidgetDsl");
@@ -28,7 +28,7 @@ describe(
       });
       _.entityExplorer.ActionContextMenuByEntityName({
         entityNameinLeftSidebar: "Text1",
-        action: "Edit name",
+        action: "Rename",
       });
       cy.EditApiNameFromExplorer("TextUpdated");
       _.entityExplorer.ActionContextMenuByEntityName({

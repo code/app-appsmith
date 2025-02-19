@@ -1,5 +1,6 @@
-import type { EditorViewMode } from "@appsmith/entities/IDE/constants";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+import type { EditorViewMode } from "IDE/Interfaces/EditorTypes";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
+import type { ParentEntityIDETabs } from "../reducers/uiReducers/ideReducer";
 
 export const setIdeEditorViewMode = (mode: EditorViewMode) => {
   return {
@@ -13,6 +14,13 @@ export const setIdeEditorViewMode = (mode: EditorViewMode) => {
 export const restoreIDEEditorViewMode = () => {
   return {
     type: ReduxActionTypes.RESTORE_IDE_EDITOR_VIEW_MODE,
+  };
+};
+
+export const setIDETabs = (payload: ParentEntityIDETabs) => {
+  return {
+    type: ReduxActionTypes.SET_IDE_TABS,
+    payload,
   };
 };
 
@@ -54,3 +62,17 @@ export const recordAnalyticsForSideBySideNavigation = () => ({
 export const resetAnalyticsForSideBySideHover = () => ({
   type: ReduxActionTypes.RESET_ANALYTICS_FOR_SIDE_BY_SIDE_HOVER,
 });
+
+export const setListViewActiveState = (payload: boolean) => {
+  return {
+    type: ReduxActionTypes.SET_IS_LIST_VIEW_ACTIVE,
+    payload,
+  };
+};
+
+export const setRenameEntity = (id: string) => {
+  return {
+    type: ReduxActionTypes.SET_RENAME_ENTITY,
+    payload: id,
+  };
+};

@@ -3,7 +3,7 @@ import * as _ from "../../../../../support/Objects/ObjectsCore";
 
 describe(
   "Linting warning validation with button widget",
-  { tags: ["@tag.Widget", "@tag.Button"] },
+  { tags: ["@tag.Widget", "@tag.Button", "@tag.Binding"] },
   function () {
     before(() => {
       _.agHelper.AddDsl("buttonLintErrorDsl");
@@ -43,13 +43,7 @@ describe(
         .should("be.visible")
         .contains("'lintError' is not defined.");
 
-      cy.get(commonlocators.debugger)
-        .should("be.visible")
-        .click({ force: true });
-
-      cy.get(commonlocators.errorTab)
-        .should("be.visible")
-        .click({ force: true });
+      _.debuggerHelper.OpenDebugger();
 
       cy.get(commonlocators.debugErrorMsg).should("have.length", 3);
     });

@@ -3,10 +3,14 @@ package com.appsmith.server.repositories.ce;
 import com.appsmith.server.acl.AclPermission;
 import com.appsmith.server.constants.FieldName;
 import com.appsmith.server.domains.User;
+import com.appsmith.server.exceptions.AppsmithError;
+import com.appsmith.server.exceptions.AppsmithException;
 import com.appsmith.server.helpers.ce.bridge.Bridge;
 import com.appsmith.server.helpers.ce.bridge.BridgeQuery;
+import com.appsmith.server.projections.IdOnly;
 import com.appsmith.server.repositories.BaseAppsmithRepositoryImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import reactor.core.publisher.Mono;
 
 import java.util.HashSet;
@@ -22,9 +26,9 @@ public class CustomUserRepositoryCEImpl extends BaseAppsmithRepositoryImpl<User>
     }
 
     @Override
-    public Mono<User> findByEmailAndTenantId(String email, String tenantId) {
+    public Mono<User> findByEmailAndOrganizationId(String email, String organizationId) {
         return queryBuilder()
-                .criteria(Bridge.equal(User.Fields.email, email).equal(User.Fields.tenantId, tenantId))
+                .criteria(Bridge.equal(User.Fields.email, email).equal(User.Fields.organizationId, organizationId))
                 .one();
     }
 
@@ -37,18 +41,25 @@ public class CustomUserRepositoryCEImpl extends BaseAppsmithRepositoryImpl<User>
     @Override
     public Mono<Boolean> isUsersEmpty() {
         return queryBuilder()
-                .fields(User.Fields.email)
-                // Basically limit to system generated emails plus 1 more.
-                .limit(getSystemGeneratedUserEmails().size() + 1)
-                .all()
-                .filter(user -> !getSystemGeneratedUserEmails().contains(user.getEmail()))
+                .criteria(Bridge.notIn(User.Fields.email, getSystemGeneratedUserEmails()))
+                .limit(1)
+                .all(IdOnly.class)
                 .count()
                 .map(count -> count == 0);
     }
 
-    protected Set<String> getSystemGeneratedUserEmails() {
+    @Override
+    public Set<String> getSystemGeneratedUserEmails() {
         Set<String> systemGeneratedEmails = new HashSet<>();
         systemGeneratedEmails.add(FieldName.ANONYMOUS_USER);
         return systemGeneratedEmails;
+    }
+
+    @Override
+    public Mono<Integer> updateById(String id, UpdateDefinition updateObj) {
+        if (id == null) {
+            return Mono.error(new AppsmithException(AppsmithError.INVALID_PARAMETER, FieldName.ID));
+        }
+        return queryBuilder().byId(id).updateFirst(updateObj);
     }
 }

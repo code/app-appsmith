@@ -1,6 +1,5 @@
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
-import type { ERROR_CODES } from "@appsmith/constants/ApiConstants";
-import type { ErrorPayloadType } from "sagas/ErrorSagas";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
+import type { ERROR_CODES } from "ee/constants/ApiConstants";
 
 export const safeCrashAppRequest = (code?: ERROR_CODES) => {
   return {
@@ -10,6 +9,12 @@ export const safeCrashAppRequest = (code?: ERROR_CODES) => {
     },
   };
 };
+
+export interface ErrorPayloadType {
+  code?: number | string;
+  message?: string;
+  crash?: boolean;
+}
 
 export const safeCrashApp = (payload: ErrorPayloadType) => {
   return {

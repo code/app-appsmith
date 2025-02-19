@@ -1,5 +1,4 @@
 import OneClickBindingLocator from "../../../../locators/OneClickBindingLocator";
-import { featureFlagIntercept } from "../../../../support/Objects/FeatureFlags";
 import {
   agHelper,
   apiPage,
@@ -8,6 +7,7 @@ import {
   draggableWidgets,
   entityExplorer,
   locators,
+  propPane,
 } from "../../../../support/Objects/ObjectsCore";
 import EditorNavigation, {
   EntityType,
@@ -22,10 +22,6 @@ describe(
   () => {
     let datasourceName: string;
     before(() => {
-      featureFlagIntercept({
-        rollout_js_enabled_one_click_binding_enabled: true,
-      });
-
       dataSources.CreateDataSource("Postgres");
 
       cy.get("@dsName").then((dsName) => {
@@ -65,6 +61,7 @@ describe(
 
       EditorNavigation.SelectEntityByName("Select1", EntityType.Widget);
 
+      propPane.ToggleJSMode("sourcedata", false);
       oneClickBinding.ChooseAndAssertForm(
         `${datasourceName}`,
         datasourceName,
@@ -76,10 +73,10 @@ describe(
       );
 
       agHelper.GetNClick(OneClickBindingLocator.connectData);
-
       agHelper.AssertClassExists(locators._jsToggle("sourcedata"), "is-active");
 
       EditorNavigation.SelectEntityByName("Select2", EntityType.Widget);
+      propPane.ToggleJSMode("sourcedata", false);
       oneClickBinding.ChooseQuery(`Api1`);
       agHelper.AssertClassExists(locators._jsToggle("sourcedata"), "is-active");
     });

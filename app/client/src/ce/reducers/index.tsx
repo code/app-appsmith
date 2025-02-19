@@ -1,31 +1,29 @@
-import entityReducer from "@appsmith/reducers/entityReducers";
-import uiReducer from "@appsmith/reducers/uiReducers";
+import entityReducer from "ee/reducers/entityReducers";
+import uiReducer from "ee/reducers/uiReducers";
 import evaluationsReducer from "reducers/evaluationReducers";
 import { reducer as formReducer } from "redux-form";
-import type { CanvasWidgetsReduxState } from "reducers/entityReducers/canvasWidgetsReducer";
-import type { EditorReduxState } from "@appsmith/reducers/uiReducers/editorReducer";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
+import type { EditorReduxState } from "ee/reducers/uiReducers/editorReducer";
 import type { ErrorReduxState } from "reducers/uiReducers/errorReducer";
-import type { ActionDataState } from "@appsmith/reducers/entityReducers/actionsReducer";
+import type { ActionDataState } from "ee/reducers/entityReducers/actionsReducer";
 import type { PropertyPaneReduxState } from "reducers/uiReducers/propertyPaneReducer";
 import type { TemplatesReduxState } from "reducers/uiReducers/templateReducer";
 import type { DatasourceDataState } from "reducers/entityReducers/datasourceReducer";
 import type { AppViewReduxState } from "reducers/uiReducers/appViewReducer";
 import type { DatasourcePaneReduxState } from "reducers/uiReducers/datasourcePaneReducer";
-import type { ApplicationsReduxState } from "@appsmith/reducers/uiReducers/applicationsReducer";
+import type { ApplicationsReduxState } from "ee/reducers/uiReducers/applicationsReducer";
 import type { PageListReduxState } from "reducers/entityReducers/pageListReducer";
-import type { ApiPaneReduxState } from "@appsmith/reducers/uiReducers/apiPaneReducer";
-import type { QueryPaneReduxState } from "@appsmith/reducers/uiReducers/queryPaneReducer";
 import type { PluginDataState } from "reducers/entityReducers/pluginsReducer";
 import type { AuthState } from "reducers/uiReducers/authReducer";
-import type { WorkspaceReduxState } from "@appsmith/reducers/uiReducers/workspaceReducer";
+import type { WorkspaceReduxState } from "ee/reducers/uiReducers/workspaceReducer";
 import type { UsersReduxState } from "reducers/uiReducers/usersReducer";
 import type { ThemeState } from "reducers/uiReducers/themeReducer";
 import type { WidgetDragResizeState } from "reducers/uiReducers/dragResizeReducer";
 import type { MetaState } from "reducers/entityReducers/metaReducer";
 import type { ImportReduxState } from "reducers/uiReducers/importReducer";
 import type { HelpReduxState } from "reducers/uiReducers/helpReducer";
-import type { ApiNameReduxState } from "@appsmith/reducers/uiReducers/apiNameReducer";
-import type { ExplorerReduxState } from "@appsmith/reducers/uiReducers/explorerReducer";
+import type { ApiNameReduxState } from "ee/reducers/uiReducers/apiNameReducer";
+import type { ExplorerReduxState } from "ee/reducers/uiReducers/explorerReducer";
 import type { PageCanvasStructureReduxState } from "reducers/uiReducers/pageCanvasStructureReducer";
 import type { ModalActionReduxState } from "reducers/uiReducers/modalActionReducer";
 import type { AppDataState } from "reducers/entityReducers/appReducer";
@@ -38,30 +36,28 @@ import type { GlobalSearchReduxState } from "reducers/uiReducers/globalSearchRed
 import type { ActionSelectorReduxState } from "reducers/uiReducers/actionSelectorReducer";
 import type { ReleasesState } from "reducers/uiReducers/releasesReducer";
 import type { LoadingEntitiesState } from "reducers/evaluationReducers/loadingEntitiesReducer";
-import type { WebsocketReducerState } from "reducers/uiReducers/websocketReducer";
 import type { DebuggerReduxState } from "reducers/uiReducers/debuggerReducer";
 import type { TourReducerState } from "reducers/uiReducers/tourReducer";
 import type { TableFilterPaneReduxState } from "reducers/uiReducers/tableFilterPaneReducer";
 import type { JsPaneReduxState } from "reducers/uiReducers/jsPaneReducer";
-import type { JSCollectionDataState } from "@appsmith/reducers/entityReducers/jsActionsReducer";
+import type { JSCollectionDataState } from "ee/reducers/entityReducers/jsActionsReducer";
 import type { CanvasSelectionState } from "reducers/uiReducers/canvasSelectionReducer";
 import type { JSObjectNameReduxState } from "reducers/uiReducers/jsObjectNameReducer";
 import type { GitSyncReducerState } from "reducers/uiReducers/gitSyncReducer";
-import type { AppCollabReducerState } from "reducers/uiReducers/appCollabReducer";
 import type { CrudInfoModalReduxState } from "reducers/uiReducers/crudInfoModalReducer";
 import type { FormEvaluationState } from "reducers/evaluationReducers/formEvaluationReducer";
 import type { widgetReflow } from "reducers/uiReducers/reflowReducer";
 import type { AppThemingState } from "reducers/uiReducers/appThemingReducer";
 import type { MainCanvasReduxState } from "reducers/uiReducers/mainCanvasReducer";
-import type { SettingsReduxState } from "@appsmith/reducers/settingsReducer";
-import SettingsReducer from "@appsmith/reducers/settingsReducer";
+import type { SettingsReduxState } from "ee/reducers/settingsReducer";
+import SettingsReducer from "ee/reducers/settingsReducer";
 import type { TriggerValuesEvaluationState } from "reducers/evaluationReducers/triggerReducer";
 import type { CanvasWidgetStructure } from "WidgetProvider/constants";
 import type { AppSettingsPaneReduxState } from "reducers/uiReducers/appSettingsPaneReducer";
-import type { TenantReduxState } from "@appsmith/reducers/tenantReducer";
-import tenantReducer from "@appsmith/reducers/tenantReducer";
+import type { OrganizationReduxState } from "ee/reducers/organizationReducer";
+import organizationReducer from "ee/reducers/organizationReducer";
 import type { FocusHistoryState } from "reducers/uiReducers/focusHistoryReducer";
-import type { EditorContextState } from "@appsmith/reducers/uiReducers/editorContextReducer";
+import type { EditorContextState } from "ee/reducers/uiReducers/editorContextReducer";
 import type { LibraryState } from "reducers/uiReducers/libraryReducer";
 import type { AutoHeightLayoutTreeReduxState } from "reducers/entityReducers/autoHeightReducers/autoHeightLayoutTreeReducer";
 import type { CanvasLevelsReduxState } from "reducers/entityReducers/autoHeightReducers/canvasLevelsReducer";
@@ -73,14 +69,20 @@ import type { MetaWidgetsReduxState } from "reducers/entityReducers/metaWidgetsR
 import type { layoutConversionReduxState } from "reducers/uiReducers/layoutConversionReducer";
 import type { OneClickBindingState } from "reducers/uiReducers/oneClickBindingReducer";
 import type { IDEState } from "reducers/uiReducers/ideReducer";
+import type { PluginActionEditorState } from "PluginActionEditor";
 
 /* Reducers which are integrated into the core system when registering a pluggable module
     or done so by a module that is designed to be eventually pluggable */
 import type { LayoutElementPositionsReduxState } from "layoutSystems/anvil/integrations/reducers/layoutElementPositionsReducer";
 import type { ActiveField } from "reducers/uiReducers/activeFieldEditorReducer";
-import type { SelectedWorkspaceReduxState } from "@appsmith/reducers/uiReducers/selectedWorkspaceReducer";
+import type { SelectedWorkspaceReduxState } from "ee/reducers/uiReducers/selectedWorkspaceReducer";
 import type { ConsolidatedPageLoadState } from "reducers/uiReducers/consolidatedPageLoadReducer";
 import type { BuildingBlocksReduxState } from "reducers/uiReducers/buildingBlockReducer";
+import type {
+  GitArtifactRootReduxState,
+  GitGlobalReduxState,
+} from "git/store/types";
+import { gitReducer } from "git/store";
 
 export const reducerObject = {
   entities: entityReducer,
@@ -88,8 +90,9 @@ export const reducerObject = {
   evaluations: evaluationsReducer,
   form: formReducer,
   settings: SettingsReducer,
-  tenant: tenantReducer,
+  organization: organizationReducer,
   linting: lintErrorReducer,
+  git: gitReducer,
 };
 
 export interface AppState {
@@ -102,7 +105,6 @@ export interface AppState {
     errors: ErrorReduxState;
     appView: AppViewReduxState;
     applications: ApplicationsReduxState;
-    apiPane: ApiPaneReduxState;
     auth: AuthState;
     templates: TemplatesReduxState;
     buildingBlocks: BuildingBlocksReduxState;
@@ -111,7 +113,6 @@ export interface AppState {
     users: UsersReduxState;
     widgetDragResize: WidgetDragResizeState;
     imports: ImportReduxState;
-    queryPane: QueryPaneReduxState;
     datasourcePane: DatasourcePaneReduxState;
     help: HelpReduxState;
     apiName: ApiNameReduxState;
@@ -124,14 +125,12 @@ export interface AppState {
     onBoarding: OnboardingState;
     globalSearch: GlobalSearchReduxState;
     releases: ReleasesState;
-    websocket: WebsocketReducerState;
     debugger: DebuggerReduxState;
     tour: TourReducerState;
     jsPane: JsPaneReduxState;
     canvasSelection: CanvasSelectionState;
     jsObjectName: JSObjectNameReduxState;
     gitSync: GitSyncReducerState;
-    appCollab: AppCollabReducerState;
     crudInfoModal: CrudInfoModalReduxState;
     widgetReflow: widgetReflow;
     appTheming: AppThemingState;
@@ -146,6 +145,7 @@ export interface AppState {
     oneClickBinding: OneClickBindingState;
     activeField: ActiveField;
     ide: IDEState;
+    pluginActionEditor: PluginActionEditorState;
   };
   entities: {
     canvasWidgetsStructure: CanvasWidgetStructure;
@@ -161,6 +161,8 @@ export interface AppState {
     autoHeightLayoutTree: AutoHeightLayoutTreeReduxState;
     canvasLevels: CanvasLevelsReduxState;
     layoutElementPositions: LayoutElementPositionsReduxState;
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     moduleInstanceEntities: any;
   };
   evaluations: {
@@ -174,8 +176,16 @@ export interface AppState {
     errors: LintErrorsStore;
   };
   form: {
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   };
   settings: SettingsReduxState;
-  tenant: TenantReduxState<any>;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  organization: OrganizationReduxState<any>;
+  git: {
+    global: GitGlobalReduxState;
+    artifacts: GitArtifactRootReduxState;
+  };
 }

@@ -19,6 +19,7 @@ import com.appsmith.server.datasourcestorages.base.DatasourceStorageService;
 import com.appsmith.server.domains.Plugin;
 import com.appsmith.server.domains.User;
 import com.appsmith.server.domains.Workspace;
+import com.appsmith.server.dtos.DBOpsType;
 import com.appsmith.server.exceptions.AppsmithError;
 import com.appsmith.server.exceptions.AppsmithException;
 import com.appsmith.server.helpers.PluginExecutorHelper;
@@ -27,8 +28,10 @@ import com.appsmith.server.ratelimiting.RateLimitService;
 import com.appsmith.server.repositories.DatasourceRepository;
 import com.appsmith.server.repositories.NewActionRepository;
 import com.appsmith.server.services.AnalyticsService;
+import com.appsmith.server.services.ConfigService;
 import com.appsmith.server.services.DatasourceContextService;
 import com.appsmith.server.services.FeatureFlagService;
+import com.appsmith.server.services.OrganizationService;
 import com.appsmith.server.services.SequenceService;
 import com.appsmith.server.services.SessionUserService;
 import com.appsmith.server.services.WorkspaceService;
@@ -63,6 +66,9 @@ import java.util.UUID;
 import static com.appsmith.external.constants.spans.DatasourceSpan.FETCH_ALL_DATASOURCES_WITH_STORAGES;
 import static com.appsmith.external.constants.spans.DatasourceSpan.FETCH_ALL_PLUGINS_IN_WORKSPACE;
 import static com.appsmith.external.helpers.AppsmithBeanUtils.copyNestedNonNullProperties;
+import static com.appsmith.server.constants.ce.FieldNameCE.INSTANCE_ID;
+import static com.appsmith.server.constants.ce.FieldNameCE.TENANT_ID;
+import static com.appsmith.server.dtos.DBOpsType.SAVE;
 import static com.appsmith.server.helpers.CollectionUtils.isNullOrEmpty;
 import static com.appsmith.server.helpers.DatasourceAnalyticsUtils.getAnalyticsProperties;
 import static com.appsmith.server.helpers.DatasourceAnalyticsUtils.getAnalyticsPropertiesForTestEventStatus;
@@ -91,6 +97,8 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
     private final RateLimitService rateLimitService;
     private final FeatureFlagService featureFlagService;
     private final ObservationRegistry observationRegistry;
+    private final OrganizationService organizationService;
+    private final ConfigService configService;
 
     // Defines blocking duration for test as well as connection created for query execution
     // This will block the creation of datasource connection for 5 minutes, in case of more than 3 failed connection
@@ -117,7 +125,9 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
             EnvironmentPermission environmentPermission,
             RateLimitService rateLimitService,
             FeatureFlagService featureFlagService,
-            ObservationRegistry observationRegistry) {
+            ObservationRegistry observationRegistry,
+            OrganizationService organizationService,
+            ConfigService configService) {
 
         this.workspaceService = workspaceService;
         this.sessionUserService = sessionUserService;
@@ -136,20 +146,32 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
         this.rateLimitService = rateLimitService;
         this.featureFlagService = featureFlagService;
         this.observationRegistry = observationRegistry;
+        this.organizationService = organizationService;
+        this.configService = configService;
     }
 
     @Override
     public Mono<Datasource> create(Datasource datasource) {
-        return createEx(datasource, workspacePermission.getDatasourceCreatePermission());
+        return createEx(datasource, workspacePermission.getDatasourceCreatePermission(), false, null);
     }
 
     // TODO: Check usage
     @Override
-    public Mono<Datasource> createWithoutPermissions(Datasource datasource) {
-        return createEx(datasource, null);
+    public Mono<Datasource> createWithoutPermissions(
+            Datasource datasource, Map<DBOpsType, List<DatasourceStorage>> datasourceStorageDryRunQueries) {
+        return createEx(datasource, null, true, datasourceStorageDryRunQueries);
     }
 
-    private Mono<Datasource> createEx(@NotNull Datasource datasource, AclPermission permission) {
+    @Override
+    public Mono<Datasource> createWithoutPermissions(Datasource datasource) {
+        return createEx(datasource, null, false, null);
+    }
+
+    private Mono<Datasource> createEx(
+            @NotNull Datasource datasource,
+            AclPermission permission,
+            boolean isDryOps,
+            Map<DBOpsType, List<DatasourceStorage>> datasourceStorageDryRunQueries) {
         // Validate incoming request
         String workspaceId = datasource.getWorkspaceId();
         if (!hasText(workspaceId)) {
@@ -193,7 +215,7 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
                         Mono<User> userMono = sessionUserService.getCurrentUser();
                         return generateAndSetDatasourcePolicies(userMono, datasource1, permission);
                     })
-                    .flatMap(this::validateAndSaveDatasourceToRepository)
+                    .flatMap(datasourceInDb -> validateAndSaveDatasourceToRepository(datasourceInDb, isDryOps))
                     .flatMap(savedDatasource ->
                             analyticsService.sendCreateEvent(savedDatasource, getAnalyticsProperties(savedDatasource)));
         } else {
@@ -211,20 +233,48 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
         }
 
         return datasourceMono.flatMap(savedDatasource -> this.organiseDatasourceStorages(savedDatasource)
-                .flatMap(datasourceStorage -> {
-                    // Make sure that we are creating entries only if the id is not already populated
-                    if (hasText(datasourceStorage.getId())) {
-                        return Mono.just(datasourceStorage);
-                    }
+                .flatMap(datasourceStorageX -> setAdditionalMetadataInDatasourceStorage(datasourceStorageX)
+                        .flatMap(datasourceStorage -> {
+                            // Make sure that we are creating entries only if the id is not already populated
+                            if (hasText(datasourceStorage.getId())) {
+                                return Mono.just(datasourceStorage);
+                            }
 
-                    return datasourceStorageService.create(datasourceStorage);
-                })
+                            return datasourceStorageService
+                                    .create(datasourceStorage, isDryOps)
+                                    .map(datasourceStorage1 -> {
+                                        if (datasourceStorageDryRunQueries != null && isDryOps) {
+                                            List<DatasourceStorage> datasourceStorages =
+                                                    datasourceStorageDryRunQueries.get(SAVE);
+                                            if (datasourceStorages == null) {
+                                                datasourceStorages = new ArrayList<>();
+                                            }
+                                            datasourceStorages.add(datasourceStorage1);
+                                            datasourceStorageDryRunQueries.put(SAVE, datasourceStorages);
+                                        }
+                                        return datasourceStorage1;
+                                    });
+                        }))
                 .map(datasourceStorageService::createDatasourceStorageDTOFromDatasourceStorage)
                 .collectMap(DatasourceStorageDTO::getEnvironmentId)
                 .map(savedStorages -> {
                     savedDatasource.setDatasourceStorages(savedStorages);
                     return savedDatasource;
                 }));
+    }
+
+    private Mono<DatasourceStorage> setAdditionalMetadataInDatasourceStorage(DatasourceStorage datasourceStorage) {
+        Mono<String> organizationIdMono = organizationService.getDefaultOrganizationId();
+        Mono<String> instanceIdMono = configService.getInstanceId();
+
+        Map<String, Object> metadata = new HashMap<>();
+
+        return organizationIdMono.zipWith(instanceIdMono).map(tuple -> {
+            metadata.put(TENANT_ID, tuple.getT1());
+            metadata.put(INSTANCE_ID, tuple.getT2());
+            datasourceStorage.setMetadata(metadata);
+            return datasourceStorage;
+        });
     }
 
     // this requires an EE override multiple environments
@@ -303,7 +353,7 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
                     copyNestedNonNullProperties(datasource, datasourceInDb);
                     return datasourceInDb;
                 })
-                .flatMap(this::validateAndSaveDatasourceToRepository)
+                .flatMap(datasourceInDb -> validateAndSaveDatasourceToRepository(datasourceInDb, false))
                 .map(savedDatasource -> {
                     // not required by client side in order to avoid updating it to a null storage,
                     // one alternative is that we find and send datasourceStorages along, but that is an expensive call
@@ -355,7 +405,7 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
             datasourceStorage.prepareTransientFields(dbDatasource);
 
             return datasourceStorageService
-                    .updateDatasourceStorage(datasourceStorage, activeEnvironmentId, Boolean.TRUE)
+                    .updateDatasourceStorage(datasourceStorage, activeEnvironmentId, Boolean.TRUE, false)
                     .map(datasourceStorageService::createDatasourceStorageDTOFromDatasourceStorage)
                     .map(datasourceStorageDTO1 -> {
                         dbDatasource.getDatasourceStorages().put(trueEnvironmentId, datasourceStorageDTO1);
@@ -365,20 +415,31 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
     }
 
     @Override
-    public Mono<Datasource> save(Datasource datasource) {
+    public Mono<Datasource> save(Datasource datasource, boolean isDryOps) {
         if (datasource.getGitSyncId() == null) {
             datasource.setGitSyncId(
                     datasource.getWorkspaceId() + "_" + Instant.now().toString());
         }
+        if (isDryOps) {
+            datasource.updateForBulkWriteOperation();
+            return Mono.just(datasource);
+        }
         return repository.save(datasource);
     }
 
-    private Mono<Datasource> validateAndSaveDatasourceToRepository(Datasource datasource) {
+    private Mono<Datasource> validateAndSaveDatasourceToRepository(Datasource datasource, boolean isDryOps) {
 
         return Mono.just(datasource)
                 .flatMap(this::validateDatasource)
                 .flatMap(unsavedDatasource -> {
-                    return repository.save(unsavedDatasource).map(savedDatasource -> {
+                    Mono<Datasource> datasourceMono;
+                    if (isDryOps) {
+                        unsavedDatasource.updateForBulkWriteOperation();
+                        datasourceMono = Mono.just(unsavedDatasource);
+                    } else {
+                        datasourceMono = repository.save(unsavedDatasource);
+                    }
+                    return datasourceMono.map(savedDatasource -> {
                         // datasource.pluginName is a transient field. It was set by validateDatasource method
                         // object from db will have pluginName=null so set it manually from the unsaved datasource obj
                         savedDatasource.setPluginName(unsavedDatasource.getPluginName());
@@ -508,7 +569,8 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
                                         .map(dbDatasourceStorage -> {
                                             copyNestedNonNullProperties(datasourceStorage, dbDatasourceStorage);
                                             return dbDatasourceStorage;
-                                        });
+                                        })
+                                        .switchIfEmpty(Mono.just(datasourceStorage));
                             })
                             .switchIfEmpty(Mono.error(new AppsmithException(AppsmithError.UNAUTHORIZED_ACCESS)));
                 }
@@ -810,7 +872,9 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
                 .flatMap(objects -> {
                     final Long actionsCount = objects.getT2();
                     if (actionsCount > 0) {
-                        return Mono.error(new AppsmithException(AppsmithError.DATASOURCE_HAS_ACTIONS, actionsCount));
+                        String queryWord = actionsCount == 1 ? "query" : "queries";
+                        return Mono.error(
+                                new AppsmithException(AppsmithError.DATASOURCE_HAS_ACTIONS, actionsCount, queryWord));
                     }
                     return Mono.just(objects.getT1());
                 })
@@ -850,6 +914,15 @@ public class DatasourceServiceCEImpl implements DatasourceServiceCE {
                     analyticsProperties.put(FieldName.EVENT_DATA, eventData);
                     return analyticsService.sendDeleteEvent(datasource, analyticsProperties);
                 });
+    }
+
+    @Override
+    public Flux<Datasource> saveAll(List<Datasource> datasourceList) {
+        datasourceList.stream()
+                .filter(datasource -> datasource.getGitSyncId() == null)
+                .forEach(datasource -> datasource.setGitSyncId(
+                        datasource.getWorkspaceId() + "_" + Instant.now().toString()));
+        return repository.saveAll(datasourceList);
     }
 
     private Mono<PluginExecutor> findPluginExecutor(String pluginId) {

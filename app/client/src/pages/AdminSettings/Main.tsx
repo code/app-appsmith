@@ -1,21 +1,23 @@
 import React from "react";
-import AdminConfig from "@appsmith/pages/AdminSettings/config";
+import AdminConfig from "ee/pages/AdminSettings/config";
 import { Redirect, useParams } from "react-router";
-import { SettingCategories } from "@appsmith/pages/AdminSettings/config/types";
+import { SettingCategories } from "ee/pages/AdminSettings/config/types";
 import SettingsForm from "pages/AdminSettings/SettingsForm";
-import { getWrapperCategory } from "@appsmith/utils/adminSettingsHelpers";
+import { getWrapperCategory } from "ee/utils/adminSettingsHelpers";
 import { useSelector } from "react-redux";
 import { getCurrentUser } from "selectors/usersSelectors";
-import { getTenantPermissions } from "@appsmith/selectors/tenantSelectors";
+import { getOrganizationPermissions } from "ee/selectors/organizationSelectors";
 import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
-import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
-import { getAdminSettingsPath } from "@appsmith/utils/BusinessFeatures/adminSettingsHelpers";
+import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
+import { getAdminSettingsPath } from "ee/utils/BusinessFeatures/adminSettingsHelpers";
 
 const Main = () => {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const params = useParams() as any;
   const { category, selected: subCategory } = params;
   const user = useSelector(getCurrentUser);
-  const tenantPermissions = useSelector(getTenantPermissions);
+  const organizationPermissions = useSelector(getOrganizationPermissions);
   const isSuperUser = user?.isSuperUser || false;
   const wrapperCategory = getWrapperCategory(
     AdminConfig.wrapperCategories,
@@ -26,6 +28,7 @@ const Main = () => {
 
   if (!!wrapperCategory?.component) {
     const { component: WrapperCategoryComponent } = wrapperCategory;
+
     return <WrapperCategoryComponent category={wrapperCategory} />;
   } else if (
     !Object.values(SettingCategories).includes(category) ||
@@ -36,7 +39,7 @@ const Main = () => {
         to={getAdminSettingsPath(
           isFeatureEnabled,
           isSuperUser,
-          tenantPermissions,
+          organizationPermissions,
         )}
       />
     );

@@ -1,13 +1,13 @@
-import { watchActionExecutionSagas } from "@appsmith/sagas/ActionExecution/ActionExecutionSagas";
-import NavigationSagas from "@appsmith/sagas/NavigationSagas";
-import SuperUserSagas from "@appsmith/sagas/SuperUserSagas";
-import tenantSagas from "@appsmith/sagas/tenantSagas";
-import userSagas from "@appsmith/sagas/userSagas";
-import workspaceSagas from "@appsmith/sagas/WorkspaceSagas";
+import { watchActionExecutionSagas } from "ee/sagas/ActionExecution/ActionExecutionSagas";
+import NavigationSagas from "ee/sagas/NavigationSagas";
+import SuperUserSagas from "ee/sagas/SuperUserSagas";
+import organizationSagas from "ee/sagas/organizationSagas";
+import userSagas from "ee/sagas/userSagas";
+import workspaceSagas from "ee/sagas/WorkspaceSagas";
 import { watchPluginActionExecutionSagas } from "sagas/ActionExecution/PluginActionSaga";
 import { watchActionSagas } from "sagas/ActionSagas";
 import apiPaneSagas from "sagas/ApiPaneSagas";
-import applicationSagas from "@appsmith/sagas/ApplicationSagas";
+import applicationSagas from "ee/sagas/ApplicationSagas";
 import appThemingSaga from "sagas/AppThemingSaga";
 import AutoHeightSagas from "sagas/autoHeightSagas";
 import autoLayoutUpdateSagas from "sagas/AutoLayoutUpdateSagas";
@@ -16,24 +16,25 @@ import autoLayoutDraggingSagas from "sagas/CanvasSagas/AutoLayoutDraggingSagas";
 import draggingCanvasSagas from "sagas/CanvasSagas/DraggingCanvasSagas";
 import selectionCanvasSagas from "sagas/CanvasSagas/SelectionCanvasSagas";
 import curlImportSagas from "sagas/CurlImportSagas";
-import { watchDatasourcesSagas } from "sagas/DatasourcesSagas";
+import { watchDatasourcesSagas } from "ee/sagas/DatasourcesSagas";
 import debuggerSagas from "sagas/DebuggerSagas";
 import editorContextSagas from "sagas/editorContextSagas";
 import errorSagas from "sagas/ErrorSagas";
 import evaluationsSaga from "sagas/EvaluationsSaga";
-import formEvaluationChangeListener from "sagas/FormEvaluationSaga";
+import formEvaluationChangeListener, {
+  formEvaluationSagas,
+} from "sagas/FormEvaluationSaga";
 import gitSyncSagas from "sagas/GitSyncSagas";
 import globalSearchSagas from "sagas/GlobalSearchSagas";
 import initSagas from "sagas/InitSagas";
-import { watchJSActionSagas } from "@appsmith/sagas/JSActionSagas";
+import { watchJSActionSagas } from "ee/sagas/JSActionSagas";
 import JSLibrarySaga from "sagas/JSLibrarySaga";
 import jsPaneSagas from "sagas/JSPaneSagas";
 import layoutConversionSagas from "sagas/layoutConversionSagas";
 import LintingSaga from "sagas/LintingSagas";
 import modalSagas from "sagas/ModalSagas";
 import onboardingSagas from "sagas/OnboardingSagas";
-import pageSagas from "@appsmith/sagas/PageSagas";
-import PageVisibilitySaga from "sagas/PageVisibilitySagas";
+import pageSagas from "ee/sagas/PageSagas";
 import pluginSagas from "sagas/PluginSagas";
 import queryPaneSagas from "sagas/QueryPaneSagas";
 import replaySaga from "sagas/ReplaySaga";
@@ -42,8 +43,6 @@ import snapshotSagas from "sagas/SnapshotSagas";
 import snipingModeSagas from "sagas/SnipingModeSagas";
 import templateSagas from "sagas/TemplatesSagas";
 import themeSagas from "sagas/ThemeSaga";
-import utilSagas from "sagas/UtilSagas";
-import websocketSagas from "sagas/WebsocketSagas/WebsocketSagas";
 import actionExecutionChangeListeners from "sagas/WidgetLoadingSaga";
 import widgetOperationSagas from "sagas/WidgetOperationSagas";
 import oneClickBindingSaga from "sagas/OneClickBindingSaga";
@@ -52,9 +51,11 @@ import communityTemplateSagas from "sagas/CommunityTemplatesSagas";
 import anvilSagas from "layoutSystems/anvil/integrations/sagas";
 import ideSagas from "sagas/IDESaga";
 import sendSideBySideWidgetHoverAnalyticsEventSaga from "sagas/AnalyticsSaga";
+import gitSagas from "git/sagas";
 
 /* Sagas that are registered by a module that is designed to be independent of the core platform */
 import ternSagas from "sagas/TernSaga";
+import gitApplicationSagas from "git-artifact-helpers/application/sagas";
 
 export const sagas = [
   initSagas,
@@ -83,9 +84,8 @@ export const sagas = [
   onboardingSagas,
   actionExecutionChangeListeners,
   formEvaluationChangeListener,
-  utilSagas,
+  formEvaluationSagas,
   globalSearchSagas,
-  websocketSagas,
   debuggerSagas,
   saaSPaneSagas,
   selectionCanvasSagas,
@@ -96,9 +96,8 @@ export const sagas = [
   appThemingSaga,
   NavigationSagas,
   editorContextSagas,
-  PageVisibilitySaga,
   AutoHeightSagas,
-  tenantSagas,
+  organizationSagas,
   JSLibrarySaga,
   LintingSaga,
   autoLayoutUpdateSagas,
@@ -112,4 +111,6 @@ export const sagas = [
   ternSagas,
   ideSagas,
   sendSideBySideWidgetHoverAnalyticsEventSaga,
+  gitSagas,
+  gitApplicationSagas,
 ];

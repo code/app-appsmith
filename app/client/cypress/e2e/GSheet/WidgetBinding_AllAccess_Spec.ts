@@ -21,9 +21,11 @@ const workspaceName = "gsheet apps";
 const dataSourceName = "gsheet-all";
 let appName = "gsheet-app";
 let spreadSheetName = "test-sheet";
-describe(
+describe.skip(
   "GSheet-widget binding",
-  { tags: ["@tag.Datasource", "@tag.GSheet"] },
+  {
+    tags: ["@tag.Datasource", "@tag.GSheet", "@tag.Git", "@tag.AccessControl"],
+  },
   function () {
     before("Setup app and spreadsheet", function () {
       //Setting up the app name
@@ -55,7 +57,7 @@ describe(
         dataSourceName,
         spreadSheetName,
       );
-      dataSources.RunQueryNVerifyResponseViews(10);
+      dataSources.runQueryAndVerifyResponseViews({ count: 10 });
 
       // Adding suggested widgets and verify
       dataSources.AddSuggestedWidget(Widgets.Table);

@@ -1,5 +1,6 @@
 package com.appsmith.server.applications.git;
 
+import com.appsmith.external.git.constants.ce.RefType;
 import com.appsmith.server.acl.AclPermission;
 import com.appsmith.server.actioncollections.base.ActionCollectionService;
 import com.appsmith.server.applications.base.ApplicationService;
@@ -19,7 +20,7 @@ import com.appsmith.server.exceptions.AppsmithException;
 import com.appsmith.server.helpers.CollectionUtils;
 import com.appsmith.server.helpers.CommonGitFileUtils;
 import com.appsmith.server.helpers.GitPrivateRepoHelper;
-import com.appsmith.server.helpers.ResponseUtils;
+import com.appsmith.server.helpers.GitUtils;
 import com.appsmith.server.migrations.JsonSchemaVersions;
 import com.appsmith.server.newactions.base.NewActionService;
 import com.appsmith.server.newpages.base.NewPageService;
@@ -42,8 +43,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static com.appsmith.server.helpers.DefaultResourcesUtils.createDefaultIdsOrUpdateWithGivenResourceIds;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -58,7 +57,6 @@ public class GitApplicationHelperCEImpl implements GitArtifactHelperCE<Applicati
     private final NewPageService newPageService;
     private final ActionCollectionService actionCollectionService;
     private final NewActionService newActionService;
-    private final ResponseUtils responseUtils;
     private final JsonSchemaVersions jsonSchemaVersions;
 
     @Override
@@ -92,6 +90,11 @@ public class GitApplicationHelperCEImpl implements GitArtifactHelperCE<Applicati
     }
 
     @Override
+    public AclPermission getWorkspaceArtifactCreationPermission() {
+        return AclPermission.WORKSPACE_CREATE_APPLICATION;
+    }
+
+    @Override
     public Mono<Application> getArtifactById(String applicationId, AclPermission aclPermission) {
         return applicationService
                 .findById(applicationId, aclPermission)
@@ -100,25 +103,25 @@ public class GitApplicationHelperCEImpl implements GitArtifactHelperCE<Applicati
     }
 
     @Override
-    public Flux<Application> getAllArtifactByDefaultId(String defaultArtifactId, AclPermission aclPermission) {
-        return applicationService.findAllApplicationsByDefaultApplicationId(defaultArtifactId, aclPermission);
+    public Flux<Application> getAllArtifactByBaseId(String baseArtifactId, AclPermission aclPermission) {
+        return applicationService.findAllApplicationsByBaseApplicationId(baseArtifactId, aclPermission);
     }
 
     @Override
-    public Mono<Application> getArtifactByDefaultIdAndBranchName(
-            String defaultArtifactId, String branchName, AclPermission aclPermission) {
-        return applicationService.findByBranchNameAndDefaultApplicationId(branchName, defaultArtifactId, aclPermission);
+    public Mono<Application> getArtifactByBaseIdAndBranchName(
+            String baseArtifactId, String branchName, AclPermission aclPermission) {
+        return applicationService.findByBranchNameAndBaseApplicationId(branchName, baseArtifactId, aclPermission);
     }
 
     @Override
-    public Mono<GitAuthDTO> getSshKeys(String defaultArtifactId) {
-        return applicationService.getSshKey(defaultArtifactId);
+    public Mono<GitAuthDTO> getSshKeys(String baseArtifactId) {
+        return applicationService.getSshKey(baseArtifactId);
     }
 
     @Override
     public Mono<Application> createNewArtifactForCheckout(Artifact sourceArtifact, String branchName) {
         GitArtifactMetadata sourceBranchGitData = sourceArtifact.getGitArtifactMetadata();
-        sourceBranchGitData.setBranchName(branchName);
+        sourceBranchGitData.setRefName(branchName);
         sourceBranchGitData.setIsRepoPrivate(null);
         // Save new artifact in DB and update from the parent branch application
         sourceBranchGitData.setGitAuth(null);
@@ -156,8 +159,8 @@ public class GitApplicationHelperCEImpl implements GitArtifactHelperCE<Applicati
     }
 
     @Override
-    public Mono<Void> updateArtifactWithProtectedBranches(String defaultArtifactId, List<String> branchNames) {
-        return applicationService.updateProtectedBranches(defaultArtifactId, branchNames);
+    public Mono<Void> updateArtifactWithProtectedBranches(String baseArtifactId, List<String> branchNames) {
+        return applicationService.updateProtectedBranches(baseArtifactId, branchNames);
     }
 
     @Override
@@ -183,7 +186,7 @@ public class GitApplicationHelperCEImpl implements GitArtifactHelperCE<Applicati
     @Override
     public Mono<Application> publishArtifact(Artifact artifact, Boolean isPublishedManually) {
         Application application = (Application) artifact;
-        return applicationPageService.publish(application.getId(), isPublishedManually);
+        return applicationPageService.publishWithoutPermissionChecks(application.getId(), isPublishedManually);
     }
 
     // TODO: scope for improvement
@@ -192,16 +195,16 @@ public class GitApplicationHelperCEImpl implements GitArtifactHelperCE<Applicati
 
         // find default page and initialize readme
         Application application = (Application) artifact;
-        String defaultPageId = "";
+        String basePageId = "";
         if (!application.getPages().isEmpty()) {
-            defaultPageId = application.getPages().stream()
+            basePageId = application.getPages().stream()
                     .filter(applicationPage -> applicationPage.getIsDefault().equals(Boolean.TRUE))
                     .toList()
                     .get(0)
                     .getId();
         }
 
-        String viewModeUrl = Paths.get("/", Entity.APPLICATIONS, "/", artifact.getId(), Entity.PAGES, defaultPageId)
+        String viewModeUrl = Paths.get("/", Entity.APPLICATIONS, "/", artifact.getId(), Entity.PAGES, basePageId)
                 .toString();
 
         String editModeUrl = Paths.get(viewModeUrl, "edit").toString();
@@ -218,12 +221,11 @@ public class GitApplicationHelperCEImpl implements GitArtifactHelperCE<Applicati
     }
 
     @Override
-    public Flux<Application> deleteAllBranches(String defaultArtifactId, List<String> branches) {
+    public Flux<Application> deleteAllBranches(String baseArtifactId, List<String> branches) {
         AclPermission appEditPermission = getArtifactEditPermission();
 
         return Flux.fromIterable(branches)
-                .flatMap(branchName ->
-                        getArtifactByDefaultIdAndBranchName(defaultArtifactId, branchName, appEditPermission))
+                .flatMap(branchName -> getArtifactByBaseIdAndBranchName(baseArtifactId, branchName, appEditPermission))
                 .flatMap(applicationPageService::deleteApplicationByResource);
     }
 
@@ -234,87 +236,52 @@ public class GitApplicationHelperCEImpl implements GitArtifactHelperCE<Applicati
 
     /**
      *  Setting all the pages' default resources ids to itself in application object
-     * @param defaultArtifact default version of Application which was tried to connect to git
+     * @param baseArtifact default version of Application which was tried to connect to git
      */
     @Override
-    public void resetAttributeInDefaultArtifact(Artifact defaultArtifact) {
-        Application defaultApplication = (Application) defaultArtifact;
+    public void resetAttributeInBaseArtifact(Artifact baseArtifact) {
+        Application baseApplication = (Application) baseArtifact;
 
-        if (!CollectionUtils.isNullOrEmpty(defaultApplication.getPages())) {
-            defaultApplication.getPages().forEach(page -> page.setDefaultPageId(page.getId()));
+        if (!CollectionUtils.isNullOrEmpty(baseApplication.getPages())) {
+            baseApplication.getPages().forEach(page -> page.setDefaultPageId(page.getId()));
         }
 
-        if (!CollectionUtils.isNullOrEmpty(defaultApplication.getPublishedPages())) {
-            defaultApplication.getPublishedPages().forEach(page -> page.setDefaultPageId(page.getId()));
+        if (!CollectionUtils.isNullOrEmpty(baseApplication.getPublishedPages())) {
+            baseApplication.getPublishedPages().forEach(page -> page.setDefaultPageId(page.getId()));
         }
     }
 
     @Override
-    public Mono<Application> disconnectEntitiesOfDefaultArtifact(Artifact defaultArtifact) {
-        Application defaultApplication = (Application) defaultArtifact;
+    public Mono<Application> disconnectEntitiesOfBaseArtifact(Artifact baseArtifact) {
+        Application baseApplication = (Application) baseArtifact;
 
-        // Update all the resources to replace defaultResource Ids with the resource Ids as branchName
+        // Update all the resources to replace base Ids with the resource Ids as branchName
         // will be deleted
-        Flux<NewPage> newPageFlux = Flux.fromIterable(defaultApplication.getPages())
+        Flux<NewPage> newPageFlux = Flux.fromIterable(baseApplication.getPages())
                 .flatMap(page -> newPageService.findById(page.getId(), null))
-                .map(newPage -> {
-                    newPage.setDefaultResources(null);
-                    return createDefaultIdsOrUpdateWithGivenResourceIds(newPage, null);
-                })
+                .map(GitUtils::resetEntityReferences)
                 .collectList()
                 .flatMapMany(newPageService::saveAll)
                 .cache();
 
-        Flux<NewAction> newActionFlux = newPageFlux.flatMap(newPage -> {
-            return newActionService
-                    .findByPageId(newPage.getId(), Optional.empty())
-                    .map(newAction -> {
-                        newAction.setDefaultResources(null);
-                        if (newAction.getUnpublishedAction() != null) {
-                            newAction.getUnpublishedAction().setDefaultResources(null);
-                        }
-                        if (newAction.getPublishedAction() != null) {
-                            newAction.getPublishedAction().setDefaultResources(null);
-                        }
-                        return createDefaultIdsOrUpdateWithGivenResourceIds(newAction, null);
-                    })
-                    .collectList()
-                    .flatMapMany(newActionService::saveAll);
-        });
+        Flux<NewAction> newActionFlux = newPageFlux.flatMap(newPage -> newActionService
+                .findByPageId(newPage.getId(), Optional.empty())
+                .map(GitUtils::resetEntityReferences)
+                .collectList()
+                .flatMapMany(newActionService::saveAll));
 
-        Flux<ActionCollection> actionCollectionFlux = newPageFlux.flatMap(newPage -> {
-            return actionCollectionService
-                    .findByPageId(newPage.getId())
-                    .map(actionCollection -> {
-                        actionCollection.setDefaultResources(null);
-                        if (actionCollection.getUnpublishedCollection() != null) {
-                            actionCollection.getUnpublishedCollection().setDefaultResources(null);
-                        }
-                        if (actionCollection.getPublishedCollection() != null) {
-                            actionCollection.getPublishedCollection().setDefaultResources(null);
-                        }
-                        return createDefaultIdsOrUpdateWithGivenResourceIds(actionCollection, null);
-                    })
-                    .collectList()
-                    .flatMapMany(actionCollectionService::saveAll);
-        });
+        Flux<ActionCollection> actionCollectionFlux = newPageFlux.flatMap(newPage -> actionCollectionService
+                .findByPageId(newPage.getId())
+                .map(GitUtils::resetEntityReferences)
+                .collectList()
+                .flatMapMany(actionCollectionService::saveAll));
 
-        return Flux.merge(actionCollectionFlux, newActionFlux)
-                .then(Mono.just(defaultApplication))
-                .map(responseUtils::updateApplicationWithDefaultResources);
-    }
-
-    @Override
-    public Application updateArtifactWithDefaultReponseUtils(Artifact artifact) {
-        return responseUtils.updateApplicationWithDefaultResources((Application) artifact);
+        return Flux.merge(actionCollectionFlux, newActionFlux).then(Mono.just(baseApplication));
     }
 
     @Override
     public Mono<Application> createArtifactForImport(String workspaceId, String repoName) {
-        Application newApplication = new Application();
-        newApplication.setName(repoName);
-        newApplication.setWorkspaceId(workspaceId);
-        newApplication.setGitApplicationMetadata(new GitArtifactMetadata());
+        Application newApplication = getNewArtifact(workspaceId, repoName);
         return applicationPageService.createOrUpdateSuffixedApplication(newApplication, newApplication.getName(), 0);
     }
 
@@ -326,5 +293,36 @@ public class GitApplicationHelperCEImpl implements GitArtifactHelperCE<Applicati
     @Override
     public Boolean isContextInArtifactEmpty(ArtifactExchangeJson artifactExchangeJson) {
         return CollectionUtils.isNullOrEmpty(((ApplicationJson) artifactExchangeJson).getPageList());
+    }
+
+    @Override
+    public Application getNewArtifact(String workspaceId, String repoName) {
+        Application newApplication = new Application();
+        newApplication.setName(repoName);
+        newApplication.setWorkspaceId(workspaceId);
+        newApplication.setGitApplicationMetadata(new GitArtifactMetadata());
+        return newApplication;
+    }
+
+    @Override
+    public Mono<Application> publishArtifactPostCommit(Artifact committedArtifact) {
+        return publishArtifact(committedArtifact, true);
+    }
+
+    @Override
+    public Mono<? extends Artifact> validateAndPublishArtifact(Artifact artifact, boolean publish) {
+        return publishArtifact(artifact, publish);
+    }
+
+    @Override
+    public Mono<Application> publishArtifactPostRefCreation(
+            Artifact artifact, RefType refType, Boolean isPublishedManually) {
+        // TODO: create publish for ref type creation.
+        Application application = (Application) artifact;
+        if (RefType.tag.equals(refType)) {
+            return Mono.just(application);
+        }
+
+        return Mono.just(application);
     }
 }

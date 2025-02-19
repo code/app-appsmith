@@ -1,33 +1,29 @@
 import React, { useMemo } from "react";
-import type { RouteComponentProps } from "react-router";
+import { useRouteMatch } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import JsEditorForm from "./Form";
 import * as Sentry from "@sentry/react";
-import { getJSCollectionDataById } from "selectors/editorSelectors";
+import { getJSCollectionDataByBaseId } from "selectors/editorSelectors";
 import CenteredWrapper from "components/designSystems/appsmith/CenteredWrapper";
 import Spinner from "components/editorComponents/Spinner";
 import styled from "styled-components";
 import EntityNotFoundPane from "../EntityNotFoundPane";
 import AppJSEditorContextMenu from "./AppJSEditorContextMenu";
 import { updateFunctionProperty } from "actions/jsPaneActions";
-import type { OnUpdateSettingsProps } from "./JSFunctionSettings";
+import type { OnUpdateSettingsProps } from "./JSEditorToolbar";
 import { saveJSObjectName } from "actions/jsActionActions";
 
 const LoadingContainer = styled(CenteredWrapper)`
   height: 50%;
 `;
 
-type Props = RouteComponentProps<{
-  apiId: string;
-  pageId: string;
-  collectionId: string;
-}>;
-
-function JSEditor(props: Props) {
-  const { collectionId, pageId } = props.match.params;
+function JSEditor() {
+  const {
+    params: { baseCollectionId },
+  } = useRouteMatch<{ baseCollectionId: string }>();
   const dispatch = useDispatch();
   const jsCollectionData = useSelector((state) =>
-    getJSCollectionDataById(state, collectionId),
+    getJSCollectionDataByBaseId(state, baseCollectionId),
   );
   const { isCreating } = useSelector((state) => state.ui.jsPane);
   const jsCollection = jsCollectionData?.config;
@@ -37,10 +33,8 @@ function JSEditor(props: Props) {
       return null;
     }
 
-    return (
-      <AppJSEditorContextMenu jsCollection={jsCollection} pageId={pageId} />
-    );
-  }, [jsCollection, pageId]);
+    return <AppJSEditorContextMenu jsCollection={jsCollection} />;
+  }, [jsCollection]);
 
   if (isCreating) {
     return (
@@ -70,6 +64,7 @@ function JSEditor(props: Props) {
       />
     );
   }
+
   return <EntityNotFoundPane />;
 }
 

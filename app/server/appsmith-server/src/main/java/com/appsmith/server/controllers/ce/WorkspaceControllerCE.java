@@ -36,7 +36,7 @@ public class WorkspaceControllerCE {
 
     @JsonView(Views.Public.class)
     @GetMapping("/{id}")
-    public Mono<ResponseDTO<Workspace>> getByIdAndBranchName(@PathVariable String id) {
+    public Mono<ResponseDTO<Workspace>> getById(@PathVariable String id) {
         return service.getById(id).map(workspace -> new ResponseDTO<>(HttpStatus.OK.value(), workspace, null));
     }
 
@@ -108,9 +108,10 @@ public class WorkspaceControllerCE {
 
     @JsonView(Views.Public.class)
     @GetMapping("/home")
-    public Mono<ResponseDTO<List<Workspace>>> workspacesForHome() {
+    public Mono<ResponseDTO<List<Workspace>>> workspacesForHome(
+            @RequestHeader(name = "Host", required = false) String hostname) {
         return userWorkspaceService
-                .getUserWorkspacesByRecentlyUsedOrder()
+                .getUserWorkspacesByRecentlyUsedOrder(hostname)
                 .map(workspaces -> new ResponseDTO<>(HttpStatus.OK.value(), workspaces, null));
     }
 }

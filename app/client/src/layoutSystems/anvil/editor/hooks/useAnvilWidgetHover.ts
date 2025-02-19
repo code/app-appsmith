@@ -1,8 +1,8 @@
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import { getAnvilSpaceDistributionStatus } from "layoutSystems/anvil/integrations/selectors";
 import { useCallback, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { combinedPreviewModeSelector } from "selectors/editorSelectors";
+import { selectCombinedPreviewMode } from "selectors/gitModSelectors";
 import { isWidgetFocused } from "selectors/widgetSelectors";
 import { useWidgetSelection } from "utils/hooks/useWidgetSelection";
 
@@ -12,7 +12,7 @@ export const useAnvilWidgetHover = (
 ) => {
   // Retrieve state from the Redux store
   const isFocused = useSelector(isWidgetFocused(widgetId));
-  const isPreviewMode = useSelector(combinedPreviewModeSelector);
+  const isPreviewMode = useSelector(selectCombinedPreviewMode);
   const isDistributingSpace = useSelector(getAnvilSpaceDistributionStatus);
   const isDragging = useSelector(
     (state: AppState) => state.ui.widgetDragResize.isDragging,
@@ -22,6 +22,8 @@ export const useAnvilWidgetHover = (
 
   // Callback function for handling mouseover events
   const handleMouseOver = useCallback(
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (e: any) => {
       // Check conditions before focusing the widget on mouseover
       focusWidget &&

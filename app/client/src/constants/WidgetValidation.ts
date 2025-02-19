@@ -22,8 +22,12 @@ export enum ValidationTypes {
 
 export interface ValidationResponse {
   isValid: boolean;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parsed: any;
   messages?: Array<Error>;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transformed?: any;
   isParsedValueTheSame?: boolean;
 }
@@ -399,7 +403,6 @@ export const DEDICATED_WORKER_GLOBAL_SCOPE_IDENTIFIERS = {
   webkitRequestFileSystemSync: "webkitRequestFileSystemSync",
   webkitResolveLocalFileSystemSyncURL: "webkitResolveLocalFileSystemSyncURL",
   webkitResolveLocalFileSystemURL: "webkitResolveLocalFileSystemURL",
-  WebSocket: "WebSocket",
   WebTransport: "WebTransport",
   WebTransportBidirectionalStream: "WebTransportBidirectionalStream",
   WebTransportDatagramDuplexStream: "WebTransportDatagramDuplexStream",

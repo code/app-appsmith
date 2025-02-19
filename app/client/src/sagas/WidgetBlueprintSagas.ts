@@ -1,5 +1,9 @@
-import type { WidgetBlueprint } from "WidgetProvider/constants";
-import type { FlattenedWidgetProps } from "reducers/entityReducers/canvasWidgetsReducer";
+import type { ActionData } from "ee/reducers/entityReducers/actionsReducer";
+import {
+  BlueprintOperationActionTypes,
+  type WidgetBlueprint,
+} from "WidgetProvider/constants";
+import type { FlattenedWidgetProps } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type { WidgetProps } from "widgets/BaseWidget";
 import { generateReactKey } from "utils/generators";
 import { call, select } from "redux-saga/effects";
@@ -10,12 +14,16 @@ import type { WidgetType } from "constants/WidgetConstants";
 import { MAIN_CONTAINER_WIDGET_ID } from "constants/WidgetConstants";
 import { BlueprintOperationTypes } from "WidgetProvider/constants";
 import * as log from "loglevel";
-import { toast } from "design-system";
+import { toast } from "@appsmith/ads";
 import type { LayoutSystemTypes } from "layoutSystems/types";
 import { getLayoutSystemType } from "selectors/layoutSystemSelectors";
+import type { PluginPackageName } from "entities/Plugin";
+import type { Action } from "../entities/Action";
+import { createOrUpdateDataSourceWithAction } from "../ee/sagas/DatasourcesSagas";
 
 function buildView(view: WidgetBlueprint["view"], widgetId: string) {
   const children = [];
+
   if (view) {
     for (const template of view) {
       //TODO(abhinav): Can we keep rows and size mandatory?
@@ -48,20 +56,26 @@ export function* buildWidgetBlueprint(
     blueprint.view,
     widgetId,
   );
+
   return widgetProps;
 }
 
 export interface UpdatePropertyArgs {
   widgetId: string;
   propertyName: string;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   propertyValue: any;
 }
-export type BlueprintOperationAddActionFn = () => void;
+export type BlueprintOperationAddActionFn = (
+  widget: WidgetProps & { children?: WidgetProps[] },
+) => Generator;
 export type BlueprintOperationModifyPropsFn = (
   widget: WidgetProps & { children?: WidgetProps[] },
   widgets: { [widgetId: string]: FlattenedWidgetProps },
   parent?: WidgetProps,
   layoutSystemType?: LayoutSystemTypes,
+  addActionResult?: ActionData,
 ) => UpdatePropertyArgs[] | undefined;
 
 export interface ChildOperationFnResponse {
@@ -93,10 +107,20 @@ export type BlueprintOperationFunction =
   | BlueprintBeforeOperationsFn;
 
 export type BlueprintOperationType = keyof typeof BlueprintOperationTypes;
+export type BlueprintOperationActionType =
+  keyof typeof BlueprintOperationActionTypes;
+
+export interface BlueprintOperationActionPayload {
+  pluginPackageName: PluginPackageName;
+  actionConfig: Action;
+  datasourceName?: string;
+}
 
 export interface BlueprintOperation {
   type: BlueprintOperationType;
   fn: BlueprintOperationFunction;
+  actionType?: BlueprintOperationActionType;
+  payload?: BlueprintOperationActionPayload;
 }
 
 export function* executeWidgetBlueprintOperations(
@@ -105,18 +129,26 @@ export function* executeWidgetBlueprintOperations(
   widgetId: string,
 ) {
   const layoutSystemType: LayoutSystemTypes = yield select(getLayoutSystemType);
-  operations.forEach((operation: BlueprintOperation) => {
+  let addActionResult: ActionData = {} as ActionData;
+
+  for (const operation of operations) {
     const widget: WidgetProps & { children?: string[] | WidgetProps[] } = {
       ...widgets[widgetId],
     };
 
     switch (operation.type) {
+      case BlueprintOperationTypes.ADD_ACTION:
+        addActionResult =
+          yield executeWidgetBlueprintAddActionOperations(operation);
+
+        break;
       case BlueprintOperationTypes.MODIFY_PROPS:
         if (widget.children && widget.children.length > 0) {
           widget.children = (widget.children as string[]).map(
             (childId: string) => widgets[childId],
           ) as WidgetProps[];
         }
+
         const updatePropertyPayloads: UpdatePropertyArgs[] | undefined = (
           operation.fn as BlueprintOperationModifyPropsFn
         )(
@@ -124,7 +156,9 @@ export function* executeWidgetBlueprintOperations(
           widgets,
           get(widgets, widget.parentId || "", undefined),
           layoutSystemType,
+          addActionResult,
         );
+
         updatePropertyPayloads &&
           updatePropertyPayloads.forEach((params: UpdatePropertyArgs) => {
             widgets[params.widgetId][params.propertyName] =
@@ -132,10 +166,42 @@ export function* executeWidgetBlueprintOperations(
           });
         break;
     }
-  });
+  }
 
   const result: { [widgetId: string]: FlattenedWidgetProps } = yield widgets;
+
   return result;
+}
+
+/**
+ * this saga executes the blueprint add action operation
+ * @param operation
+ */
+function* executeWidgetBlueprintAddActionOperations(
+  operation: BlueprintOperation,
+) {
+  switch (operation.actionType) {
+    case BlueprintOperationActionTypes.CREATE_OR_UPDATE_DATASOURCE_WITH_ACTION:
+      if (
+        !operation.payload?.pluginPackageName ||
+        !operation.payload?.actionConfig
+      )
+        return;
+
+      const { actionConfig, datasourceName, pluginPackageName } =
+        operation.payload;
+
+      // TODO Add the event to the watcher to avoid importing it and the associated cyclic dependencies.
+      // https://github.com/appsmithorg/appsmith-ee/pull/5368#discussion_r1804419760
+      const createdAction: ActionData =
+        yield createOrUpdateDataSourceWithAction(
+          pluginPackageName,
+          actionConfig,
+          datasourceName,
+        );
+
+      return createdAction;
+  }
 }
 
 /**
@@ -175,6 +241,7 @@ export function* executeWidgetBlueprintChildOperations(
     ({ message: currMessage, widgets } = (
       operation.fn as BlueprintOperationChildOperationsFn
     )(widgets, widgetId, parentId, widgetPropertyMaps, layoutSystemType));
+
     //set message if one of the widget has any message to show
     if (currMessage) message = currMessage;
   }

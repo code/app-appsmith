@@ -1,14 +1,15 @@
 import type { Action } from "entities/Action";
 import { ActionExecutionContext } from "entities/Action";
 import type { JSAction, JSCollection } from "entities/JSCollection";
-import type { ApplicationPayload } from "@appsmith/constants/ReduxActionConstants";
+import type { ApplicationPayload } from "entities/Application";
 import store from "store";
-import { getAppMode } from "@appsmith/selectors/applicationSelectors";
-import { getDatasource } from "@appsmith/selectors/entitiesSelector";
-import { getCurrentEnvironmentDetails } from "@appsmith/selectors/environmentSelectors";
-import type { Plugin } from "api/PluginApi";
+import { getAppMode } from "ee/selectors/applicationSelectors";
+import { getDatasource } from "ee/selectors/entitiesSelector";
+import { getCurrentEnvironmentDetails } from "ee/selectors/environmentSelectors";
+import type { Plugin } from "entities/Plugin";
 import { get, isNil } from "lodash";
-import type { JSCollectionData } from "@appsmith/reducers/entityReducers/jsActionsReducer";
+import type { JSCollectionData } from "ee/reducers/entityReducers/jsActionsReducer";
+import { objectKeys } from "@appsmith/utils";
 
 export function getPluginActionNameToDisplay(action: Action) {
   return action.name;
@@ -19,12 +20,15 @@ export const getActionProperties = (
   keyConfig: Record<string, string>,
 ) => {
   const actionProperties: Record<string, unknown> = {};
-  Object.keys(keyConfig).forEach((key) => {
+
+  objectKeys(keyConfig).forEach((key) => {
     const value = get(action, key);
+
     if (!isNil(value)) {
       actionProperties[keyConfig[key]] = get(action, key);
     }
   });
+
   return actionProperties;
 };
 
@@ -66,12 +70,13 @@ export function getActionExecutionAnalytics(
     datasourceId: datasourceId,
     isMock: !!datasource?.isMock,
     actionId: action?.id,
-    inputParams: Object.keys(params).length,
+    inputParams: objectKeys(params).length,
     source: ActionExecutionContext.EVALUATION_ACTION_TRIGGER, // Used in analytic events to understand who triggered action execution
   };
 
   if (!!currentApp) {
     appMode = getAppMode(state);
+
     return {
       ...resultObj,
       isExampleApp: currentApp.appIsExample,
@@ -89,19 +94,29 @@ export function getActionExecutionAnalytics(
  * Function to check if the browser execution is allowed for the action
  * This is just for code splitting, main feature is in EE
  * */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
 export function isBrowserExecutionAllowed(..._args: any[]) {
   return true;
 }
 
-// Function to extract the test payload from the collection data
+/**
+ * Function to extract the test payload from the collection data
+ * @param [collectionData] from the js Object
+ * @param [defaultValue=""] to be returned if no information is found,
+ * returns an empty string by default
+ * @returns stored value from the collectionData
+ * */
 export const getTestPayloadFromCollectionData = (
   collectionData: JSCollectionData | undefined,
+  defaultValue = "",
 ): string => {
-  if (!collectionData) return "";
+  if (!collectionData) return defaultValue;
+
   const activeJSActionId = collectionData?.activeJSActionId;
   const testPayload: Record<string, unknown> | undefined = collectionData?.data
     ?.testPayload as Record<string, unknown>;
-  if (!activeJSActionId || !testPayload) return "";
-  return (testPayload[activeJSActionId] as string) || "";
+
+  if (!activeJSActionId || !testPayload) return defaultValue;
+
+  return testPayload[activeJSActionId] as string;
 };

@@ -1,6 +1,5 @@
 export * from "ce/sagas/userSagas";
 import {
-  createUserSaga,
   getCurrentUserSaga,
   runUserSideEffectsSaga,
   forgotPasswordSaga,
@@ -18,12 +17,11 @@ import {
   updateFirstTimeUserOnboardingSage,
   fetchProductAlertSaga,
 } from "ce/sagas/userSagas";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import { takeLatest, all } from "redux-saga/effects";
 
 export default function* userSagas() {
   yield all([
-    takeLatest(ReduxActionTypes.CREATE_USER_INIT, createUserSaga),
     takeLatest(ReduxActionTypes.FETCH_USER_INIT, getCurrentUserSaga),
     takeLatest(
       ReduxActionTypes.FETCH_USER_DETAILS_SUCCESS,

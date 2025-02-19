@@ -2,20 +2,23 @@ import {
   getAppViewerPageIdFromPath,
   isEditorPath,
   isViewerPath,
-} from "@appsmith/pages/Editor/Explorer/helpers";
+} from "ee/pages/Editor/Explorer/helpers";
 import { fetchWithRetry, getUsagePulsePayload } from "./utils";
 import {
   PULSE_API_ENDPOINT,
   PULSE_API_MAX_RETRY_COUNT,
   PULSE_API_RETRY_TIMEOUT,
   USER_ACTIVITY_LISTENER_EVENTS,
-} from "@appsmith/constants/UsagePulse";
+} from "ee/constants/UsagePulse";
 import PageApi from "api/PageApi";
 import { APP_MODE } from "entities/App";
 import { getFirstTimeUserOnboardingIntroModalVisibility } from "utils/storage";
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports
 import { PULSE_INTERVAL as PULSE_INTERVAL_CE } from "ce/constants/UsagePulse";
 import { PULSE_INTERVAL as PULSE_INTERVAL_EE } from "ee/constants/UsagePulse";
+import store from "store";
+import type { PageListReduxState } from "reducers/entityReducers/pageListReducer";
+import { isAirgapped } from "ee/utils/airgapHelpers";
 
 class UsagePulse {
   static userAnonymousId: string | undefined;
@@ -24,6 +27,7 @@ class UsagePulse {
   static isTelemetryEnabled: boolean;
   static isAnonymousUser: boolean;
   static isFreePlan: boolean;
+  static isAirgapped = isAirgapped();
 
   /*
    * Function to check if the given URL is trakable or not.
@@ -37,15 +41,26 @@ class UsagePulse {
           If it is private app with non-logged in user, we do not send pulse at this point instead we redirect to the login page.
           And for login page no usage pulse is required.
         */
+        const basePageId = getAppViewerPageIdFromPath(path);
+        const { pages } = store.getState().entities
+          .pageList as PageListReduxState;
+        const pageId = pages?.find(
+          (page) => page.basePageId === basePageId,
+        )?.pageId;
+
+        // TODO: Fix this the next time the file is edited
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const response: any = await PageApi.fetchAppAndPages({
-          pageId: getAppViewerPageIdFromPath(path),
+          pageId,
           mode: APP_MODE.PUBLISHED,
         });
         const { data } = response ?? {};
+
         if (data?.application && !data.application.isPublic) {
           return false;
         }
       }
+
       return true;
     } else if (isEditorPath(path)) {
       /*
@@ -54,8 +69,10 @@ class UsagePulse {
       */
       const isFirstTimeOnboarding =
         await getFirstTimeUserOnboardingIntroModalVisibility();
+
       if (!isFirstTimeOnboarding) return true;
     }
+
     return false;
   }
 
@@ -117,6 +134,7 @@ class UsagePulse {
     UsagePulse.isTelemetryEnabled = isTelemetryEnabled;
     UsagePulse.isAnonymousUser = isAnonymousUser;
     UsagePulse.isFreePlan = isFree;
+
     if (await UsagePulse.isTrackableUrl(window.location.pathname)) {
       await UsagePulse.sendPulseAndScheduleNext();
     }
@@ -127,6 +145,10 @@ class UsagePulse {
    * registers listeners to wait for the user to go to a trackable url
    */
   static async sendPulseAndScheduleNext() {
+    if (UsagePulse.isAirgapped) {
+      return;
+    }
+
     UsagePulse.sendPulse();
     UsagePulse.scheduleNextActivityListeners();
   }

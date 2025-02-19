@@ -1,5 +1,5 @@
 import type { Datasource } from "entities/Datasource";
-import { isStoredDatasource, PluginType } from "entities/Action";
+import { isStoredDatasource } from "entities/Action";
 import React, { memo, useCallback, useEffect, useState } from "react";
 import { debounce, isEmpty } from "lodash";
 import { useDispatch, useSelector } from "react-redux";
@@ -7,23 +7,26 @@ import CollapseComponent from "components/utils/CollapseComponent";
 import {
   getPluginImages,
   getCurrentActions,
-} from "@appsmith/selectors/entitiesSelector";
+} from "ee/selectors/entitiesSelector";
 import styled from "styled-components";
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import history from "utils/history";
 import RenderDatasourceInformation from "pages/Editor/DataSourceEditor/DatasourceSection";
 import { getQueryParams } from "utils/URLUtils";
-import { Button, MenuContent, MenuItem, MenuTrigger } from "design-system";
+import { Button, MenuContent, MenuItem, MenuTrigger } from "@appsmith/ads";
 import { deleteDatasource } from "actions/datasourceActions";
-import { getGenerateCRUDEnabledPluginMap } from "@appsmith/selectors/entitiesSelector";
-import type { GenerateCRUDEnabledPluginMap, Plugin } from "api/PluginApi";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import { getGenerateCRUDEnabledPluginMap } from "ee/selectors/entitiesSelector";
+import {
+  type GenerateCRUDEnabledPluginMap,
+  type Plugin,
+  PluginType,
+} from "entities/Plugin";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import NewActionButton from "../DataSourceEditor/NewActionButton";
 import {
   datasourcesEditorIdURL,
-  generateTemplateFormURL,
   saasEditorDatasourceIdURL,
-} from "@appsmith/RouteBuilder";
+} from "ee/RouteBuilder";
 import {
   CONTEXT_DELETE,
   CONFIRM_CONTEXT_DELETE,
@@ -31,31 +34,33 @@ import {
   CONFIRM_CONTEXT_DELETING,
   GENERATE_NEW_PAGE_BUTTON_TEXT,
   RECONNECT_BUTTON_TEXT,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 import { isDatasourceAuthorizedForQueryCreation } from "utils/editorContextUtils";
 import {
-  getCurrentPageId,
+  getCurrentBasePageId,
   getPagePermissions,
 } from "selectors/editorSelectors";
-import { getAssetUrl } from "@appsmith/utils/airgapHelpers";
+import { getAssetUrl } from "ee/utils/airgapHelpers";
 import { MenuWrapper, StyledMenu } from "components/utils/formComponents";
 import { DatasourceEditEntryPoints } from "constants/Datasource";
 import {
   isEnvironmentConfigured,
   doesAnyDsConfigExist,
   DB_NOT_SUPPORTED,
-} from "@appsmith/utils/Environments";
-import { getCurrentApplication } from "@appsmith/selectors/applicationSelectors";
-import { getCurrentEnvironmentId } from "@appsmith/selectors/environmentSelectors";
+} from "ee/utils/Environments";
+import { getCurrentApplication } from "ee/selectors/applicationSelectors";
+import { getCurrentEnvironmentId } from "ee/selectors/environmentSelectors";
 import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
-import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
+import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
 import {
   getHasCreatePagePermission,
   getHasDeleteDatasourcePermission,
   getHasManageDatasourcePermission,
   hasCreateDSActionPermissionInApp,
-} from "@appsmith/utils/BusinessFeatures/permissionPageHelpers";
-import { useEditorType } from "@appsmith/hooks";
+} from "ee/utils/BusinessFeatures/permissionPageHelpers";
+import { getIsAnvilEnabledInCurrentApplication } from "layoutSystems/anvil/integrations/selectors";
+import { openGeneratePageModal } from "../GeneratePage/store/generatePageActions";
+import { getIDETypeByUrl } from "ee/entities/IDE/utils";
 
 const Wrapper = styled.div`
   padding: 15px;
@@ -151,7 +156,7 @@ function DatasourceCard(props: DatasourceCardProps) {
   const { datasource, plugin } = props;
   const envSupportedDs = !DB_NOT_SUPPORTED.includes(plugin.type);
 
-  const pageId = useSelector(getCurrentPageId);
+  const basePageId = useSelector(getCurrentBasePageId);
 
   const datasourceFormConfigs = useSelector(
     (state: AppState) => state.entities.plugins.formConfigs,
@@ -172,8 +177,9 @@ function DatasourceCard(props: DatasourceCardProps) {
   );
 
   const isFeatureEnabled = useFeatureFlag(FEATURE_FLAG.license_gac_enabled);
+  const isAnvilEnabled = useSelector(getIsAnvilEnabledInCurrentApplication);
 
-  const editorType = useEditorType(history.location.pathname);
+  const ideType = getIDETypeByUrl(history.location.pathname);
 
   const canCreatePages = getHasCreatePagePermission(
     isFeatureEnabled,
@@ -184,7 +190,7 @@ function DatasourceCard(props: DatasourceCardProps) {
     isEnabled: isFeatureEnabled,
     dsPermissions: datasourcePermissions,
     pagePermissions,
-    editorType,
+    ideType,
   });
 
   const canEditDatasource = getHasManageDatasourcePermission(
@@ -213,6 +219,8 @@ function DatasourceCard(props: DatasourceCardProps) {
     }
   }, [isDeletingDatasource]);
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentFormConfig: Array<any> =
     datasourceFormConfigs[datasource?.pluginId ?? ""];
   const QUERY = queriesWithThisDatasource > 1 ? "queries" : "query";
@@ -221,10 +229,11 @@ function DatasourceCard(props: DatasourceCardProps) {
 
   const editDatasource = useCallback(() => {
     AnalyticsUtil.logEvent("DATASOURCE_CARD_EDIT_ACTION");
+
     if (plugin && plugin.type === PluginType.SAAS) {
       history.push(
         saasEditorDatasourceIdURL({
-          pageId,
+          basePageId,
           pluginPackageName: plugin.packageName,
           datasourceId: datasource.id,
           params: {
@@ -236,7 +245,7 @@ function DatasourceCard(props: DatasourceCardProps) {
     } else {
       history.push(
         datasourcesEditorIdURL({
-          pageId,
+          basePageId,
           datasourceId: datasource.id,
           params: {
             from: "datasources",
@@ -246,6 +255,7 @@ function DatasourceCard(props: DatasourceCardProps) {
         }),
       );
     }
+
     AnalyticsUtil.logEvent("EDIT_DATASOURCE_CLICK", {
       datasourceId: datasource?.id,
       pluginName: plugin?.name,
@@ -258,21 +268,21 @@ function DatasourceCard(props: DatasourceCardProps) {
       // disable button when it doesn't support page generation
       return;
     }
+
     AnalyticsUtil.logEvent("DATASOURCE_CARD_GEN_CRUD_PAGE_ACTION");
-    history.push(
-      generateTemplateFormURL({
-        pageId,
-        params: {
-          datasourceId: datasource.id,
-          new_page: true,
-        },
+    dispatch(
+      openGeneratePageModal({
+        datasourceId: datasource.id,
+        new_page: true,
       }),
     );
   };
 
   const deleteAction = (e: Event) => {
     e.stopPropagation();
+
     if (isDeletingDatasource) return;
+
     AnalyticsUtil.logEvent("DATASOURCE_CARD_DELETE_ACTION");
     dispatch(deleteDatasource({ id: datasource.id }));
   };
@@ -322,21 +332,25 @@ function DatasourceCard(props: DatasourceCardProps) {
             </Queries>
           </div>
           <ButtonsWrapper className="action-wrapper">
-            {supportTemplateGeneration && !showReconnectButton && (
-              <Button
-                className={"t--generate-template"}
-                isDisabled={!canGeneratePage}
-                kind="secondary"
-                onClick={(e: any) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  routeToGeneratePage();
-                }}
-                size="md"
-              >
-                {createMessage(GENERATE_NEW_PAGE_BUTTON_TEXT)}
-              </Button>
-            )}
+            {supportTemplateGeneration &&
+              !showReconnectButton &&
+              !isAnvilEnabled && (
+                <Button
+                  className={"t--generate-template"}
+                  isDisabled={!canGeneratePage}
+                  kind="secondary"
+                  // TODO: Fix this the next time the file is edited
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  onClick={(e: any) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    routeToGeneratePage();
+                  }}
+                  size="md"
+                >
+                  {createMessage(GENERATE_NEW_PAGE_BUTTON_TEXT)}
+                </Button>
+              )}
             {showReconnectButton && (
               <Button
                 className={"t--reconnect-btn"}
@@ -394,6 +408,7 @@ function DatasourceCard(props: DatasourceCardProps) {
                         onSelect={(e: Event) => {
                           e.preventDefault();
                           e.stopPropagation();
+
                           if (!isDeletingDatasource) {
                             confirmDelete
                               ? deleteAction(e)

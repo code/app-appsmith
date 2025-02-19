@@ -2,10 +2,10 @@ import React, { useContext, useMemo } from "react";
 import type { ReactNode } from "react";
 import { get, omit } from "lodash";
 import type { BaseWidgetProps } from "widgets/BaseWidgetHOC/withBaseWidgetHOC";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import { useWidgetDragResize } from "utils/hooks/dragResizeHooks";
 import { useSelector } from "react-redux";
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import { Classes } from "@blueprintjs/core";
 import { ModalResizable } from "layoutSystems/common/resizer/ModalResizable";
 import { isAutoHeightEnabledForWidget } from "widgets/WidgetUtils";
@@ -19,11 +19,9 @@ import {
 } from "./ResizeStyledComponents";
 import type { UIElementSize } from "./ResizableUtils";
 import { useModalWidth } from "widgets/ModalWidget/component/useModalWidth";
-import {
-  combinedPreviewModeSelector,
-  snipingModeSelector,
-} from "selectors/editorSelectors";
+import { snipingModeSelector } from "selectors/editorSelectors";
 import { getWidgetSelectionBlock } from "../../../selectors/ui";
+import { selectCombinedPreviewMode } from "selectors/gitModSelectors";
 const minSize = 100;
 
 /**
@@ -64,6 +62,7 @@ export const ModalResizableLayer = ({
 
     const canvasWidgetId =
       widget.children && widget.children.length > 0 ? widget.children[0] : "";
+
     updateWidget &&
       updateWidget("MODAL_RESIZE", widgetProps.widgetId, {
         ...newDimensions,
@@ -100,11 +99,12 @@ export const ModalResizableLayer = ({
       widgetType: "MODAL_WIDGET",
     });
   };
-  const isPreviewMode = useSelector(combinedPreviewModeSelector);
+  const isPreviewMode = useSelector(selectCombinedPreviewMode);
   const isSnipingMode = useSelector(snipingModeSelector);
   const isWidgetSelectionBlocked = useSelector(getWidgetSelectionBlock);
   const enableResizing =
     !isSnipingMode && !isPreviewMode && !isWidgetSelectionBlocked;
+
   return (
     <ModalResizable
       allowResize

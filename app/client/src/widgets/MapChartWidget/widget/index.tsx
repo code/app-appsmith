@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from "react";
 import { EventType } from "constants/AppsmithActionConstants/ActionConstants";
 import { ValidationTypes } from "constants/WidgetValidation";
 import type { SetterConfig, Stylesheet } from "entities/AppTheming";
-import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
+import { EvaluationSubstitutionType } from "ee/entities/DataTree/types";
 import { retryPromise } from "utils/AppsmithUtils";
 import { AutocompleteDataType } from "utils/autocomplete/AutocompleteDataType";
 import type { WidgetProps, WidgetState } from "widgets/BaseWidget";
@@ -43,6 +43,8 @@ const MapChartComponent = lazy(async () =>
   ),
 );
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const dataSetMapping: Record<MapType, any> = {
   [MapTypes.WORLD]: dataSetForWorld,
   [MapTypes.WORLD_WITH_ANTARCTICA]: dataSetForWorldWithAntarctica,
@@ -445,6 +447,8 @@ class MapChartWidget extends BaseWidget<MapChartWidgetProps, WidgetState> {
     ];
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static getMetaPropertiesMap(): Record<string, any> {
     return {
       selectedDataPoint: undefined,
@@ -472,6 +476,8 @@ class MapChartWidget extends BaseWidget<MapChartWidgetProps, WidgetState> {
     };
   }
 
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handleDataPointClick = (data: any) => {
     const { onDataPointClick } = this.props;
 

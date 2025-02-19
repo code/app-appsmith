@@ -1,16 +1,18 @@
 import { useEffect, useState, useCallback, memo } from "react";
 import { useSelector, useDispatch, shallowEqual } from "react-redux";
 import { isNameValid } from "utils/helpers";
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import log from "loglevel";
 import { getUsedActionNames } from "selectors/actionSelectors";
 import {
   ACTION_INVALID_NAME_ERROR,
   ACTION_NAME_CONFLICT_ERROR,
   createMessage,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 import styled from "styled-components";
 import { Classes } from "@blueprintjs/core";
+import type { SaveActionNameParams } from "PluginActionEditor";
+import type { ReduxAction } from "actions/ReduxActionTypes";
 
 export const NameWrapper = styled.div<{ enableFontStyling?: boolean }>`
   min-width: 50%;
@@ -66,10 +68,16 @@ export const IconBox = styled.div`
 `;
 
 interface NameEditorProps {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   children: (params: any) => JSX.Element;
   id?: string;
   name?: string;
-  dispatchAction: (a: any) => any;
+  onSaveName: (
+    params: SaveActionNameParams,
+  ) => ReduxAction<SaveActionNameParams>;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   suffixErrorMessage?: (params?: any) => string;
   idUndefinedErrorMessage: string;
   saveStatus: { isSaving: boolean; error: boolean };
@@ -84,10 +92,10 @@ interface NameEditorProps {
 
 function NameEditor(props: NameEditorProps) {
   const {
-    dispatchAction,
     id: entityId,
     idUndefinedErrorMessage,
     name: entityName,
+    onSaveName,
     saveStatus,
     suffixErrorMessage = ACTION_NAME_CONFLICT_ERROR,
   } = props;
@@ -95,6 +103,7 @@ function NameEditor(props: NameEditorProps) {
     new URLSearchParams(window.location.search).get("editName") === "true";
   const [forceUpdate, setForceUpdate] = useState(false);
   const dispatch = useDispatch();
+
   if (!entityId) {
     log.error(idUndefinedErrorMessage);
   }
@@ -116,6 +125,7 @@ function NameEditor(props: NameEditorProps) {
       } else if (name !== entityName && hasActionNameConflict(name)) {
         return createMessage(suffixErrorMessage, name);
       }
+
       return false;
     },
     [hasActionNameConflict, entityName],
@@ -123,8 +133,8 @@ function NameEditor(props: NameEditorProps) {
 
   const handleNameChange = useCallback(
     (name: string) => {
-      if (name !== entityName && !isInvalidNameForEntity(name)) {
-        dispatch(dispatchAction({ id: entityId, name }));
+      if (name !== entityName && !isInvalidNameForEntity(name) && entityId) {
+        dispatch(onSaveName({ id: entityId, name }));
       }
     },
     [dispatch, isInvalidNameForEntity, entityId, entityName],

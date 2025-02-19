@@ -9,7 +9,7 @@ import { PropertyEvaluationErrorType } from "utils/DynamicBindingUtils";
 import unescapeJS from "unescape-js";
 import { Severity } from "entities/AppsmithConsole";
 import type { EventType } from "constants/AppsmithActionConstants/ActionConstants";
-import type { TriggerMeta } from "@appsmith/sagas/ActionExecution/ActionExecutionSagas";
+import type { TriggerMeta } from "ee/sagas/ActionExecution/ActionExecutionSagas";
 import indirectEval from "./indirectEval";
 import DOM_APIS from "./domApis";
 import {
@@ -23,12 +23,14 @@ import {
   PrimitiveErrorModifier,
   TypeErrorModifier,
 } from "./errorModifier";
-import { addDataTreeToContext } from "@appsmith/workers/Evaluation/Actions";
+import { getDataTreeContext } from "ee/workers/Evaluation/Actions";
 import { set } from "lodash";
 import { klona } from "klona";
-import { getEntityNameAndPropertyPath } from "@appsmith/workers/Evaluation/evaluationUtils";
+import { getEntityNameAndPropertyPath } from "ee/workers/Evaluation/evaluationUtils";
 
 export interface EvalResult {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   result: any;
   errors: EvaluationError[];
 }
@@ -83,10 +85,16 @@ export const EvaluationScripts: Record<EvaluationScriptType, string> = {
   `,
 };
 
-const topLevelWorkerAPIs = Object.keys(self).reduce((acc, key: string) => {
-  acc[key] = true;
-  return acc;
-}, {} as any);
+const topLevelWorkerAPIs = Object.keys(self).reduce(
+  (acc, key: string) => {
+    acc[key] = true;
+
+    return acc;
+  },
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  {} as any,
+);
 
 const ignoreGlobalObjectKeys = new Set([
   "evaluationVersion",
@@ -95,15 +103,19 @@ const ignoreGlobalObjectKeys = new Set([
   "location",
 ]);
 
-function resetWorkerGlobalScope() {
+export function resetWorkerGlobalScope() {
   const jsLibraryAccessorSet = JSLibraryAccessor.getSet();
 
   for (const key of Object.keys(self)) {
     if (topLevelWorkerAPIs[key] || DOM_APIS[key]) continue;
+
     //TODO: Remove this once we have a better way to handle this
     if (ignoreGlobalObjectKeys.has(key)) continue;
+
     if (jsLibraryAccessorSet.has(key)) continue;
+
     if (libraryReservedIdentifiers[key]) continue;
+
     try {
       // @ts-expect-error: Types are not available
       delete self[key];
@@ -119,6 +131,7 @@ export const getScriptType = (
   isTriggerBased = false,
 ): EvaluationScriptType => {
   let scriptType = EvaluationScriptType.EXPRESSION;
+
   if (evalArgumentsExist && isTriggerBased) {
     scriptType = EvaluationScriptType.ASYNC_ANONYMOUS_FUNCTION;
   } else if (evalArgumentsExist && !isTriggerBased) {
@@ -126,6 +139,7 @@ export const getScriptType = (
   } else if (isTriggerBased && !evalArgumentsExist) {
     scriptType = EvaluationScriptType.TRIGGERS;
   }
+
   return scriptType;
 };
 
@@ -137,11 +151,14 @@ export const getScriptToEval = (
 ): string => {
   // Using replace here would break scripts with replacement patterns (ex: $&, $$)
   const buffer = EvaluationScripts[type].split(ScriptTemplate);
+
   return `${buffer[0]}${userScript}${buffer[1]}`;
 };
 
 const beginsWithLineBreakRegex = /^\s+|\s+$/;
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type EvalContext = Record<string, any>;
 
 export interface createEvaluationContextArgs {
@@ -246,6 +263,7 @@ export const createEvaluationContext = (args: createEvaluationContextArgs) => {
   } = args;
 
   const EVAL_CONTEXT: EvalContext = {};
+
   ///// Adding callback data
   EVAL_CONTEXT.ARGUMENTS = evalArguments;
   //// Adding contextual data not part of data tree
@@ -255,13 +273,14 @@ export const createEvaluationContext = (args: createEvaluationContextArgs) => {
     Object.assign(EVAL_CONTEXT, context.globalContext);
   }
 
-  addDataTreeToContext({
-    EVAL_CONTEXT,
+  const dataTreeContext = getDataTreeContext({
     dataTree,
     configTree,
     removeEntityFunctions: !!removeEntityFunctions,
     isTriggerBased,
   });
+
+  Object.assign(EVAL_CONTEXT, dataTreeContext);
 
   overrideEvalContext(EVAL_CONTEXT, context?.overrideContext);
 
@@ -273,6 +292,7 @@ export function sanitizeScript(js: string) {
   // makes the final function invalid. We also unescape any escaped characters
   // so that eval can happen
   const trimmedJS = js.replace(beginsWithLineBreakRegex, "");
+
   return self.evaluationVersion > 1 ? trimmedJS : unescapeJS(trimmedJS);
 }
 
@@ -282,7 +302,11 @@ export function sanitizeScript(js: string) {
  * requestId is used for completing promises
  */
 export interface EvaluateContext {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   thisContext?: Record<string, any>;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   globalContext?: Record<string, any>;
   requestId?: string;
   eventType?: EventType;
@@ -293,17 +317,22 @@ export interface EvaluateContext {
 export const getUserScriptToEvaluate = (
   userScript: string,
   isTriggerBased: boolean,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   evalArguments?: Array<any>,
 ) => {
   const unescapedJS = sanitizeScript(userScript);
+
   // If nothing is present to evaluate, return
   if (!unescapedJS.length) {
     return {
       script: "",
     };
   }
+
   const scriptType = getScriptType(!!evalArguments, isTriggerBased);
   const script = getScriptToEval(unescapedJS, scriptType);
+
   return { script };
 };
 
@@ -318,6 +347,8 @@ export function setEvalContext({
   context?: EvaluateContext;
   dataTree: DataTree;
   configTree?: ConfigTree;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   evalArguments?: Array<any>;
   isDataField: boolean;
   isTriggerBased: boolean;
@@ -335,13 +366,16 @@ export function setEvalContext({
   Object.assign(self, evalContext);
 }
 
-export default function evaluateSync(
+export function evaluateSync(
   userScript: string,
   dataTree: DataTree,
   isJSCollection: boolean,
   context?: EvaluateContext,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   evalArguments?: Array<any>,
-  configTree?: ConfigTree,
+  configTree: ConfigTree = {},
+  evalContextCache?: EvalContext,
 ): EvalResult {
   return (function () {
     const errors: EvaluationError[] = [];
@@ -361,19 +395,39 @@ export default function evaluateSync(
         triggers: [],
       };
     }
-    resetWorkerGlobalScope();
 
-    setEvalContext({
-      dataTree,
-      configTree,
-      isDataField: true,
-      isTriggerBased: isJSCollection,
-      context,
-      evalArguments,
-    });
+    self["$isDataField"] = true;
+    const EVAL_CONTEXT: EvalContext = {};
+
+    ///// Adding callback data
+    EVAL_CONTEXT.ARGUMENTS = evalArguments;
+    //// Adding contextual data not part of data tree
+    EVAL_CONTEXT.THIS_CONTEXT = context?.thisContext || {};
+
+    if (context?.globalContext) {
+      Object.assign(EVAL_CONTEXT, context.globalContext);
+    }
+
+    if (evalContextCache) {
+      Object.assign(EVAL_CONTEXT, evalContextCache);
+    } else {
+      const dataTreeContext = getDataTreeContext({
+        dataTree,
+        configTree,
+        removeEntityFunctions: false,
+        isTriggerBased: isJSCollection,
+      });
+
+      Object.assign(EVAL_CONTEXT, dataTreeContext);
+    }
+
+    overrideEvalContext(EVAL_CONTEXT, context?.overrideContext);
+
+    Object.assign(self, EVAL_CONTEXT);
 
     try {
       result = indirectEval(script);
+
       if (result instanceof Promise) {
         /**
          * If a promise is returned in data field then show the error to help understand data field doesn't await to resolve promise.
@@ -381,12 +435,15 @@ export default function evaluateSync(
          */
         throw new FoundPromiseInSyncEvalError();
       }
+      // TODO: Fix this the next time the file is edited
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       const { errorCategory, errorMessage, rootcause } = errorModifier.run(
         error,
         { userScript: error.userScript || userScript, source: error.source },
         [ActionInDataFieldErrorModifier, TypeErrorModifier],
       );
+
       errors.push({
         errorMessage,
         severity: Severity.ERROR,
@@ -401,6 +458,7 @@ export default function evaluateSync(
     } finally {
       self["$isDataField"] = false;
     }
+
     return { result, errors };
   })();
 }
@@ -410,6 +468,8 @@ export async function evaluateAsync(
   dataTree: DataTree,
   configTree: ConfigTree,
   context?: EvaluateContext,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   evalArguments?: Array<any>,
 ) {
   return (async function () {
@@ -430,12 +490,15 @@ export async function evaluateAsync(
 
     try {
       result = await indirectEval(script);
+      // TODO: Fix this the next time the file is edited
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       const { errorMessage } = errorModifier.run(
         error,
         { userScript: error.userScript || userScript, source: error.source },
         [PrimitiveErrorModifier, TypeErrorModifier],
       );
+
       errors.push({
         errorMessage: errorMessage,
         severity: Severity.ERROR,
@@ -452,6 +515,8 @@ export async function evaluateAsync(
   })();
 }
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function shouldAddSetter(setter: any, entity: DataTreeEntity) {
   const isDisabledExpression = setter.disabled;
 

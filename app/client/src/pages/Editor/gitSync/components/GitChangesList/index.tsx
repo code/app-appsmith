@@ -5,7 +5,7 @@ import {
   getGitStatus,
   getIsFetchingGitStatus,
 } from "selectors/gitSyncSelectors";
-import { Callout } from "design-system";
+import { Callout } from "@appsmith/ads";
 import { ExpandableChange, ExpandableChangeKind } from "./ExpandableChange";
 import StaticChange, { StaticChangeKind } from "./StaticChange";
 import PageChanges from "./PageChanges";
@@ -50,7 +50,6 @@ export default function GitChangesList() {
       <ExpandableChange kind={ExpandableChangeKind.JSLIBS} status={status} />
       <StaticChange kind={StaticChangeKind.SETTINGS} status={status} />
       <StaticChange kind={StaticChangeKind.THEME} status={status} />
-      <StaticChange kind={StaticChangeKind.PACKAGES} status={status} />
       <StaticChange kind={StaticChangeKind.MODULES} status={status} />
       {status?.migrationMessage ? (
         <CalloutContainer>

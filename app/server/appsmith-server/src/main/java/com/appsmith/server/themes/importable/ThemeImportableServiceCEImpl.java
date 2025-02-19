@@ -6,6 +6,7 @@ import com.appsmith.server.domains.Artifact;
 import com.appsmith.server.domains.Theme;
 import com.appsmith.server.domains.Workspace;
 import com.appsmith.server.dtos.ArtifactExchangeJson;
+import com.appsmith.server.dtos.DBOpsType;
 import com.appsmith.server.dtos.ImportingMetaDTO;
 import com.appsmith.server.dtos.MappedImportableResourcesDTO;
 import com.appsmith.server.imports.importable.ImportableServiceCE;
@@ -16,7 +17,9 @@ import com.appsmith.server.themes.base.ThemeService;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
 
-import static com.appsmith.server.acl.AclPermission.MANAGE_THEMES;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class ThemeImportableServiceCEImpl implements ImportableServiceCE<Theme> {
 
@@ -68,39 +71,45 @@ public class ThemeImportableServiceCEImpl implements ImportableServiceCE<Theme> 
             return Mono.empty().then();
         }
         return importableArtifactMono.flatMap(importableArtifact -> {
-            Mono<Theme> editModeTheme = updateExistingAppThemeFromJSON(
+            Mono<Theme> editModeThemeMono = updateExistingAppThemeFromJSON(
                     importableArtifact,
                     importableArtifact.getUnpublishedThemeId(),
-                    artifactExchangeJson.getUnpublishedTheme());
+                    artifactExchangeJson.getUnpublishedTheme(),
+                    mappedImportableResourcesDTO);
 
-            Mono<Theme> publishedModeTheme = updateExistingAppThemeFromJSON(
-                    importableArtifact,
-                    importableArtifact.getPublishedThemeId(),
-                    artifactExchangeJson.getPublishedTheme());
-
-            return Mono.zip(editModeTheme, publishedModeTheme)
-                    .flatMap(importedThemesTuple -> {
-                        String editModeThemeId = importedThemesTuple.getT1().getId();
-                        String publishedModeThemeId =
-                                importedThemesTuple.getT2().getId();
-
+            return editModeThemeMono
+                    .flatMap(editModeTheme -> {
+                        String editModeThemeId = editModeTheme.getId();
                         importableArtifact.setUnpublishedThemeId(editModeThemeId);
-                        importableArtifact.setPublishedThemeId(publishedModeThemeId);
-                        // this will update the theme id in DB
-                        return applicationService.setAppTheme(
-                                importableArtifact.getId(),
-                                editModeThemeId,
-                                publishedModeThemeId,
-                                applicationPermission.getEditPermission());
+
+                        // this will update the theme in the application and will be updated to db in the dry ops
+                        // execution
+
+                        Application application = new Application();
+                        application.setUnpublishedThemeId(editModeThemeId);
+                        application.setId(importableArtifact.getId());
+
+                        addDryOpsForApplication(
+                                mappedImportableResourcesDTO.getApplicationDryRunQueries(), application);
+                        return Mono.just(importableArtifact);
                     })
                     .then();
         });
     }
 
     private Mono<Theme> updateExistingAppThemeFromJSON(
-            Artifact destinationArtifact, String existingThemeId, Theme themeFromJson) {
+            Artifact destinationArtifact,
+            String existingThemeId,
+            Theme themeFromJson,
+            MappedImportableResourcesDTO mappedImportableResourcesDTO) {
         if (!StringUtils.hasLength(existingThemeId)) {
-            return themeService.getOrSaveTheme(themeFromJson, (Application) destinationArtifact);
+            return themeService
+                    .getOrSaveTheme(themeFromJson, (Application) destinationArtifact, true)
+                    .map(createdTheme -> {
+                        addDryOpsForEntity(
+                                DBOpsType.SAVE, mappedImportableResourcesDTO.getThemeDryRunQueries(), createdTheme);
+                        return createdTheme;
+                    });
         }
 
         return repository
@@ -108,19 +117,38 @@ public class ThemeImportableServiceCEImpl implements ImportableServiceCE<Theme> 
                 .defaultIfEmpty(new Theme()) // fallback when application theme is deleted
                 .flatMap(existingTheme -> {
                     if (!StringUtils.hasLength(existingTheme.getId()) || existingTheme.isSystemTheme()) {
-                        return themeService.getOrSaveTheme(themeFromJson, (Application) destinationArtifact);
+                        return themeService
+                                .getOrSaveTheme(themeFromJson, (Application) destinationArtifact, true)
+                                .map(createdTheme -> {
+                                    addDryOpsForEntity(
+                                            DBOpsType.SAVE,
+                                            mappedImportableResourcesDTO.getThemeDryRunQueries(),
+                                            createdTheme);
+                                    return createdTheme;
+                                });
                     } else {
                         if (themeFromJson.isSystemTheme()) {
                             return themeService
-                                    .getOrSaveTheme(themeFromJson, (Application) destinationArtifact)
+                                    .getOrSaveTheme(themeFromJson, (Application) destinationArtifact, true)
                                     .flatMap(importedTheme -> {
                                         // need to delete the old existingTheme
-                                        return repository
-                                                .archiveById(existingThemeId)
-                                                .thenReturn(importedTheme);
+                                        addDryOpsForEntity(
+                                                DBOpsType.SAVE,
+                                                mappedImportableResourcesDTO.getThemeDryRunQueries(),
+                                                importedTheme);
+                                        addDryOpsForEntity(
+                                                DBOpsType.DELETE,
+                                                mappedImportableResourcesDTO.getThemeDryRunQueries(),
+                                                existingTheme);
+                                        return Mono.just(importedTheme);
                                     });
                         } else {
-                            return repository.updateById(existingThemeId, themeFromJson, MANAGE_THEMES);
+                            themeFromJson.setId(existingThemeId);
+                            addDryOpsForEntity(
+                                    DBOpsType.UPDATE,
+                                    mappedImportableResourcesDTO.getThemeDryRunQueries(),
+                                    themeFromJson);
+                            return Mono.just(themeFromJson);
                         }
                     }
                 });
@@ -140,5 +168,25 @@ public class ThemeImportableServiceCEImpl implements ImportableServiceCE<Theme> 
                 workspaceMono,
                 importableArtifactMono,
                 artifactExchangeJson);
+    }
+
+    private void addDryOpsForEntity(DBOpsType queryType, Map<String, List<Theme>> dryRunOpsMap, Theme createdTheme) {
+        if (dryRunOpsMap.containsKey(queryType.name())) {
+            dryRunOpsMap.get(queryType.name()).add(createdTheme);
+        } else {
+            List<Theme> themes = new ArrayList<>();
+            themes.add(createdTheme);
+            dryRunOpsMap.put(queryType.name(), themes);
+        }
+    }
+
+    private void addDryOpsForApplication(Map<String, List<Application>> dryRunOpsMap, Application application) {
+        if (dryRunOpsMap.containsKey(DBOpsType.UPDATE.name())) {
+            dryRunOpsMap.get(DBOpsType.UPDATE.name()).add(application);
+        } else {
+            List<Application> applicationList = new ArrayList<>();
+            applicationList.add(application);
+            dryRunOpsMap.put(DBOpsType.UPDATE.name(), applicationList);
+        }
     }
 }

@@ -5,7 +5,6 @@ export default {
   publishButton: ".t--application-publish-btn",
   shareButton: ".t--application-share-btn",
   deployPopupOptionTrigger: ".t--deploy-popup-option-trigger",
-  connectToGitBtn: ".t--connect-to-git-btn",
   currentDeployedPreviewBtn: ".t--current-deployed-preview-btn",
   publishCrossButton: "span[icon='small-cross']",
   homePageID: "//div[@id='root']",
@@ -86,7 +85,7 @@ export default {
   shareUserIcons: ".t--workspace-share-user-icons",
   toastMessage: "div.Toastify__toast",
   uploadLogo: "//div/form/input",
-  removeLogo: ".remove-button a span",
+  removeLogo: "[data-testid=t--remove-logo]",
   generalTab: "//li//span[text()='General']",
   membersTab: "//li//span[text()='Members']",
   cancelBtn: "//span[text()='Cancel']",
@@ -105,5 +104,5 @@ export default {
   noEntityFound:".no-search-results",
   initialWorkspace:"[data-testid^='Untitled workspace']",
   initialApplication:"[data-testid^='Untitled application']",
-  _entitySearchBar:"[data-testid='t--application-search-input']";
+  _entitySearchBar:"[data-testid='t--application-search-input']"
 };

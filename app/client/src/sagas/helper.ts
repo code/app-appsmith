@@ -1,47 +1,62 @@
-import { createMessage } from "@appsmith/constants/messages";
+import { createMessage } from "ee/constants/messages";
 import type { LayoutOnLoadActionErrors } from "constants/AppsmithActionConstants/ActionConstants";
+import type {
+  ActionData,
+  ActionDataState,
+} from "ee/reducers/entityReducers/actionsReducer";
 import type {
   FormEvalOutput,
   ConditionalOutput,
 } from "reducers/evaluationReducers/formEvaluationReducer";
+import { select } from "redux-saga/effects";
 import AppsmithConsole from "utils/AppsmithConsole";
 import LOG_TYPE from "entities/AppsmithConsole/logtype";
 import type { Log } from "entities/AppsmithConsole";
 import { LOG_CATEGORY, Severity } from "entities/AppsmithConsole";
-import {
-  ENTITY_TYPE,
-  PLATFORM_ERROR,
-} from "@appsmith/entities/AppsmithConsole/utils";
-import { toast } from "design-system";
-import {
-  ReduxActionTypes,
-  type ReduxActionType,
-} from "@appsmith/constants/ReduxActionConstants";
+import { ENTITY_TYPE, PLATFORM_ERROR } from "ee/entities/AppsmithConsole/utils";
+import { toast } from "@appsmith/ads";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
+import type { ReduxActionType } from "actions/ReduxActionTypes";
 import type { Action } from "entities/Action";
 import get from "lodash/get";
 import set from "lodash/set";
 import log from "loglevel";
 import { isPlainObject, isString } from "lodash";
 import { DATA_BIND_REGEX_GLOBAL } from "constants/BindingsConstants";
-import { klona } from "klona/lite";
-import { apiFailureResponseInterceptor } from "@appsmith/api/ApiUtils";
+import { apiFailureResponseInterceptor } from "api/interceptors";
+import { klonaLiteWithTelemetry } from "utils/helpers";
+import { getDefaultEnvId } from "ee/api/ApiUtils";
+import {
+  getActions,
+  getDatasourceByPluginId,
+  getDatasources,
+} from "ee/selectors/entitiesSelector";
+import {
+  DATASOURCE_NAME_DEFAULT_PREFIX,
+  TEMP_DATASOURCE_ID,
+} from "../constants/Datasource";
+import { type Datasource, ToastMessageType } from "../entities/Datasource";
+import { getNextEntityName } from "utils/AppsmithUtils";
 
 // function to extract all objects that have dynamic values
 export const extractFetchDynamicValueFormConfigs = (
   evalOutput: FormEvalOutput,
 ) => {
   let output: Record<string, ConditionalOutput> = {};
+
   Object.entries(evalOutput).forEach(([key, value]) => {
     if ("fetchDynamicValues" in value && !!value.fetchDynamicValues) {
       output = { ...output, [key]: value };
     }
   });
+
   return output;
 };
 
 // Function to extract all the objects that have to fetch dynamic values
 export const extractQueueOfValuesToBeFetched = (evalOutput: FormEvalOutput) => {
   let output: Record<string, ConditionalOutput> = {};
+
   Object.entries(evalOutput).forEach(([key, value]) => {
     if (
       "fetchDynamicValues" in value &&
@@ -52,6 +67,7 @@ export const extractQueueOfValuesToBeFetched = (evalOutput: FormEvalOutput) => {
       output = { ...output, [key]: value };
     }
   });
+
   return output;
 };
 
@@ -86,6 +102,7 @@ const logCyclicDependecyErrors = (
         },
       );
     }
+
     AppsmithConsole.addLogs(
       layoutErrors.reduce((acc: Log[], error: LayoutOnLoadActionErrors) => {
         acc.push({
@@ -111,6 +128,7 @@ const logCyclicDependecyErrors = (
           },
           isExpanded: false,
         });
+
         return acc;
       }, []),
     );
@@ -144,15 +162,21 @@ export const enhanceRequestPayloadWithEventData = (
   try {
     switch (type) {
       case ReduxActionTypes.COPY_ACTION_INIT:
-        const actionObject = klona(payload) as Action;
+        const actionObject = klonaLiteWithTelemetry(
+          payload,
+          "helpers.enhanceRequestPayloadWithEventData",
+        ) as Action;
+
         const path = `${RequestPayloadAnalyticsPath}.originalActionId`;
         const originalActionId = get(actionObject, path, actionObject.id);
+
         if (originalActionId !== undefined)
           return set(actionObject, path, originalActionId);
     }
   } catch (e) {
     log.error("Failed to enhance payload with event data", e);
   }
+
   return payload;
 };
 
@@ -165,6 +189,7 @@ export const cleanValuesInObjectForHashing = (
   obj: Record<string, unknown>,
 ): Record<string, unknown> => {
   const cleanObj: Record<string, unknown> = {};
+
   for (const key in obj) {
     if (isString(obj[key])) {
       cleanObj[key] = (obj[key] as string)
@@ -181,6 +206,7 @@ export const cleanValuesInObjectForHashing = (
       cleanObj[key] = obj[key];
     }
   }
+
   return cleanObj;
 };
 
@@ -205,8 +231,14 @@ export async function generateHashFromString(str: unknown) {
 }
 
 export function* getFromServerWhenNoPrefetchedResult(
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prefetchedResult?: any,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   apiEffect?: any,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
   if (prefetchedResult) {
     if (prefetchedResult?.responseMeta?.error) {
@@ -220,7 +252,10 @@ export function* getFromServerWhenNoPrefetchedResult(
           },
           status,
         },
-      });
+        // TODO: Fix this the next time the file is edited
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
       return resp;
     }
 
@@ -228,4 +263,64 @@ export function* getFromServerWhenNoPrefetchedResult(
   }
 
   return yield apiEffect();
+}
+
+export function* getInitialDatasourcePayload(
+  pluginId: string,
+  pluginType?: string,
+  defaultDatasourceName: string = DATASOURCE_NAME_DEFAULT_PREFIX,
+) {
+  const dsList: Datasource[] = yield select(getDatasources);
+  const datasourceName = getNextEntityName(
+    defaultDatasourceName,
+    dsList.map((el: Datasource) => el.name),
+  );
+  const defaultEnvId = getDefaultEnvId();
+
+  return {
+    id: TEMP_DATASOURCE_ID,
+    name: datasourceName,
+    type: pluginType,
+    pluginId: pluginId,
+    new: false,
+    datasourceStorages: {
+      [defaultEnvId]: {
+        datasourceId: TEMP_DATASOURCE_ID,
+        environmentId: defaultEnvId,
+        isValid: false,
+        datasourceConfiguration: {
+          url: "",
+          properties: [],
+        },
+        toastMessage: ToastMessageType.EMPTY_TOAST_MESSAGE,
+      },
+    },
+  };
+}
+
+export function* getInitialActionPayload(
+  pageId: string,
+  pluginId: string,
+  actionConfig: Action,
+) {
+  const updatedAiDatasources: Datasource[] = yield select(
+    getDatasourceByPluginId,
+    pluginId,
+  );
+
+  const actions: ActionDataState = yield select(getActions);
+  const actionName = getNextEntityName(
+    actionConfig.name,
+    actions.map((el: ActionData) => el.config.name),
+  );
+
+  return {
+    pageId,
+    pluginId: updatedAiDatasources[0].pluginId,
+    datasource: {
+      id: updatedAiDatasources[0].id,
+    },
+    name: actionName,
+    actionConfiguration: actionConfig.actionConfiguration,
+  };
 }

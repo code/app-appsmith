@@ -3,15 +3,15 @@ import { isEmail } from "utils/formhelpers";
 import type {
   AdminConfigType,
   Setting,
-} from "@appsmith/pages/AdminSettings/config/types";
+} from "ee/pages/AdminSettings/config/types";
 import {
   CategoryType,
   SettingCategories,
   SettingSubtype,
   SettingTypes,
-} from "@appsmith/pages/AdminSettings/config/types";
+} from "ee/pages/AdminSettings/config/types";
 import BrandingBadge from "pages/AppViewer/BrandingBadge";
-import { TagInput } from "design-system-old";
+import { TagInput } from "@appsmith/ads-old";
 import localStorage from "utils/localStorage";
 import isUndefined from "lodash/isUndefined";
 import { AppsmithFrameAncestorsSetting } from "pages/Applications/EmbedSnippet/Constants/constants";
@@ -110,7 +110,7 @@ export const APPSMITH_IS_ATOMIC_PUSH_ALLOWED: Setting = {
   category: SettingCategories.GENERAL,
   controlType: SettingTypes.CHECKBOX,
   label: "Allow atomic pushes",
-  text: "Git operations on this tenant should attempt to perform pushes atomically",
+  text: "Git operations on this organization should attempt to perform pushes atomically",
 };
 
 export const APPSMITH_ALLOWED_FRAME_ANCESTORS_SETTING: Setting = {
@@ -147,11 +147,14 @@ export const APPSMITH_ALLOWED_FRAME_ANCESTORS_SETTING: Setting = {
     ],
   },
   format: formatEmbedSettings,
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parse: (value: { value: string; additionalData?: any }) => {
     // Retrieve values from local storage while switching to limit by url option
     const sources = isUndefined(value.additionalData)
       ? localStorage.getItem("ALLOWED_FRAME_ANCESTORS") ?? ""
       : value.additionalData.replaceAll(",", " ");
+
     // If they are one of the other options we don't store it in storage since it will
     // set in the env variable on save
     if (sources !== "*" && sources !== "'none'") {
@@ -178,7 +181,7 @@ export const APPSMITH_ALLOWED_FRAME_ANCESTORS_SETTING: Setting = {
 };
 
 export const config: AdminConfigType = {
-  icon: "settings-2-line",
+  icon: "settings-v3",
   type: SettingCategories.GENERAL,
   categoryType: CategoryType.GENERAL,
   controlType: SettingTypes.GROUP,

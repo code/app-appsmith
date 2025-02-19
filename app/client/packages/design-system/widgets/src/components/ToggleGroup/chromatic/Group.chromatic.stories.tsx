@@ -1,13 +1,13 @@
 import React from "react";
+import { StoryGrid } from "@design-system/storybook";
 import type { Meta, StoryObj } from "@storybook/react";
-
 import {
   ToggleGroup,
   RadioGroup,
   Switch,
   Checkbox,
-} from "@design-system/widgets";
-import { StoryGrid } from "@design-system/storybook";
+  Radio,
+} from "@appsmith/wds";
 
 const meta: Meta<typeof Switch> = {
   component: Switch,
@@ -27,20 +27,26 @@ const items = [
 export const LightMode: Story = {
   render: () => (
     <StoryGrid>
-      <RadioGroup defaultValue="1" items={items} />
-      <ToggleGroup defaultValue={["1"]} items={items}>
-        {({ label, value }) => (
+      <RadioGroup defaultValue="1">
+        {items.map(({ label, value }) => (
+          <Radio key={value} value={value}>
+            {label}
+          </Radio>
+        ))}
+      </RadioGroup>
+      <ToggleGroup defaultValue={["1"]}>
+        {items.map(({ label, value }) => (
           <Checkbox key={value} value={value}>
             {label}
           </Checkbox>
-        )}
+        ))}
       </ToggleGroup>
-      <ToggleGroup defaultValue={["1"]} items={items}>
-        {({ label, value }) => (
+      <ToggleGroup defaultValue={["1"]}>
+        {items.map(({ label, value }) => (
           <Switch key={value} value={value}>
             {label}
           </Switch>
-        )}
+        ))}
       </ToggleGroup>
     </StoryGrid>
   ),

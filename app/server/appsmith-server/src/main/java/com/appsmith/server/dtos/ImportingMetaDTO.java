@@ -1,11 +1,13 @@
 package com.appsmith.server.dtos;
 
+import com.appsmith.external.git.constants.ce.RefType;
 import com.appsmith.server.helpers.ImportArtifactPermissionProvider;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.Set;
 
 @Data
@@ -21,7 +23,11 @@ public class ImportingMetaDTO {
      */
     String artifactId;
 
-    String branchName;
+    RefType refType;
+
+    String refName;
+
+    List<String> branchedArtifactIds;
 
     /**
      * this flag is for verifying whether the artifact in focus needs to be updated with the given provided json

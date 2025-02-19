@@ -19,7 +19,7 @@ const secondApiName = "Second";
 
 describe(
   "Api Naming conflict on a page test",
-  { tags: ["@tag.IDE"] },
+  { tags: ["@tag.IDE", "@tag.PropertyPane"] },
   function () {
     it("1. Expects actions on the same page cannot have identical names", function () {
       // create an API
@@ -31,7 +31,7 @@ describe(
       cy.get(`.t--entity-item:contains(${secondApiName})`).within(() => {
         cy.get(".t--context-menu").click({ force: true });
       });
-      cy.selectAction("Edit name");
+      cy.selectAction("Rename");
       cy.get(explorer.editEntity).last().type(firstApiName, { force: true });
       cy.validateMessage(firstApiName);
       agHelper.PressEnter();
@@ -96,7 +96,7 @@ describe("Entity Naming conflict test", { tags: ["@tag.IDE"] }, function () {
     cy.get(`.t--entity-item:contains(${secondApiName})`).within(() => {
       cy.get(".t--context-menu").click({ force: true });
     });
-    cy.selectAction("Edit name");
+    cy.selectAction("Rename");
 
     cy.get(explorer.editEntity).last().type(firstApiName, { force: true });
     entityExplorer.ValidateDuplicateMessageToolTip(firstApiName);

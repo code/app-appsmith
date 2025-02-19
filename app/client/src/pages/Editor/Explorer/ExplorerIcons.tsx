@@ -1,15 +1,20 @@
 import type { ReactNode } from "react";
 import React from "react";
 import { MenuIcons } from "icons/MenuIcons";
-import type { Plugin } from "api/PluginApi";
+import type { Plugin } from "entities/Plugin";
 import ImageAlt from "assets/images/placeholder-image.svg";
 import styled from "styled-components";
-import type { HTTP_METHOD } from "constants/ApiEditorConstants/CommonApiConstants";
-import { HTTP_METHODS_COLOR } from "constants/ApiEditorConstants/CommonApiConstants";
+import {
+  HTTP_METHODS_COLOR,
+  type HTTP_METHOD,
+} from "PluginActionEditor/constants/CommonApiConstants";
 import { PRIMARY_KEY, FOREIGN_KEY } from "constants/DatasourceEditorConstants";
-import { Icon } from "design-system";
-import { getAssetUrl } from "@appsmith/utils/airgapHelpers";
-import { importSvg } from "design-system-old";
+import { Icon } from "@appsmith/ads";
+import { getAssetUrl } from "ee/utils/airgapHelpers";
+import { importSvg } from "@appsmith/ads-old";
+import WidgetFactory from "WidgetProvider/factory";
+import WidgetTypeIcon from "pages/Editor/Explorer/Widgets/WidgetIcon";
+import type { WidgetType } from "constants/WidgetConstants";
 
 const ApiIcon = importSvg(
   async () => import("assets/icons/menu/api-colored.svg"),
@@ -37,26 +42,31 @@ export const defaultPageIcon = (
 export const hiddenPageIcon = <Icon name="eye-off" size="md" />;
 
 const WidgetIcon = MenuIcons.WIDGETS_ICON;
+
 export const widgetIcon = (
   <WidgetIcon height={ENTITY_ICON_SIZE} keepColors width={ENTITY_ICON_SIZE} />
 );
 
 const DBQueryIcon = MenuIcons.DATASOURCE_ICON_v2;
+
 export const dbQueryIcon = (
   <DBQueryIcon height={ENTITY_ICON_SIZE} keepColors width={ENTITY_ICON_SIZE} />
 );
 
 const JSIcon = MenuIcons.JS_ICON_V2;
+
 export const jsIcon = (
   <JSIcon height={ENTITY_ICON_SIZE} keepColors width={ENTITY_ICON_SIZE} />
 );
 
 const JSFileIcon = MenuIcons.JS_FILE_ICON;
+
 export const jsFileIcon = (
   <JSFileIcon height={ENTITY_ICON_SIZE} keepColors width={ENTITY_ICON_SIZE} />
 );
 
 const JSFunctionIcon = MenuIcons.JS_FUNCTION_ICON;
+
 export const jsFunctionIcon = (
   <JSFunctionIcon
     height={ENTITY_ICON_SIZE}
@@ -66,6 +76,7 @@ export const jsFunctionIcon = (
 );
 
 const QueryMainIcon = MenuIcons.QUERY_MAIN;
+
 export function QueryIcon() {
   return (
     <QueryMainIcon
@@ -77,6 +88,7 @@ export function QueryIcon() {
 }
 
 const DataSourceIcon = MenuIcons.DATASOURCES_ICON;
+
 export const datasourceIcon = (
   <DataSourceIcon
     color="var(--ads-v2-color-fg)"
@@ -85,7 +97,9 @@ export const datasourceIcon = (
   />
 );
 
-export const datasourceTableIcon = <Icon name="layout-5-line" size="md" />;
+export const datasourceTableIcon = (
+  <Icon className="datasource-table-icon" name="layout-5-line" size="md" />
+);
 
 export const primaryKeyIcon = <Icon name="key-2-line" size="md" />;
 
@@ -114,6 +128,7 @@ export const getPluginIcon = (plugin?: Plugin) => {
       />
     );
   }
+
   return <PluginIcon alt="plugin-placeholder" src={ImageAlt} />;
 };
 
@@ -140,6 +155,7 @@ export function MethodTag(props: { type: keyof typeof HTTP_METHOD }) {
 }
 
 const CurrentPageIcon = MenuIcons.CURRENT_PAGE_ICON;
+
 export const currentPageIcon = (
   <CurrentPageIcon
     color="var(--ads-v2-color-fg)"
@@ -149,6 +165,7 @@ export const currentPageIcon = (
 );
 
 const SortIcon = MenuIcons.SORT_ICON;
+
 export const SortFileIcon = (
   <SortIcon
     color="var(--ads-v2-color-fg)"
@@ -213,6 +230,7 @@ const EntityIconWrapper = styled.div<{
   justify-content: center;
   text-align: center;
   border-radius: var(--ads-v2-border-radius);
+
   svg,
   img {
     height: 100% !important;
@@ -254,8 +272,8 @@ export { EntityIcon };
 // fontSize is set to 56% by default.
 export function ApiMethodIcon(
   type: keyof typeof HTTP_METHOD,
-  height = "18px",
-  width = "36px",
+  height = "16px",
+  width = "34px",
   fontSize = 52,
 ) {
   return (
@@ -334,8 +352,8 @@ export function AppsmithAIIcon() {
   );
 }
 
-export function ActionUrlIcon(url: string) {
-  return <img src={url} />;
+export function ActionUrlIcon(url: string, height?: string, width?: string) {
+  return <img height={height} src={url} width={width} />;
 }
 
 export function DefaultModuleIcon() {
@@ -344,4 +362,14 @@ export function DefaultModuleIcon() {
       <Icon name="module" size="sm" />
     </EntityIcon>
   );
+}
+
+export function WidgetIconByType(widgetType: WidgetType) {
+  const { IconCmp } = WidgetFactory.getWidgetMethods(widgetType);
+
+  return IconCmp ? <IconCmp /> : <WidgetTypeIcon type={widgetType} />;
+}
+
+export function GlobeIcon() {
+  return <Icon name="global-line" size="md" />;
 }

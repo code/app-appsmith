@@ -7,15 +7,16 @@ import {
   ADMIN_BRANDING_FAVICON_SIZE_ERROR,
   ADMIN_BRANDING_FAVICON_FORMAT_ERROR,
   ADMIN_BRANDING_FAVICON_DIMENSION_ERROR,
-} from "@appsmith/constants/messages";
-import { toast } from "design-system";
+} from "ee/constants/messages";
+import { toast } from "@appsmith/ads";
 import { ASSETS_CDN_URL } from "constants/ThirdPartyConstants";
-import { getAssetUrl } from "@appsmith/utils/airgapHelpers";
-import { LightModeTheme } from "@design-system/theming";
+import { getAssetUrl } from "ee/utils/airgapHelpers";
+import { LightModeTheme } from "@appsmith/wds-theming";
 
 const FAVICON_MAX_WIDTH = 32;
 const FAVICON_MAX_HEIGHT = 32;
 const DEFAULT_BRANDING_PRIMARY_COLOR = "#E15615";
+
 export const APPSMITH_BRAND_PRIMARY_COLOR =
   getComputedStyle(document.documentElement).getPropertyValue(
     "--ads-v2-color-bg-brand",
@@ -77,6 +78,7 @@ export function createBrandColorsFromPrimaryColor(
           "--ads-v2-color-bg-brand-emphasis-plus",
         )
       : lightTheme.bgAccentActive.toString({ format: "hex" });
+
   return {
     primary: brand,
     background: bgColor,
@@ -129,6 +131,7 @@ export const logoImageValidator = (
 
   // case 4: check image dimension
   const image = new Image();
+
   image.src = window.URL.createObjectURL(file);
 
   callback && callback(e);
@@ -183,6 +186,7 @@ export const faivconImageValidator = (
 
   // case 4: check image dimension
   const image = new Image();
+
   image.src = window.URL.createObjectURL(file);
 
   image.onload = function () {
@@ -205,13 +209,13 @@ export const faivconImageValidator = (
 
 // NOTE: the reason why the json parsing is out of selector is we don't
 // want to do the parsing everytime selector is called
-let cachedTenantConfigParsed = {};
-const cachedTenantConfig = localStorage.getItem("tenantConfig");
+let cachedOrganizationConfigParsed = {};
+const cachedOrganizationConfig = localStorage.getItem("organizationConfig");
 
 try {
-  if (cachedTenantConfig) {
-    cachedTenantConfigParsed = JSON.parse(cachedTenantConfig);
+  if (cachedOrganizationConfig) {
+    cachedOrganizationConfigParsed = JSON.parse(cachedOrganizationConfig);
   }
 } catch (e) {}
 
-export { cachedTenantConfigParsed };
+export { cachedOrganizationConfigParsed };

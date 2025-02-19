@@ -2,11 +2,18 @@ import EditorContextProvider from "components/editorComponents/EditorContextProv
 import type { ReactNode } from "react";
 import React from "react";
 import classNames from "classnames";
-import { useCurrentAppState } from "pages/Editor/IDE/hooks";
+import { useCurrentAppState } from "IDE/hooks";
 import { useSelector } from "react-redux";
 import { getIsAppSettingsPaneWithNavigationTabOpen } from "selectors/appSettingsPaneSelectors";
-import { EditorState } from "@appsmith/entities/IDE/constants";
+import { EditorState } from "IDE/enums";
 import { RenderModes } from "constants/WidgetConstants";
+import styled from "styled-components";
+import { IDE_HEADER_HEIGHT } from "@appsmith/ads";
+import { BOTTOM_BAR_HEIGHT } from "components/BottomBar/constants";
+
+const Container = styled.div`
+  height: calc(100vh - ${IDE_HEADER_HEIGHT} - ${BOTTOM_BAR_HEIGHT});
+`;
 
 /**
  * WidgetEditorContainer
@@ -19,9 +26,10 @@ export const WidgetEditorContainer = (props: { children: ReactNode }) => {
   const appState = useCurrentAppState();
   const isAppSettingsPaneWithNavigationTabOpen =
     appState === EditorState.SETTINGS && isNavigationSelectedInSettings;
+
   return (
     <EditorContextProvider renderMode={RenderModes.CANVAS}>
-      <div className="relative flex flex-row h-full w-full overflow-hidden">
+      <Container className="relative flex flex-row h-full w-full overflow-hidden">
         <div
           className={classNames({
             "relative flex flex-col w-full overflow-hidden": true,
@@ -31,7 +39,7 @@ export const WidgetEditorContainer = (props: { children: ReactNode }) => {
         >
           {props.children}
         </div>
-      </div>
+      </Container>
     </EditorContextProvider>
   );
 };

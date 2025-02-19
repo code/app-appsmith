@@ -1,4 +1,5 @@
-import app, { RTS_BASE_API_PATH } from "../server";
+import app from "../server";
+import { RTS_BASE_API_PATH } from "@constants/routes";
 import supertest from "supertest";
 
 const singleScript = {
@@ -109,6 +110,7 @@ describe("AST tests", () => {
       references: ["str.data", "Api1.data"],
       functionalParams: [],
       variables: ["Api2"],
+      isError: false,
     };
 
     await supertest(app)
@@ -129,11 +131,13 @@ describe("AST tests", () => {
         references: ["Api1.data"],
         functionalParams: [],
         variables: [],
+        isError: false,
       },
       {
         references: ["Api1.data"],
         functionalParams: [],
         variables: ["str"],
+        isError: false,
       },
     ];
 

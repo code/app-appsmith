@@ -19,7 +19,7 @@ const oneClickBinding = new OneClickBinding();
 
 describe(
   "Table widget one click binding feature",
-  { tags: ["@tag.Binding"] },
+  { tags: ["@tag.Binding", "@tag.Sanity"] },
   () => {
     it("should check that queries are created and bound to table widget properly", () => {
       entityExplorer.DragDropWidgetNVerify(draggableWidgets.SELECT, 450, 200);
@@ -28,6 +28,7 @@ describe(
 
       cy.get("@dsName").then((dsName) => {
         EditorNavigation.SelectEntityByName("Select1", EntityType.Widget);
+        propPane.ToggleJSMode("sourcedata", false);
 
         oneClickBinding.ChooseAndAssertForm(
           `${dsName}`,

@@ -1,19 +1,15 @@
 import {
   ADD_PATH,
   ADMIN_SETTINGS_PATH,
-  GEN_TEMPLATE_FORM_ROUTE,
-  GEN_TEMPLATE_URL,
   getViewerCustomPath,
   getViewerPath,
   TEMPLATES_PATH,
 } from "constants/routes";
 import { APP_MODE } from "entities/App";
-import urlBuilder from "@appsmith/entities/URLRedirect/URLAssembly";
-import type { URLBuilderParams } from "@appsmith/entities/URLRedirect/URLAssembly";
-import type {
-  ApplicationPayload,
-  Page,
-} from "@appsmith/constants/ReduxActionConstants";
+import urlBuilder from "ee/entities/URLRedirect/URLAssembly";
+import type { URLBuilderParams } from "ee/entities/URLRedirect/URLAssembly";
+import type { Page } from "entities/Page";
+import type { ApplicationPayload } from "entities/Application";
 
 export const fillPathname = (
   pathname: string,
@@ -21,11 +17,11 @@ export const fillPathname = (
   page: Page,
 ) => {
   const replaceValue = page.customSlug
-    ? getViewerCustomPath(page.customSlug, page.pageId)
-    : getViewerPath(application.slug, page.slug, page.pageId);
+    ? getViewerCustomPath(page.customSlug, page.basePageId)
+    : getViewerPath(application.slug, page.slug, page.basePageId);
 
   return pathname.replace(
-    `/applications/${application.id}/pages/${page.pageId}`,
+    `/applications/${application.baseId}/pages/${page.basePageId}`,
     replaceValue,
   );
 };
@@ -54,14 +50,14 @@ export interface WithAddView {
 export const jsCollectionIdURL = (
   props: URLBuilderParams &
     WithAddView & {
-      collectionId: string;
+      baseCollectionId: string;
       // Pass a function name to set the cursor directly on the function
       functionName?: string;
     },
 ): string => {
   return urlBuilder.build({
     ...props,
-    suffix: `jsObjects/${props.collectionId}${props.add ? ADD_PATH : ""}`,
+    suffix: `jsObjects/${props.baseCollectionId}${props.add ? ADD_PATH : ""}`,
     hash: props.functionName,
   });
 };
@@ -70,6 +66,7 @@ export const integrationEditorURL = (
   props: URLBuilderParams & { selectedTab: string },
 ): string => {
   const suffixPath = props.suffix ? `/${props.suffix}` : "";
+
   return urlBuilder.build({
     ...props,
     suffix: `datasources/${props.selectedTab}${suffixPath}`,
@@ -79,29 +76,23 @@ export const integrationEditorURL = (
 export const queryEditorIdURL = (
   props: URLBuilderParams &
     WithAddView & {
-      queryId: string;
+      baseQueryId: string;
     },
 ): string =>
   urlBuilder.build({
     ...props,
-    suffix: `queries/${props.queryId}${props.add ? ADD_PATH : ""}`,
+    suffix: `queries/${props.baseQueryId}${props.add ? ADD_PATH : ""}`,
   });
 
 export const apiEditorIdURL = (
   props: URLBuilderParams &
     WithAddView & {
-      apiId: string;
+      baseApiId: string;
     },
 ): string =>
   urlBuilder.build({
     ...props,
-    suffix: `api/${props.apiId}${props.add ? ADD_PATH : ""}`,
-  });
-
-export const curlImportPageURL = (props: URLBuilderParams): string =>
-  urlBuilder.build({
-    ...props,
-    suffix: "api/curl/curl-import",
+    suffix: `api/${props.baseApiId}${props.add ? ADD_PATH : ""}`,
   });
 
 export const saasEditorDatasourceIdURL = (
@@ -119,20 +110,14 @@ export const saasEditorApiIdURL = (
   props: URLBuilderParams &
     WithAddView & {
       pluginPackageName: string;
-      apiId: string;
+      baseApiId: string;
     },
 ): string =>
   urlBuilder.build({
     ...props,
-    suffix: `saas/${props.pluginPackageName}/api/${props.apiId}${
+    suffix: `saas/${props.pluginPackageName}/api/${props.baseApiId}${
       props.add ? ADD_PATH : ""
     }`,
-  });
-
-export const generateTemplateFormURL = (props: URLBuilderParams): string =>
-  urlBuilder.build({
-    ...props,
-    suffix: `${GEN_TEMPLATE_URL}${GEN_TEMPLATE_FORM_ROUTE}`,
   });
 
 export const onboardingCheckListUrl = (props: URLBuilderParams): string =>
@@ -210,4 +195,13 @@ export const queryAddURL = (props: URLBuilderParams): string =>
   urlBuilder.build({
     ...props,
     suffix: `queries/add`,
+  });
+
+export const appLibrariesURL = (): string =>
+  urlBuilder.build({
+    suffix: "libraries",
+  });
+export const appPackagesURL = (): string =>
+  urlBuilder.build({
+    suffix: "packages",
   });

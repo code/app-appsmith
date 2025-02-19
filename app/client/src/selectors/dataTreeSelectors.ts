@@ -10,19 +10,23 @@ import {
   getModuleInstanceEntities,
   getCurrentModuleActions,
   getCurrentModuleJSCollections,
-} from "@appsmith/selectors/entitiesSelector";
-import type { WidgetEntity } from "@appsmith/entities/DataTree/types";
-import type { DataTree } from "entities/DataTree/dataTreeTypes";
+} from "ee/selectors/entitiesSelector";
+import type { AppsmithEntity, WidgetEntity } from "ee/entities/DataTree/types";
+import type {
+  ConfigTree,
+  DataTree,
+  UnEvalTree,
+} from "entities/DataTree/dataTreeTypes";
 import { DataTreeFactory } from "entities/DataTree/dataTreeFactory";
+import { ENTITY_TYPE } from "ee/entities/DataTree/types";
 import {
   getIsMobileBreakPoint,
   getMetaWidgets,
-  getWidgetsForEval,
+  getWidgets,
   getWidgetsMeta,
 } from "sagas/selectors";
 import "url-search-params-polyfill";
-import { getPageList } from "./appViewSelectors";
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import { getSelectedAppThemeProperties } from "./appThemingSelectors";
 import type { LoadingEntitiesState } from "reducers/evaluationReducers/loadingEntitiesReducer";
 import _, { get } from "lodash";
@@ -34,7 +38,12 @@ import { getLayoutSystemType } from "./layoutSystemSelectors";
 import {
   getCurrentWorkflowActions,
   getCurrentWorkflowJSActions,
-} from "@appsmith/selectors/workflowSelectors";
+} from "ee/selectors/workflowSelectors";
+import { getCurrentApplication } from "ee/selectors/applicationSelectors";
+import { getCurrentAppWorkspace } from "ee/selectors/selectedWorkspaceSelectors";
+import type { PageListReduxState } from "reducers/entityReducers/pageListReducer";
+import { getCurrentEnvironmentName } from "ee/selectors/dataTreeCyclicSelectors";
+import { objectKeys } from "@appsmith/utils";
 
 export const getLoadingEntities = (state: AppState) =>
   state.evaluations.loadingEntities;
@@ -55,25 +64,20 @@ const getLayoutSystemPayload = createSelector(
   },
 );
 
-const getCurrentActionEntities = createSelector(
+const getCurrentActionsEntities = createSelector(
   getCurrentActions,
   getCurrentModuleActions,
   getCurrentWorkflowActions,
+  (actions, moduleActions, workflowActions) => {
+    return [...actions, ...moduleActions, ...workflowActions];
+  },
+);
+const getCurrentJSActionsEntities = createSelector(
   getCurrentJSCollections,
   getCurrentModuleJSCollections,
   getCurrentWorkflowJSActions,
-  (
-    actions,
-    moduleActions,
-    workflowActions,
-    jsActions,
-    moduleJSActions,
-    workflowJsActions,
-  ) => {
-    return {
-      actions: [...actions, ...moduleActions, ...workflowActions],
-      jsActions: [...jsActions, ...moduleJSActions, ...workflowJsActions],
-    };
+  (jsActions, moduleJSActions, workflowJsActions) => {
+    return [...jsActions, ...moduleJSActions, ...workflowJsActions];
   },
 );
 
@@ -90,48 +94,104 @@ const getModulesData = createSelector(
   },
 );
 
-export const getUnevaluatedDataTree = createSelector(
-  getCurrentActionEntities,
-  getWidgetsForEval,
-  getWidgetsMeta,
-  getPageList,
-  getAppData,
+const getActionsFromUnevaluatedDataTree = createSelector(
+  getCurrentActionsEntities,
   getPluginEditorConfigs,
   getPluginDependencyConfig,
-  getSelectedAppThemeProperties,
-  getMetaWidgets,
-  getLayoutSystemPayload,
-  getLoadingEntities,
+  (actions, editorConfigs, pluginDependencyConfig) =>
+    DataTreeFactory.actions(actions, editorConfigs, pluginDependencyConfig),
+);
+
+const getJSActionsFromUnevaluatedDataTree = createSelector(
+  getCurrentJSActionsEntities,
+  (jsActions) => DataTreeFactory.jsActions(jsActions),
+);
+
+const getWidgetsFromUnevaluatedDataTree = createSelector(
   getModulesData,
-  (
-    currentActionEntities,
-    widgets,
-    widgetsMeta,
-    pageListPayload,
-    appData,
-    editorConfigs,
-    pluginDependencyConfig,
-    selectedAppThemeProperty,
-    metaWidgets,
-    layoutSystemPayload,
-    loadingEntities,
-    modulesData,
-  ) => {
-    const pageList = pageListPayload || [];
-    return DataTreeFactory.create({
-      ...currentActionEntities,
+  getWidgets,
+  getWidgetsMeta,
+  getLoadingEntities,
+  getLayoutSystemPayload,
+  (moduleData, widgets, widgetsMeta, loadingEntities, layoutSystemPayload) =>
+    DataTreeFactory.widgets(
+      moduleData.moduleInputs,
+      moduleData.moduleInstances,
+      moduleData.moduleInstanceEntities,
       widgets,
       widgetsMeta,
-      pageList,
-      appData,
-      editorConfigs,
-      pluginDependencyConfig,
-      theme: selectedAppThemeProperty,
-      metaWidgets,
       loadingEntities,
-      ...layoutSystemPayload,
-      ...modulesData,
-    });
+      layoutSystemPayload.layoutSystemType,
+      layoutSystemPayload.isMobile,
+    ),
+);
+const getMetaWidgetsFromUnevaluatedDataTree = createSelector(
+  getMetaWidgets,
+  getWidgetsMeta,
+  getLoadingEntities,
+  (metaWidgets, widgetsMeta, loadingEntities) =>
+    DataTreeFactory.metaWidgets(metaWidgets, widgetsMeta, loadingEntities),
+);
+
+// * This is only for internal use to avoid cyclic dependency issue
+const getPageListState = (state: AppState) => state.entities.pageList;
+const getCurrentPageName = createSelector(
+  getPageListState,
+  (pageList: PageListReduxState) =>
+    pageList.pages.find((page) => page.pageId === pageList.currentPageId)
+      ?.pageName,
+);
+
+export const getUnevaluatedDataTree = createSelector(
+  getActionsFromUnevaluatedDataTree,
+  getJSActionsFromUnevaluatedDataTree,
+  getWidgetsFromUnevaluatedDataTree,
+  getMetaWidgetsFromUnevaluatedDataTree,
+  getAppData,
+  getSelectedAppThemeProperties,
+  getCurrentAppWorkspace,
+  getCurrentApplication,
+  getCurrentPageName,
+  getCurrentEnvironmentName,
+  (
+    actions,
+    jsActions,
+    widgets,
+    metaWidgets,
+    appData,
+    theme,
+    currentWorkspace,
+    currentApplication,
+    getCurrentPageName,
+    currentEnvironmentName,
+  ) => {
+    let dataTree: UnEvalTree = {
+      ...actions.dataTree,
+      ...jsActions.dataTree,
+      ...widgets.dataTree,
+    };
+    let configTree: ConfigTree = {
+      ...actions.configTree,
+      ...jsActions.configTree,
+      ...widgets.configTree,
+    };
+
+    dataTree.appsmith = {
+      ...appData,
+      // combine both persistent and transient state with the transient state
+      // taking precedence in case the key is the same
+      store: appData.store,
+      theme,
+      currentPageName: getCurrentPageName,
+      workspaceName: currentWorkspace.name,
+      appName: currentApplication?.name,
+      currentEnvironmentName,
+    } as AppsmithEntity;
+    (dataTree.appsmith as AppsmithEntity).ENTITY_TYPE = ENTITY_TYPE.APPSMITH;
+    dataTree = { ...dataTree, ...metaWidgets.dataTree };
+    configTree = { ...configTree, ...metaWidgets.configTree };
+
+    return { unEvalTree: dataTree, configTree };
   },
 );
 
@@ -152,6 +212,8 @@ export const getIsWidgetLoading = createSelector(
 export const getDataTree = (state: AppState): DataTree =>
   state.evaluations.tree;
 
+// TODO: Fix this the next time the file is edited
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getConfigTree = (): any => {
   return ConfigTreeActions.getConfigTree();
 };
@@ -166,7 +228,7 @@ export const getWidgetEvalValues = createSelector(
 export const getDataTreeForAutocomplete = createSelector(
   getDataTree,
   (tree: DataTree) => {
-    return _.omit(tree, Object.keys(DATATREE_INTERNAL_KEYWORDS));
+    return _.omit(tree, objectKeys(DATATREE_INTERNAL_KEYWORDS));
   },
 );
 

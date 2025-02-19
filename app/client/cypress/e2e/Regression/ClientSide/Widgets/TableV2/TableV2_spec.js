@@ -5,7 +5,7 @@ import * as _ from "../../../../../support/Objects/ObjectsCore";
 
 describe(
   "Table Widget V2 Functionality",
-  { tags: ["@tag.Widget", "@tag.Table"] },
+  { tags: ["@tag.Widget", "@tag.Table", "@tag.Binding"] },
   function () {
     before(() => {
       _.agHelper.AddDsl("tableV2WidgetDsl");
@@ -53,6 +53,8 @@ describe(
       cy.get(commonlocators.editPropBackButton).click();
       cy.openPropertyPane("tablewidgetv2");
       // Confirm if isSortable is true
+      _.propPane.ExpandIfCollapsedSection("sorting");
+
       cy.get(commonlocators.isSortable).should("be.checked");
       // Publish App
       _.deployMode.DeployApp();
@@ -124,6 +126,7 @@ describe(
         "Table data",
         `{{[{step: 1, task: 1}]}}`,
       );
+      _.propPane.ExpandIfCollapsedSection("search\\&filters");
       cy.get(".t--property-control-allowfiltering input").click();
       cy.editColumn("step");
       cy.get(".t--table-filter-toggle-btn").click();
@@ -185,7 +188,7 @@ describe(
       });
 
       cy.get("[data-testid='t--property-pane-back-btn']").click();
-      cy.makeColumnEditable("step");
+      _.table.toggleColumnEditableViaColSettingsPane("step", "v2", true, true);
       cy.get(".t--table-filter-columns-dropdown").click();
       cy.get(".t--dropdown-option").should("not.contain", "Save / Discard");
     });
@@ -237,6 +240,7 @@ describe(
     it("7. should check that adding cyclic dependency in the table doesn't crash the app", () => {
       //_.deployMode.NavigateBacktoEditor();
       cy.openPropertyPane("tablewidgetv2");
+      _.propPane.ExpandIfCollapsedSection("rowselection");
 
       cy.updateCodeInput(
         ".t--property-control-defaultselectedrow",

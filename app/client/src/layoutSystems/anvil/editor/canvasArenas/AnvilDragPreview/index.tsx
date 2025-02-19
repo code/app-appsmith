@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type SVGProps } from "react";
 import { createPortal } from "react-dom";
 import type { DragDetails } from "reducers/uiReducers/dragResizeReducer";
 import type { DraggedWidget } from "layoutSystems/anvil/utils/anvilTypes";
@@ -8,11 +8,12 @@ import memoize from "micro-memoize";
 
 interface DragPreviewConfig {
   displayName: string;
-  ThumbnailCmp?: () => JSX.Element;
+  ThumbnailCmp?: (props: SVGProps<SVGSVGElement>) => JSX.Element;
 }
 
 const getWidgetConfigsArray = memoize(() => {
   const widgetConfigs = WidgetFactory.getConfigs();
+
   return Object.values(widgetConfigs);
 });
 
@@ -24,12 +25,14 @@ const getWidgetDragPreviewProps = (
     (config) => config.type === widgetType,
   );
   const { ThumbnailCmp } = WidgetFactory.getWidgetMethods(widgetType);
+
   if (widgetConfig && ThumbnailCmp && widgetConfig.displayName) {
     return {
       displayName: widgetConfig.displayName,
       ThumbnailCmp,
     };
   }
+
   return undefined;
 };
 
@@ -50,6 +53,7 @@ export const AnvilDragPreview = ({
   const dragPreviewProps = getWidgetDragPreviewProps(widgetType);
   const showDragPreview = isDragging && !!dragPreviewProps;
   const draggedWidgetCount = draggedBlocks.length;
+
   return showDragPreview
     ? createPortal(
         <AnvilDragPreviewComponent

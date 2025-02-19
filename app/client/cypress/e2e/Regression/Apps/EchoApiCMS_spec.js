@@ -1,4 +1,5 @@
 import appPage from "../../../locators/CMSApplocators";
+import { featureFlagIntercept } from "../../../support/Objects/FeatureFlags";
 import {
   agHelper,
   deployMode,
@@ -16,7 +17,7 @@ import EditorNavigation, {
 
 describe(
   "Content Management System App",
-  { tags: ["@tag.Datasource"] },
+  { tags: ["@tag.Datasource", "@tag.Git", "@tag.AccessControl"] },
   function () {
     before(() => {
       homePage.RenameApplication("EchoApiCMSApp");

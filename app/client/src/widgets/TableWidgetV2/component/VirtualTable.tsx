@@ -33,8 +33,13 @@ type VirtualTableProps = TableColumnHeaderProps & {
   primaryColumnId?: string;
   isAddRowInProgress: boolean;
   totalColumnsWidth?: number;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   scrollContainerStyles: any;
   useVirtual: boolean;
+  isInfiniteScrollEnabled: boolean;
+  isLoading: boolean;
+  loadMoreFromEvaluations: () => void;
 };
 
 const VirtualTable = (props: VirtualTableProps, ref: React.Ref<SimpleBar>) => {
@@ -57,8 +62,11 @@ const VirtualTable = (props: VirtualTableProps, ref: React.Ref<SimpleBar>) => {
           height={props.height}
           innerElementType={VirtualTableInnerElement}
           isAddRowInProgress={props.isAddRowInProgress}
+          isInfiniteScrollEnabled={props.isInfiniteScrollEnabled}
+          isLoading={props.isLoading}
           isResizingColumn={props.isResizingColumn}
           isSortable={props.isSortable}
+          loadMoreFromEvaluations={props.loadMoreFromEvaluations}
           multiRowSelection={!!props.multiRowSelection}
           pageSize={props.pageSize}
           prepareRow={props.prepareRow}

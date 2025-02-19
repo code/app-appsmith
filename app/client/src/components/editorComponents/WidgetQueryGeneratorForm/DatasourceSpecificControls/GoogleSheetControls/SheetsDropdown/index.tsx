@@ -3,7 +3,7 @@ import {
   Label,
   SelectWrapper,
 } from "components/editorComponents/WidgetQueryGeneratorForm/styles";
-import { Tooltip, Select } from "design-system";
+import { Tooltip, Select } from "@appsmith/ads";
 import React, { memo } from "react";
 import { useSheets } from "./useSheets";
 
@@ -26,7 +26,7 @@ export default memo(function SheetsDropdown() {
           <Label>{label}</Label>
         </Tooltip>
         <Select
-          data-testId="t--sheetName-dropdown"
+          data-testid="t--sheetName-dropdown"
           dropdownStyle={{
             minWidth: "350px",
             maxHeight: "300px",

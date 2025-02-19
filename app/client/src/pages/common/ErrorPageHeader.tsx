@@ -4,7 +4,7 @@ import { connect, useSelector } from "react-redux";
 import { getCurrentUser } from "selectors/usersSelectors";
 import styled from "styled-components";
 import StyledHeader from "components/designSystems/appsmith/StyledHeader";
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import type { User } from "constants/userConstants";
 import { ANONYMOUS_USERNAME } from "constants/userConstants";
 import { AUTH_LOGIN_URL, APPLICATIONS_URL } from "constants/routes";
@@ -13,12 +13,12 @@ import ProfileDropdown from "./ProfileDropdown";
 import { flushErrorsAndRedirect, flushErrors } from "actions/errorActions";
 import { getSafeCrash } from "selectors/errorSelectors";
 import { Indices } from "constants/Layers";
-import { getTenantConfig } from "@appsmith/selectors/tenantSelectors";
+import { getOrganizationConfig } from "ee/selectors/organizationSelectors";
 import { getSelectedAppTheme } from "selectors/appThemingSelectors";
-import { getCurrentApplication } from "selectors/editorSelectors";
 import { NAVIGATION_SETTINGS } from "constants/AppConstants";
 import { get } from "lodash";
-import { getAssetUrl } from "@appsmith/utils/airgapHelpers";
+import { getAssetUrl } from "ee/utils/airgapHelpers";
+import { getCurrentApplication } from "ee/selectors/applicationSelectors";
 
 const StyledPageHeader = styled(StyledHeader)`
   box-shadow: none;
@@ -42,7 +42,11 @@ const StyledDropDownContainer = styled.div``;
 
 interface ErrorPageHeaderProps {
   user?: User;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   flushErrors?: any;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   flushErrorsAndRedirect?: any;
   safeCrash: boolean;
 }
@@ -50,13 +54,15 @@ interface ErrorPageHeaderProps {
 export function ErrorPageHeader(props: ErrorPageHeaderProps) {
   const { flushErrors, flushErrorsAndRedirect, safeCrash, user } = props;
   const location = useLocation();
-  const tenantConfig = useSelector(getTenantConfig);
+  const organizationConfig = useSelector(getOrganizationConfig);
   const queryParams = new URLSearchParams(location.search);
   let loginUrl = AUTH_LOGIN_URL;
   const redirectUrl = queryParams.get("redirectUrl");
+
   if (redirectUrl != null) {
     loginUrl += `?redirectUrl=${encodeURIComponent(redirectUrl)}`;
   }
+
   const selectedTheme = useSelector(getSelectedAppTheme);
   const currentApplicationDetails = useSelector(getCurrentApplication);
   const navColorStyle =
@@ -71,7 +77,7 @@ export function ErrorPageHeader(props: ErrorPageHeaderProps) {
   return (
     <StyledPageHeader>
       <HeaderSection>
-        {tenantConfig.brandLogoUrl && (
+        {organizationConfig.brandLogoUrl && (
           <Link
             className="t--appsmith-logo"
             onClick={() => {
@@ -82,7 +88,7 @@ export function ErrorPageHeader(props: ErrorPageHeaderProps) {
             <img
               alt="Logo"
               className="h-6"
-              src={getAssetUrl(tenantConfig.brandLogoUrl)}
+              src={getAssetUrl(organizationConfig.brandLogoUrl)}
             />
           </Link>
         )}

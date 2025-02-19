@@ -1,10 +1,12 @@
-import { builderURL } from "@appsmith/RouteBuilder";
+import { IDE_TYPE } from "ee/IDE/Interfaces/IDETypes";
+import { builderURL } from "ee/RouteBuilder";
 import {
   RECONNECT_MISSING_DATASOURCE_CREDENTIALS_DESCRIPTION,
   SKIP_TO_APPLICATION,
   createMessage,
-} from "@appsmith/constants/messages";
-import { EditorNames } from "@appsmith/hooks";
+} from "ee/constants/messages";
+import { getApplicationByIdFromWorkspaces } from "ee/selectors/applicationSelectors";
+import { useSelector } from "react-redux";
 
 interface UseReconnectModalDataProps {
   pageId: string | null;
@@ -12,10 +14,18 @@ interface UseReconnectModalDataProps {
 }
 
 function useReconnectModalData({ appId, pageId }: UseReconnectModalDataProps) {
+  const application = useSelector((state) =>
+    getApplicationByIdFromWorkspaces(state, appId ?? ""),
+  );
+  const branch = application?.gitApplicationMetadata?.branchName;
+  const basePageId = application?.pages?.find(
+    (page) => page.id === pageId,
+  )?.baseId;
   const editorURL =
-    pageId &&
+    basePageId &&
     builderURL({
-      pageId,
+      basePageId,
+      branch,
     });
 
   return {
@@ -26,7 +36,7 @@ function useReconnectModalData({ appId, pageId }: UseReconnectModalDataProps) {
     editorURL,
     editorId: appId,
     parentEntityId: pageId,
-    editorType: EditorNames.APPLICATION,
+    ideType: IDE_TYPE.App,
   };
 }
 

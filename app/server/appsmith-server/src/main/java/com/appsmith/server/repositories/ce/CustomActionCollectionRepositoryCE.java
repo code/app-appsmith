@@ -6,7 +6,6 @@ import com.appsmith.server.domains.ActionCollection;
 import com.appsmith.server.repositories.AppsmithRepository;
 import org.springframework.data.domain.Sort;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,25 +17,12 @@ public interface CustomActionCollectionRepositoryCE extends AppsmithRepository<A
     Flux<ActionCollection> findByApplicationId(
             String applicationId, Optional<AclPermission> aclPermission, Optional<Sort> sort);
 
-    Flux<ActionCollection> findByApplicationIdAndViewMode(
+    Flux<ActionCollection> findNonComposedByApplicationIdAndViewMode(
             String applicationId, boolean viewMode, AclPermission aclPermission);
-
-    Flux<ActionCollection> findAllActionCollectionsByNameDefaultPageIdsViewModeAndBranch(
-            String name,
-            List<String> pageIds,
-            boolean viewMode,
-            String branchName,
-            AclPermission aclPermission,
-            Sort sort);
 
     Flux<ActionCollection> findByPageId(String pageId, AclPermission permission);
 
     Flux<ActionCollection> findByPageId(String pageId);
-
-    Mono<ActionCollection> findByBranchNameAndDefaultCollectionId(
-            String branchName, String defaultCollectionId, AclPermission permission);
-
-    Flux<ActionCollection> findByDefaultApplicationId(String defaultApplicationId, AclPermission permission);
 
     Flux<ActionCollection> findByPageIds(List<String> pageIds, AclPermission permission);
 
@@ -49,4 +35,9 @@ public interface CustomActionCollectionRepositoryCE extends AppsmithRepository<A
             String contextId, CreatorContextType contextType, AclPermission permission);
 
     Flux<ActionCollection> findByPageIdAndViewMode(String pageId, boolean viewMode, AclPermission permission);
+
+    Flux<ActionCollection> findAllNonComposedByPageIdAndViewMode(
+            String pageId, boolean viewMode, AclPermission permission);
+
+    Flux<ActionCollection> findByApplicationId(String applicationId);
 }

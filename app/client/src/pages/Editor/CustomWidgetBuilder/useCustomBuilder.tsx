@@ -3,7 +3,6 @@ import {
   CUSTOM_WIDGET_BUILDER_EVENTS,
   DEFAULT_CONTEXT_VALUE,
   LOCAL_STORAGE_KEYS_IS_REFERENCE_OPEN,
-  LOCAL_STORAGE_KEYS_SELECTED_LAYOUT,
 } from "./constants";
 import history from "utils/history";
 import useLocalStorageState from "utils/hooks/useLocalStorageState";
@@ -16,7 +15,9 @@ import {
   type CustomWidgetBuilderContextType,
 } from "./types";
 import { compileSrcDoc } from "./utility";
-import AnalyticsUtil from "@appsmith/utils/AnalyticsUtil";
+import AnalyticsUtil from "ee/utils/AnalyticsUtil";
+import { useParentEntityInfo } from "ee/IDE/hooks/useParentEntityInfo";
+import { getIDETypeByUrl } from "ee/entities/IDE/utils";
 
 let connectionTimeout: number;
 
@@ -28,10 +29,8 @@ export function useCustomBuilder(): [CustomWidgetBuilderContextType, boolean] {
     true,
   );
 
-  const [selectedLayout, setSelectedLayout] = useLocalStorageState<string>(
-    LOCAL_STORAGE_KEYS_SELECTED_LAYOUT,
-    "tabs",
-  );
+  const ideType = getIDETypeByUrl(location.pathname);
+  const { parentEntityId } = useParentEntityInfo(ideType);
 
   const [contextValue, setContextValue] =
     useState<CustomWidgetBuilderContextValueType>(DEFAULT_CONTEXT_VALUE);
@@ -93,9 +92,6 @@ export function useCustomBuilder(): [CustomWidgetBuilderContextType, boolean] {
       toggleReference: () => {
         setIsReferenceOpen(!isReferenceOpen);
       },
-      selectLayout: (layout) => {
-        setSelectedLayout(layout);
-      },
       close: () => {
         window.opener?.focus();
         window.close();
@@ -154,27 +150,23 @@ export function useCustomBuilder(): [CustomWidgetBuilderContextType, boolean] {
         });
       },
     }),
-    [
-      contextValue.uncompiledSrcDoc,
-      setIsReferenceOpen,
-      isReferenceOpen,
-      setSelectedLayout,
-    ],
+    [contextValue.uncompiledSrcDoc, setIsReferenceOpen, isReferenceOpen],
   );
 
   const context = useMemo(
     () => ({
       ...contextValue,
       isReferenceOpen,
-      selectedLayout,
       ...contextFunctions,
     }),
-    [contextValue, contextFunctions, isReferenceOpen, selectedLayout],
+    [contextValue, contextFunctions, isReferenceOpen],
   );
 
   useEffect(replay, [contextValue.srcDoc]);
 
   useEffect(() => {
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     window.addEventListener("message", (event: any) => {
       switch (event.data.type) {
         case CUSTOM_WIDGET_BUILDER_EVENTS.READY_ACK:
@@ -184,6 +176,7 @@ export function useCustomBuilder(): [CustomWidgetBuilderContextType, boolean] {
               ...prev,
               name: event.data.name,
               widgetId: event.data.widgetId,
+              parentEntityId,
               srcDoc: event.data.srcDoc,
               uncompiledSrcDoc: event.data.uncompiledSrcDoc,
               initialSrcDoc: event.data.uncompiledSrcDoc,
@@ -221,6 +214,7 @@ export function useCustomBuilder(): [CustomWidgetBuilderContextType, boolean] {
               showConnectionLostMessage: false,
               name: event.data.name,
               widgetId: event.data.widgetId,
+              parentEntityId,
               srcDoc: event.data.srcDoc,
               uncompiledSrcDoc: event.data.uncompiledSrcDoc,
               initialSrcDoc: event.data.uncompiledSrcDoc,

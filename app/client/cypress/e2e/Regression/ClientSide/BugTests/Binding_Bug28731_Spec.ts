@@ -10,7 +10,7 @@ import {
 
 describe(
   "transformed one-click binding",
-  { tags: ["@tag.JS", "@tag.Binding"] },
+  { tags: ["@tag.JS", "@tag.Binding", "@tag.Binding"] },
   function () {
     it("Transforms API data to match widget exppected type ", function () {
       // Create anAPI that mreturns object response
@@ -32,6 +32,7 @@ describe(
       // Select widget
       entityExplorer.DragDropWidgetNVerify(draggableWidgets.SELECT, 100, 100);
 
+      propPane.ToggleJSMode("sourcedata", false);
       agHelper.GetNClick(OneClickBindingLocator.datasourceDropdownSelector);
       agHelper.GetNClick(
         OneClickBindingLocator.datasourceQuerySelector("Api1"),

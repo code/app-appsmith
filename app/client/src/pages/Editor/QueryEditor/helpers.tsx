@@ -1,5 +1,4 @@
-import type { Plugin } from "api/PluginApi";
-import { UIComponentTypes } from "api/PluginApi";
+import { type Plugin, UIComponentTypes } from "entities/Plugin";
 
 export const getUIComponent = (pluginId: string, allPlugins: Plugin[]) => {
   let uiComponent = UIComponentTypes.DbEditorForm;
@@ -9,10 +8,12 @@ export const getUIComponent = (pluginId: string, allPlugins: Plugin[]) => {
     const plugin = allPlugins.find((plugin: Plugin) =>
       !!pluginId ? plugin.id === pluginId : false,
     );
+
     // Defaults to old value, new value can be DBEditorForm or UQIDBEditorForm
     if (plugin) {
       uiComponent = plugin.uiComponent;
     }
   }
+
   return uiComponent;
 };

@@ -9,10 +9,14 @@ import CreateNewAppsOption from "./CreateNewAppsOption";
 import { BrowserRouter as Router } from "react-router-dom";
 import { unitTestBaseMockStore } from "layoutSystems/common/dropTarget/unitTestUtils";
 
+jest.mock("selectors/gitModSelectors", () => ({
+  selectCombinedPreviewMode: jest.fn(() => false),
+}));
+
 const defaultStoreState = {
   ...unitTestBaseMockStore,
-  tenant: {
-    tenantConfiguration: {},
+  organization: {
+    organizationConfiguration: {},
   },
   entities: {
     ...unitTestBaseMockStore.entities,
@@ -59,7 +63,7 @@ const defaultStoreState = {
         config: {},
       },
     },
-    apiPane: {
+    pluginActionEditor: {
       isCreating: false,
       isRunning: {},
       isSaving: {},
@@ -74,8 +78,12 @@ const defaultStoreState = {
   },
 };
 const mockStore = configureStore([]);
+
 describe("CreateNewAppsOption", () => {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let store: any;
+
   it("Should not render skip button if no application is present", () => {
     store = mockStore(defaultStoreState);
 

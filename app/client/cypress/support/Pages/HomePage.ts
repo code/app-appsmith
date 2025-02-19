@@ -3,6 +3,7 @@ import HomePageLocators from "../../locators/HomePage";
 import SignupPageLocators from "../../locators/SignupPage.json";
 import { ObjectsRegistry } from "../Objects/Registry";
 import { AppSidebar, PageLeftPane } from "./EditorNavigation";
+
 export class HomePage {
   private agHelper = ObjectsRegistry.AggregateHelper;
   private locator = ObjectsRegistry.CommonLocators;
@@ -22,11 +23,12 @@ export class HomePage {
   private _renameWorkspaceContainer = ".editable-text-container";
   private _renameWorkspaceParent = ".t--workspace-rename-input";
   private _renameWorkspaceInput = this._renameWorkspaceParent + " input";
+  /* I'm not sure if asserting the copy of our app is a good idea. This seems like extra complexity when making changes to the copy */
   private _workspaceList = (workspaceName: string) =>
     ".t--workspace-section:contains(" + workspaceName + ")";
   private _workspaceNoApps = (workspaceName: string) =>
     this._workspaceList(workspaceName) +
-    ":contains('There are no applications in this workspace')";
+    ":contains('applications in this workspace')";
   private _workspaceShareUsersIcon = (workspaceName: string) =>
     ".t--workspace-section:contains(" + workspaceName + ") .ads-v2-avatar";
   _shareWorkspace = (workspaceName: string) =>
@@ -88,7 +90,7 @@ export class HomePage {
   private _workspaceImport = "[data-testid=t--workspace-import-app]";
   public _uploadFile = "//div/form/input";
   private _importSuccessModal = ".t--import-app-success-modal";
-  private _forkModal = ".fork-modal";
+  public _forkModal = ".fork-modal";
   public _appCard = (applicationName: string) =>
     "//span[text()='" +
     applicationName +
@@ -128,9 +130,9 @@ export class HomePage {
   private _backToEditor = ".t--back-to-editor";
   private _editorSidebar = ".t--sidebar-Editor";
   private _membersTab = "[data-testid=t--tab-members]";
-
   public _searchWorkspaceLocator = (workspaceName: string) =>
     `[data-testid="${workspaceName}"]`;
+
   public SwitchToAppsTab() {
     this.agHelper.GetNClick(this._homeTab);
   }
@@ -242,7 +244,7 @@ export class HomePage {
     this.agHelper.GetNClick(this._inviteButton, 0, true);
     cy.wait("@mockPostInvite")
       .its("request.headers")
-      .should("have.property", "origin", "Cypress");
+      .should("have.property", "origin", Cypress.config("baseUrl"));
     this.agHelper.ValidateToastMessage(successMessage);
   }
 
@@ -266,10 +268,10 @@ export class HomePage {
 
   public StubPostHeaderReq() {
     cy.intercept("POST", "/api/v1/users/invite", (req) => {
-      req.headers["origin"] = "Cypress";
+      req.headers["origin"] = Cypress.config("baseUrl");
     }).as("mockPostInvite");
     cy.intercept("POST", "/api/v1/applications/invite", (req) => {
-      req.headers["origin"] = "Cypress";
+      req.headers["origin"] = Cypress.config("baseUrl");
     }).as("mockPostAppInvite");
   }
 
@@ -305,6 +307,7 @@ export class HomePage {
     this.agHelper.GetNClick(this._newButtonCreateApplication, 0, true);
     this.AssertApplicationCreated();
     if (skipSignposting) {
+      this.agHelper.WaitUntilEleDisappear(this.locator._btnSpinner);
       AppSidebar.assertVisible();
       this.agHelper.AssertElementVisibility(PageLeftPane.locators.selector);
       this.onboarding.skipSignposting();
@@ -322,7 +325,7 @@ export class HomePage {
       .click({ force: true });
     this.agHelper.GetNClick(this._newButtonCreateApplication);
     this.AssertApplicationCreated();
-    this.agHelper.AssertElementVisibility(this.locator._sidebar);
+    this.agHelper.AssertElementVisibility(this._editorSidebar);
     this.agHelper.AssertElementAbsence(this.locator._loading);
     if (appname) this.RenameApplication(appname);
   }
@@ -355,12 +358,8 @@ export class HomePage {
 
   //Maps to LogOut in command.js
   public LogOutviaAPI() {
-    let httpMethod = "POST";
-    if (CURRENT_REPO === REPO.EE) {
-      httpMethod = "GET";
-    }
     cy.request({
-      method: httpMethod,
+      method: "POST",
       url: "/api/v1/logout",
       headers: {
         "X-Requested-By": "Appsmith",
@@ -683,7 +682,7 @@ export class HomePage {
     this.agHelper.GetNClick(this._inviteButton, 0, true);
     cy.wait("@mockPostInvite")
       .its("request.headers")
-      .should("have.property", "origin", "Cypress");
+      .should("have.property", "origin", Cypress.config("baseUrl"));
     // cy.contains(email, { matchCase: false });
     if (validate) {
       cy.contains(successMessage);
@@ -703,7 +702,7 @@ export class HomePage {
     this.agHelper.GetNClick(this._inviteButton, 0, true);
     cy.wait("@mockPostAppInvite")
       .its("request.headers")
-      .should("have.property", "origin", "Cypress");
+      .should("have.property", "origin", Cypress.config("baseUrl"));
     // cy.contains(email, { matchCase: false });
     cy.contains(successMessage);
   }
@@ -753,6 +752,7 @@ export class HomePage {
     }
     this.agHelper.ClickButton("Fork");
     this.assertHelper.AssertNetworkStatus("getWorkspace");
+    this.agHelper.WaitUntilEleDisappear(this._forkModal);
   }
 
   public DeleteApplication(appliName: string) {
@@ -795,6 +795,7 @@ export class HomePage {
       }
     });
   }
+
   public SelectWorkspace(workspaceName: string, networkCallAlias = true) {
     this.agHelper
       .GetElement(this._leftPanel)
@@ -802,5 +803,11 @@ export class HomePage {
       .click({ force: true });
     networkCallAlias &&
       this.assertHelper.AssertNetworkStatus("@getApplicationsOfWorkspace");
+  }
+
+  public SelectAppToEdit(index: number = 0) {
+    cy.get(HomePageLocators.applicationCard).eq(index).trigger("mouseover");
+    cy.get(HomePageLocators.appEditIcon).click();
+    this.agHelper.AssertElementVisibility(this._editorSidebar);
   }
 }

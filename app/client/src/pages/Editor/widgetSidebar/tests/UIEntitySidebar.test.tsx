@@ -1,21 +1,15 @@
+import React from "react";
 import {
   UI_ELEMENT_PANEL_SEARCH_TEXT,
   createMessage,
-} from "@appsmith/constants/messages";
-import * as Sentry from "@sentry/react";
+} from "ee/constants/messages";
 import "@testing-library/jest-dom";
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { fireEvent, waitFor } from "@testing-library/react";
 import { WIDGET_TAGS } from "constants/WidgetConstants";
-import { unitTestBaseMockStore } from "layoutSystems/common/dropTarget/unitTestUtils";
-import React from "react";
-import { Provider } from "react-redux";
-import configureStore from "redux-mock-store";
-import { lightTheme } from "selectors/themeSelectors";
-import { ThemeProvider } from "styled-components";
 import UIEntitySidebar from "../UIEntitySidebar";
 import { cards, groupedCards } from "./UIEntitySidebar.fixture";
-
-const mockStore = configureStore([]);
+import { render } from "test/testUtils";
+import { getIDETestState } from "test/factories/AppIDEFactoryUtils";
 
 jest.mock("utils/hooks/useFeatureFlag", () => ({
   useFeatureFlag: jest.fn(),
@@ -32,16 +26,13 @@ describe("UIEntitySidebar", () => {
     focusSearchInput: boolean,
   ) => {
     return render(
-      <Sentry.ErrorBoundary fallback={"An error has occured"}>
-        <Provider store={mockStore(unitTestBaseMockStore)}>
-          <ThemeProvider theme={lightTheme}>
-            <UIEntitySidebar
-              focusSearchInput={focusSearchInput}
-              isActive={isActive}
-            />
-          </ThemeProvider>
-        </Provider>
-      </Sentry.ErrorBoundary>,
+      <UIEntitySidebar
+        focusSearchInput={focusSearchInput}
+        isActive={isActive}
+      />,
+      {
+        initialState: getIDETestState({}),
+      },
     );
   };
 
@@ -55,12 +46,14 @@ describe("UIEntitySidebar", () => {
   ) => {
     /* eslint-disable @typescript-eslint/no-var-requires */
     const { useUIExplorerItems } = require("../hooks");
+
     useUIExplorerItems.mockImplementation(() => items);
   };
 
   const mockDragDropBuildingBlocksFF = (val: boolean) => {
     /* eslint-disable @typescript-eslint/no-var-requires */
     const { useFeatureFlag } = require("utils/hooks/useFeatureFlag");
+
     useFeatureFlag.mockImplementation(() => val);
   };
 
@@ -68,6 +61,7 @@ describe("UIEntitySidebar", () => {
     mockUIExplorerItems();
     const { getAllByTestId, getByPlaceholderText, getByText } =
       renderUIEntitySidebar(true, false);
+
     expect(
       getByPlaceholderText(createMessage(UI_ELEMENT_PANEL_SEARCH_TEXT)),
     ).toBeInTheDocument();
@@ -90,6 +84,7 @@ describe("UIEntitySidebar", () => {
     const input = getByPlaceholderText(
       createMessage(UI_ELEMENT_PANEL_SEARCH_TEXT),
     );
+
     fireEvent.change(input, { target: { value: "example text" } });
     await waitFor(() => {
       expect(queryByTestId("ui-entity-tag-group")).toBeNull();
@@ -104,9 +99,9 @@ describe("UIEntitySidebar", () => {
     // Render the UIEntitySidebar component
     const { container } = renderUIEntitySidebar(true, true);
 
-    // in the mock data we have 12 tags
+    // in the mock data, we have 12 tags
     expect(
-      container.getElementsByClassName("widget-tag-collapisble").length,
+      container.getElementsByClassName("widget-tag-collapsible").length,
     ).toBe(12);
   });
 
@@ -121,19 +116,21 @@ describe("UIEntitySidebar", () => {
     const input = getByPlaceholderText(
       createMessage(UI_ELEMENT_PANEL_SEARCH_TEXT),
     );
+
     fireEvent.change(input, { target: { value: "table" } });
     await waitFor(() => {
       // one from building blocks and one from normal widgets
       expect(
-        container.getElementsByClassName("widget-tag-collapisble").length,
+        container.getElementsByClassName("widget-tag-collapsible").length,
       ).toBe(2);
     });
   });
 
-  it("5. should hide `Suggested` when drag drop building blocks feature flag is enabled", () => {
+  it("5. should show `Suggested` when drag drop building blocks feature flag is enabled", () => {
     mockUIExplorerItems();
     mockDragDropBuildingBlocksFF(true);
-    const { queryByText } = renderUIEntitySidebar(true, true);
-    expect(queryByText(WIDGET_TAGS.SUGGESTED_WIDGETS)).toBeNull();
+    const { getByText } = renderUIEntitySidebar(true, true);
+
+    expect(getByText(WIDGET_TAGS.SUGGESTED_WIDGETS)).toBeInTheDocument();
   });
 });

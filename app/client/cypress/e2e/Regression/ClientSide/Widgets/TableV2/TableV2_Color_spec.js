@@ -3,7 +3,7 @@ import * as _ from "../../../../../support/Objects/ObjectsCore";
 
 describe(
   "Table Widget V2 property pane feature validation",
-  { tags: ["@tag.Widget", "@tag.Table"] },
+  { tags: ["@tag.Widget", "@tag.Table", "@tag.Binding"] },
   function () {
     beforeEach(() => {
       _.agHelper.RestoreLocalStorageCache();
@@ -80,7 +80,7 @@ describe(
 
     it("2. check background of the edit action column", function () {
       cy.openPropertyPane("tablewidgetv2");
-      cy.makeColumnEditable("id");
+      _.table.toggleColumnEditableViaColSettingsPane("id", "v2", true, true);
       cy.readTableV2dataValidateCSS(
         0,
         5,

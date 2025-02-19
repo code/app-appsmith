@@ -18,7 +18,12 @@ public class EqualityTest {
 
     private final Set<Class<?>> TESTED_CLASSES = Set.of(
             // Note: Adding a class here means that we have a test for its equality in this file.
-            ApplicationDetail.class, TenantConfiguration.class);
+            ApplicationDetail.class,
+            OrganizationConfiguration.class,
+            TenantConfiguration.class,
+            Application.AppLayout.class,
+            Application.EmbedSetting.class,
+            GitArtifactMetadata.class);
 
     @SneakyThrows
     @Test
@@ -46,12 +51,12 @@ public class EqualityTest {
     }
 
     @Test
-    void testTenantConfiguration() {
-        TenantConfiguration c1 = new TenantConfiguration();
+    void testOrganizationConfiguration() {
+        OrganizationConfiguration c1 = new OrganizationConfiguration();
         c1.setEmailVerificationEnabled(true);
-        TenantConfiguration c2 = new TenantConfiguration();
+        OrganizationConfiguration c2 = new OrganizationConfiguration();
         c2.setEmailVerificationEnabled(true);
-        TenantConfiguration c3 = new TenantConfiguration();
+        OrganizationConfiguration c3 = new OrganizationConfiguration();
         c3.setEmailVerificationEnabled(false);
         assertThat(c1).isEqualTo(c2).isNotEqualTo(c3);
     }
@@ -71,5 +76,56 @@ public class EqualityTest {
         d3.setAppPositioning(p3);
         assertThat(d1).isEqualTo(d2);
         assertThat(d1).isNotEqualTo(d3);
+    }
+
+    @Test
+    void testAppLayout() {
+        Application.AppLayout a1 = new Application.AppLayout(Application.AppLayout.Type.DESKTOP);
+        Application.AppLayout a2 = new Application.AppLayout(Application.AppLayout.Type.DESKTOP);
+        Application.AppLayout a3 = new Application.AppLayout(Application.AppLayout.Type.MOBILE);
+        assertThat(a1).isEqualTo(a2).isNotEqualTo(a3);
+    }
+
+    @Test
+    void testAppEmbedSetting() {
+        Application.EmbedSetting a1 = new Application.EmbedSetting();
+        a1.setHeight("5");
+        a1.setWidth("5");
+        a1.setShowNavigationBar(Boolean.TRUE);
+        Application.EmbedSetting a2 = new Application.EmbedSetting();
+        a2.setHeight("5");
+        a2.setWidth("5");
+        a2.setShowNavigationBar(Boolean.TRUE);
+        Application.EmbedSetting a3 = new Application.EmbedSetting();
+        a3.setHeight("5");
+        a3.setWidth("5");
+        a3.setShowNavigationBar(Boolean.FALSE);
+        assertThat(a1).isEqualTo(a2).isNotEqualTo(a3);
+    }
+
+    @Test
+    void testArtifactEquality() {
+        String remoteUrl1 = "protocol://domain.superdomain";
+        String remoteUrl2 = "protocol://domain.superdomain2";
+
+        GitArtifactMetadata a1 = new GitArtifactMetadata();
+        a1.setRemoteUrl(remoteUrl1);
+        GitArtifactMetadata a2 = new GitArtifactMetadata();
+        a2.setRemoteUrl(remoteUrl1);
+        GitArtifactMetadata a3 = new GitArtifactMetadata();
+        a3.setRemoteUrl(remoteUrl2);
+
+        assertThat(a1).isEqualTo(a2).isNotEqualTo(a3);
+
+        a1.setAutoCommitConfig(new AutoCommitConfig());
+        a2.setAutoCommitConfig(new AutoCommitConfig());
+        a3.setAutoCommitConfig(new AutoCommitConfig());
+
+        assertThat(a1).isEqualTo(a2).isNotEqualTo(a3);
+
+        a1.getAutoCommitConfig().setEnabled(Boolean.TRUE);
+        a2.getAutoCommitConfig().setEnabled(Boolean.FALSE);
+
+        assertThat(a1).isNotEqualTo(a2).isNotEqualTo(a3);
     }
 }

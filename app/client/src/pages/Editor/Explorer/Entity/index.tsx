@@ -15,20 +15,17 @@ import Collapse from "./Collapse";
 import {
   useEntityUpdateState,
   useEntityEditState,
-} from "@appsmith/pages/Editor/Explorer/hooks";
+} from "ee/pages/Editor/Explorer/hooks";
 import { Classes } from "@blueprintjs/core";
 import { noop } from "lodash";
 import { useDispatch, useSelector } from "react-redux";
 import useClick from "utils/hooks/useClick";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import { getEntityCollapsibleState } from "selectors/editorContextSelectors";
-import type { AppState } from "@appsmith/reducers";
+import type { AppState } from "ee/reducers";
 import { setEntityCollapsibleState } from "actions/editorContextActions";
-import { Tooltip, Tag, Spinner } from "design-system";
-import {
-  createMessage,
-  EXPLORER_BETA_ENTITY,
-} from "@appsmith/constants/messages";
+import { Tooltip, Tag, Spinner } from "@appsmith/ads";
+import { createMessage, EXPLORER_BETA_ENTITY } from "ee/constants/messages";
 import classNames from "classnames";
 
 export enum EntityClassNames {
@@ -152,6 +149,10 @@ export const EntityItem = styled.div<{
     height: 36px;
   }
 
+  & .t--entity-name {
+    padding-left: var(--ads-v2-spaces-3);
+  }
+
   & .${EntityClassNames.COLLAPSE_TOGGLE} {
     svg {
       path {
@@ -206,20 +207,10 @@ export const EntityItem = styled.div<{
 `;
 
 const IconWrapper = styled.span`
-  line-height: ${(props) => props.theme.lineHeights[0]}px;
-  color: var(--ads-v2-color-fg);
-  display: flex;
-  align-items: center;
-
-  div {
-    cursor: pointer;
-  }
-
   svg {
     width: 16px;
     height: 16px;
   }
-  margin-right: 4px;
 `;
 
 export const AddButtonWrapper = styled.div`
@@ -242,6 +233,8 @@ export interface EntityProps {
   icon: ReactNode;
   rightIcon?: ReactNode;
   disabled?: boolean;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   action?: (e: any) => void;
   active?: boolean;
   isDefaultExpanded?: boolean;
@@ -249,6 +242,8 @@ export interface EntityProps {
   contextMenu?: ReactNode;
   searchKeyword?: string;
   step: number;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateEntityName?: (id: string, name: string) => any;
   runActionOnExpand?: boolean;
   onNameEdit?: (input: string, limit?: number) => string;
@@ -295,10 +290,13 @@ export const Entity = forwardRef(
     }, [props.forceExpand]);
 
     /* eslint-enable react-hooks/exhaustive-deps */
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toggleChildren = (e: any) => {
       props.onToggle && props.onToggle(!isOpen);
       // Make sure this entity is enabled before toggling the collpse of children.
       !props.disabled && open(!isOpen);
+
       if (props.runActionOnExpand && !isOpen) {
         props.action && props.action(e);
       }
@@ -313,6 +311,8 @@ export const Entity = forwardRef(
       [props.entityId, props.updateEntityName],
     );
 
+    // TODO: Fix this the next time the file is edited
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleClick = (e: any) => {
       if (props.action) props.action(e);
       else toggleChildren(e);
@@ -326,6 +326,7 @@ export const Entity = forwardRef(
 
     const enterEditMode = useCallback(() => {
       if (!canEditEntityName) return;
+
       props.updateEntityName &&
         dispatch({
           type: ReduxActionTypes.INIT_EXPLORER_ENTITY_NAME_EDIT,
@@ -336,6 +337,7 @@ export const Entity = forwardRef(
     }, [dispatch, props.entityId, props.updateEntityName]);
 
     const itemRef = useRef<HTMLDivElement | null>(null);
+
     useClick(itemRef, handleClick, noop);
 
     const addButton = props.customAddButton || (

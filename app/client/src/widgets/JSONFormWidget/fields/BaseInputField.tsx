@@ -21,7 +21,7 @@ import {
   FIELD_REQUIRED_ERROR,
   INPUT_DEFAULT_TEXT_MAX_CHAR_ERROR,
   INPUT_TEXT_MAX_CHAR_ERROR,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 import type {
   BaseFieldComponentProps,
   FieldComponentBaseProps,
@@ -37,6 +37,7 @@ import {
 import type { InputHTMLType } from "widgets/BaseInputWidget/component";
 import BaseInputComponent from "widgets/BaseInputWidget/component";
 import { BASE_LABEL_TEXT_SIZE } from "../component/FieldLabel";
+import useUnmountFieldValidation from "./useUnmountFieldValidation";
 
 export type BaseInputComponentProps = FieldComponentBaseProps &
   FieldEventProps & {
@@ -58,6 +59,8 @@ export type BaseInputComponentProps = FieldComponentBaseProps &
   };
 
 export interface OnValueChangeOptions {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fieldOnChangeHandler: (...event: any[]) => void;
   isValueValid: boolean;
 }
@@ -181,6 +184,7 @@ function BaseInputField<TSchemaItem extends SchemaItem>({
     const stringifiedValue = isNil(inputDefaultValue)
       ? inputDefaultValue
       : `${inputDefaultValue}`;
+
     setInputText(stringifiedValue);
   }, [inputDefaultValue]);
 
@@ -208,6 +212,7 @@ function BaseInputField<TSchemaItem extends SchemaItem>({
     if (isNil(value)) {
       if (isNilSetByField.current) {
         isNilSetByField.current = false;
+
         return inputText;
       }
 
@@ -236,6 +241,7 @@ function BaseInputField<TSchemaItem extends SchemaItem>({
     fieldType: schemaItem.fieldType,
     isValid: isValueValid,
   });
+  useUnmountFieldValidation({ fieldName: name });
 
   const { inputRef } = useEvents<HTMLInputElement | HTMLTextAreaElement>({
     fieldBlurHandler: onBlur,
@@ -251,6 +257,8 @@ function BaseInputField<TSchemaItem extends SchemaItem>({
       e:
         | React.KeyboardEvent<HTMLTextAreaElement>
         | React.KeyboardEvent<HTMLInputElement>,
+      // TODO: Fix this the next time the file is edited
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       fieldOnChangeHandler: (...event: any[]) => void,
       isValueValid: boolean,
     ) => {
@@ -275,6 +283,8 @@ function BaseInputField<TSchemaItem extends SchemaItem>({
   const onTextChangeHandler = useCallback(
     (
       inputValue: string,
+      // TODO: Fix this the next time the file is edited
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       fieldOnChangeHandler: (...event: any[]) => void,
       triggerPropertyName = "onTextChange",
     ) => {
@@ -356,6 +366,7 @@ function BaseInputField<TSchemaItem extends SchemaItem>({
       )
         ? { autoComplete: "off" }
         : {};
+
     return (
       <BaseInputComponent
         {...conditionalProps}

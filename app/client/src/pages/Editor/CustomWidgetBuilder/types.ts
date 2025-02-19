@@ -28,9 +28,9 @@ export interface CustomWidgetBuilderContextValueType {
   //Custom widget name
   name: string;
   widgetId: string;
+  parentEntityId: string;
 
   isReferenceOpen: boolean;
-  selectedLayout: string;
 
   //Compiled src doc
   srcDoc: SrcDoc;
@@ -57,11 +57,12 @@ export interface CustomWidgetBuilderContextValueType {
 
 export interface CustomWidgetBuilderContextFunctionType {
   toggleReference: () => void;
-  selectLayout: (layout: string) => void;
   close: () => void;
   update: (editor: string, value: string) => void;
   updateModel: (model: Record<string, unknown>) => void;
   bulkUpdate: (srcDoc: CustomWidgetBuilderContextValueType["srcDoc"]) => void;
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateDebuggerLogs: (log: { type: string; args: any }) => void;
   clearDegbuggerLogs: () => void;
 }

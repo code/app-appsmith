@@ -8,6 +8,7 @@ const createImportListString = (name: string, dir: string) => {
 async function generateIndex() {
   await appendExports("Thumbnails");
   await appendExports("Icons");
+  await appendExports("CustomIcons");
 
   // eslint-disable-next-line no-console
   console.error(
@@ -26,12 +27,15 @@ async function appendExports(dir: string) {
 
     files.forEach((file) => {
       const name = file.replace(".tsx", "");
+
       importList += createImportListString(name, dir);
     });
 
     await fs.appendFile(`./src/index.ts`, importList, "utf8", function (err) {
-      // eslint-disable-next-line no-console
-      if (err) return console.error(err);
+      if (err) {
+        // eslint-disable-next-line no-console
+        return console.error(err);
+      }
     });
   });
 }

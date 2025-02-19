@@ -1,10 +1,7 @@
 import { createReducer } from "utils/ReducerUtils";
-import type {
-  ReduxAction,
-  ReduxActionErrorPayload,
-} from "@appsmith/constants/ReduxActionConstants";
-import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
-import type { ERROR_CODES } from "@appsmith/constants/ApiConstants";
+import type { ReduxAction } from "actions/ReduxActionTypes";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
+import type { ERROR_CODES } from "ee/constants/ApiConstants";
 import _ from "lodash";
 
 const initialState: ErrorReduxState = {
@@ -12,6 +9,13 @@ const initialState: ErrorReduxState = {
   safeCrashCode: undefined,
   currentError: { sourceAction: "", message: "", stackTrace: "" },
 };
+
+interface ReduxActionErrorPayload {
+  message: string;
+  source?: string;
+  code?: ERROR_CODES;
+  stackTrace?: string;
+}
 
 const errorReducer = createReducer(initialState, {
   [ReduxActionTypes.SAFE_CRASH_APPSMITH]: (
@@ -37,6 +41,35 @@ const errorReducer = createReducer(initialState, {
   },
   [ReduxActionTypes.FLUSH_ERRORS]: () => {
     return initialState;
+  },
+  [ReduxActionTypes.FETCH_CURRENT_ORGANIZATION_CONFIG_SUCCESS]: (
+    state: ErrorReduxState,
+  ) => {
+    if (
+      state?.currentError?.sourceAction ===
+      "FETCH_CURRENT_ORGANIZATION_CONFIG_ERROR"
+    ) {
+      return {
+        ...state,
+        ...initialState,
+      };
+    }
+
+    return state;
+  },
+  [ReduxActionTypes.UPDATE_ORGANIZATION_CONFIG_SUCCESS]: (
+    state: ErrorReduxState,
+  ) => {
+    if (
+      state?.currentError?.sourceAction === "UPDATE_ORGANIZATION_CONFIG_ERROR"
+    ) {
+      return {
+        ...state,
+        ...initialState,
+      };
+    }
+
+    return state;
   },
 });
 

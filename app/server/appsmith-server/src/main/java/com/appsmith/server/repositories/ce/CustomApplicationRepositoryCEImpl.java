@@ -85,10 +85,10 @@ public class CustomApplicationRepositoryCEImpl extends BaseAppsmithRepositoryImp
 
     @Override
     public Mono<Integer> addPageToApplication(
-            String applicationId, String pageId, boolean isDefault, String defaultPageId) {
+            String applicationId, String pageId, boolean isDefault, String basePageId) {
         final ApplicationPage applicationPage = new ApplicationPage();
         applicationPage.setIsDefault(isDefault);
-        applicationPage.setDefaultPageId(defaultPageId);
+        applicationPage.setDefaultPageId(basePageId);
         applicationPage.setId(pageId);
         return queryBuilder()
                 .byId(applicationId)
@@ -120,14 +120,14 @@ public class CustomApplicationRepositoryCEImpl extends BaseAppsmithRepositoryImp
 
     @Override
     @Deprecated
-    public Mono<Application> getApplicationByGitBranchAndDefaultApplicationId(
-            String defaultApplicationId, String branchName, AclPermission aclPermission) {
-        return getApplicationByGitBranchAndDefaultApplicationId(defaultApplicationId, null, branchName, aclPermission);
+    public Mono<Application> getApplicationByGitBranchAndBaseApplicationId(
+            String baseApplicationId, String branchName, AclPermission aclPermission) {
+        return getApplicationByGitBranchAndBaseApplicationId(baseApplicationId, null, branchName, aclPermission);
     }
 
     @Override
-    public Mono<Application> getApplicationByGitBranchAndDefaultApplicationId(
-            String defaultApplicationId,
+    public Mono<Application> getApplicationByGitBranchAndBaseApplicationId(
+            String baseApplicationId,
             List<String> projectionFieldNames,
             String branchName,
             AclPermission aclPermission) {
@@ -136,10 +136,9 @@ public class CustomApplicationRepositoryCEImpl extends BaseAppsmithRepositoryImp
                 .criteria(Bridge.or(
                                 Bridge.equal(
                                         Application.Fields.gitApplicationMetadata_defaultApplicationId,
-                                        defaultApplicationId),
+                                        baseApplicationId),
                                 Bridge.equal(
-                                        Application.Fields.gitApplicationMetadata_defaultArtifactId,
-                                        defaultApplicationId))
+                                        Application.Fields.gitApplicationMetadata_defaultArtifactId, baseApplicationId))
                         .equal(Application.Fields.gitApplicationMetadata_branchName, branchName))
                 .fields(projectionFieldNames)
                 .permission(aclPermission)
@@ -147,24 +146,24 @@ public class CustomApplicationRepositoryCEImpl extends BaseAppsmithRepositoryImp
     }
 
     @Override
-    public Mono<Application> getApplicationByGitBranchAndDefaultApplicationId(
-            String defaultApplicationId, String branchName, Optional<AclPermission> aclPermission) {
+    public Mono<Application> getApplicationByGitBranchAndBaseApplicationId(
+            String baseApplicationId, String branchName, Optional<AclPermission> aclPermission) {
 
         return queryBuilder()
-                .criteria(Bridge.equal(
-                                Application.Fields.gitApplicationMetadata_defaultApplicationId, defaultApplicationId)
-                        .equal(Application.Fields.gitApplicationMetadata_branchName, branchName))
+                .criteria(
+                        Bridge.equal(Application.Fields.gitApplicationMetadata_defaultApplicationId, baseApplicationId)
+                                .equal(Application.Fields.gitApplicationMetadata_branchName, branchName))
                 .permission(aclPermission.orElse(null))
                 .one();
     }
 
     @Override
-    public Flux<Application> getApplicationByGitDefaultApplicationId(
-            String defaultApplicationId, AclPermission permission) {
+    public Flux<Application> getApplicationByGitBaseApplicationId(String baseApplicationId, AclPermission permission) {
 
         return queryBuilder()
-                .criteria(Bridge.equal(
-                        Application.Fields.gitApplicationMetadata_defaultApplicationId, defaultApplicationId))
+                .criteria(Bridge.or(
+                        Bridge.equal(Application.Fields.gitApplicationMetadata_defaultApplicationId, baseApplicationId),
+                        Bridge.equal(Application.Fields.gitApplicationMetadata_defaultArtifactId, baseApplicationId)))
                 .permission(permission)
                 .all();
     }
@@ -192,11 +191,11 @@ public class CustomApplicationRepositoryCEImpl extends BaseAppsmithRepositoryImp
     }
 
     @Override
-    public Mono<Application> getApplicationByDefaultApplicationIdAndDefaultBranch(String defaultApplicationId) {
+    public Mono<Application> getApplicationByBaseApplicationIdAndDefaultBranch(String baseApplicationId) {
 
         return queryBuilder()
-                .criteria(Bridge.equal(
-                        Application.Fields.gitApplicationMetadata_defaultApplicationId, defaultApplicationId))
+                .criteria(
+                        Bridge.equal(Application.Fields.gitApplicationMetadata_defaultApplicationId, baseApplicationId))
                 .one();
     }
 
@@ -274,5 +273,68 @@ public class CustomApplicationRepositoryCEImpl extends BaseAppsmithRepositoryImp
                 Bridge.update().set(Application.Fields.gitApplicationMetadata_isProtectedBranch, true);
 
         return queryBuilder().criteria(q).permission(permission).updateAll(setProtected);
+    }
+
+    @Override
+    public Flux<String> findBranchedApplicationIdsByBaseApplicationId(String baseApplicationId) {
+
+        final BridgeQuery<Application> q =
+                Bridge.equal(Application.Fields.gitApplicationMetadata_defaultApplicationId, baseApplicationId);
+
+        return queryBuilder().criteria(q).fields(Application.Fields.id).all().map(application -> application.getId());
+    }
+
+    @Override
+    public Flux<String> findAllBranchedApplicationIdsByBranchedApplicationId(
+            String branchedApplicationId, AclPermission permission) {
+        Mono<Application> branchedApplicationMono = this.findById(branchedApplicationId, permission);
+
+        return branchedApplicationMono.flatMapMany(application -> {
+            if (application.getGitArtifactMetadata() != null
+                    && application.getGitArtifactMetadata().getDefaultArtifactId() != null) {
+                return this.findBranchedApplicationIdsByBaseApplicationId(
+                        application.getGitArtifactMetadata().getDefaultArtifactId());
+            } else {
+                return Flux.just(application.getId());
+            }
+        });
+    }
+
+    @Override
+    public Flux<Application> findByIdIn(List<String> ids) {
+        final BridgeQuery<Application> q = Bridge.in(Application.Fields.id, ids);
+        return queryBuilder().criteria(q).all();
+    }
+
+    @Override
+    public Flux<Application> findByWorkspaceId(String workspaceId) {
+        final BridgeQuery<Application> q = Bridge.equal(Application.Fields.workspaceId, workspaceId);
+        return queryBuilder().criteria(q).all();
+    }
+
+    @Override
+    public Mono<Long> countByWorkspaceId(String workspaceId) {
+        final BridgeQuery<Application> q = Bridge.equal(Application.Fields.workspaceId, workspaceId);
+        return queryBuilder().criteria(q).count();
+    }
+
+    @Override
+    public Flux<Application> findByClonedFromApplicationId(String clonedFromApplicationId) {
+        final BridgeQuery<Application> q =
+                Bridge.equal(Application.Fields.clonedFromApplicationId, clonedFromApplicationId);
+        return queryBuilder().criteria(q).all();
+    }
+
+    @Override
+    public Mono<Long> countByDeletedAtNull() {
+        final BridgeQuery<Application> q = Bridge.isNull(Application.Fields.deletedAt);
+        return queryBuilder().criteria(q).count();
+    }
+
+    @Override
+    public Mono<Application> findByIdAndExportWithConfiguration(String id, boolean exportWithConfiguration) {
+        final BridgeQuery<Application> q = Bridge.<Application>equal(Application.Fields.id, id)
+                .equal(Application.Fields.exportWithConfiguration, exportWithConfiguration);
+        return queryBuilder().criteria(q).one();
     }
 }

@@ -9,7 +9,11 @@ import DateComponent from "widgets/DatePickerWidget2/component";
 import { TimePrecision } from "widgets/DatePickerWidget2/constants";
 import type { RenderDefaultPropsType } from "./PlainTextCell";
 import styled from "styled-components";
-import { EditableCellActions } from "widgets/TableWidgetV2/constants";
+import {
+  DateInputFormat,
+  EditableCellActions,
+  MomentDateInputFormat,
+} from "widgets/TableWidgetV2/constants";
 import { ISO_DATE_FORMAT } from "constants/WidgetValidation";
 import moment from "moment";
 import { BasicCell } from "./BasicCell";
@@ -18,7 +22,7 @@ import ErrorTooltip from "components/editorComponents/ErrorTooltip";
 import {
   createMessage,
   INPUT_WIDGET_DEFAULT_VALIDATION_ERROR,
-} from "@appsmith/constants/messages";
+} from "ee/constants/messages";
 
 type DateComponentProps = RenderDefaultPropsType &
   editPropertyType & {
@@ -169,6 +173,7 @@ export const DateCell = (props: DateComponentProps) => {
     isCellEditable,
     isCellEditMode,
     isCellVisible,
+    isEditableCellValid,
     isHidden,
     isNewRow,
     isRequired,
@@ -196,6 +201,23 @@ export const DateCell = (props: DateComponentProps) => {
   const [showRequiredError, setShowRequiredError] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  const convertInputFormatToMomentFormat = (inputFormat: string) => {
+    let momentAdjustedInputFormat = inputFormat;
+
+    if (inputFormat === DateInputFormat.MILLISECONDS) {
+      momentAdjustedInputFormat = MomentDateInputFormat.MILLISECONDS;
+    } else if (inputFormat === DateInputFormat.EPOCH) {
+      momentAdjustedInputFormat = MomentDateInputFormat.SECONDS;
+    }
+
+    return momentAdjustedInputFormat;
+  };
+
+  const isCellCompletelyValid = useMemo(
+    () => isEditableCellValid && isValid,
+    [isEditableCellValid, isValid],
+  );
+
   const valueInISOFormat = useMemo(() => {
     if (typeof value !== "string") return "";
 
@@ -213,30 +235,41 @@ export const DateCell = (props: DateComponentProps) => {
   }, [value, props.outputFormat]);
 
   const onDateSelected = (date: string) => {
+    const momentAdjustedInputFormat =
+      convertInputFormatToMomentFormat(inputFormat);
+
+    const formattedDate = date
+      ? moment(date).format(momentAdjustedInputFormat)
+      : "";
+
     if (isNewRow) {
-      updateNewRowValues(alias, date, date);
+      updateNewRowValues(alias, date, formattedDate);
+
       return;
     }
 
     if (isRequired && !date) {
       setIsValid(false);
       setShowRequiredError(true);
+
       return;
     }
+
     setIsValid(true);
     setShowRequiredError(false);
     setHasFocus(false);
 
-    const formattedDate = date ? moment(date).format(inputFormat) : "";
     onDateSave(rowIndex, alias, formattedDate, onDateSelectedString);
   };
 
   const onDateCellEdit = () => {
     setHasFocus(true);
+
     if (isRequired && !value) {
       setIsValid(false);
       setShowRequiredError(true);
     }
+
     toggleCellEditMode(true, rowIndex, alias, value);
   };
 
@@ -272,16 +305,16 @@ export const DateCell = (props: DateComponentProps) => {
         accentColor={accentColor}
         allowCellWrapping={allowCellWrapping}
         className={`${hasFocus ? FOCUS_CLASS : ""} t--inlined-cell-editor ${
-          !isValid && "t--inlined-cell-editor-has-error"
+          !isCellCompletelyValid && "t--inlined-cell-editor-has-error"
         }`}
         compactMode={compactMode}
-        isEditableCellValid={isValid}
+        isEditableCellValid={isCellCompletelyValid}
         paddedInput
         textSize={textSize}
         verticalAlignment={verticalAlignment}
       >
         <ErrorTooltip
-          isOpen={showRequiredError && !isValid}
+          isOpen={showRequiredError && !isCellCompletelyValid}
           message={
             validationErrorMessage ||
             createMessage(INPUT_WIDGET_DEFAULT_VALIDATION_ERROR)

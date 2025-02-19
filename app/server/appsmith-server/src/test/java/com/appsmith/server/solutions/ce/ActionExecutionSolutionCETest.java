@@ -65,7 +65,6 @@ import net.minidev.json.JSONObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -73,7 +72,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.test.context.support.WithUserDetails;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -91,7 +89,6 @@ import static com.appsmith.server.acl.AclPermission.READ_PAGES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 
-@ExtendWith(SpringExtension.class)
 @SpringBootTest
 @Slf4j
 public class ActionExecutionSolutionCETest {
@@ -255,7 +252,7 @@ public class ActionExecutionSolutionCETest {
         Application newApp = new Application();
         newApp.setName(UUID.randomUUID().toString());
         GitArtifactMetadata gitData = new GitArtifactMetadata();
-        gitData.setBranchName("actionServiceTest");
+        gitData.setRefName("actionServiceTest");
         newApp.setGitApplicationMetadata(gitData);
         gitConnectedApp = applicationPageService
                 .createApplication(newApp, workspaceId)
@@ -263,12 +260,12 @@ public class ActionExecutionSolutionCETest {
                     application1.getGitApplicationMetadata().setDefaultApplicationId(application1.getId());
                     return applicationService.save(application1).zipWhen(application11 -> exportService
                             .exportByArtifactIdAndBranchName(
-                                    application11.getId(), gitData.getBranchName(), ArtifactType.APPLICATION)
+                                    application11.getId(), gitData.getRefName(), ArtifactType.APPLICATION)
                             .map(artifactExchangeJson -> (ApplicationJson) artifactExchangeJson));
                 })
                 // Assign the branchName to all the resources connected to the application
                 .flatMap(tuple -> importService.importArtifactInWorkspaceFromGit(
-                        workspaceId, tuple.getT1().getId(), tuple.getT2(), gitData.getBranchName()))
+                        workspaceId, tuple.getT1().getId(), tuple.getT2(), gitData.getRefName()))
                 .map(importableArtifact -> (Application) importableArtifact)
                 .block();
 
@@ -276,7 +273,7 @@ public class ActionExecutionSolutionCETest {
                 .findPageById(gitConnectedApp.getPages().get(0).getId(), READ_PAGES, false)
                 .block();
 
-        branchName = gitConnectedApp.getGitApplicationMetadata().getBranchName();
+        branchName = gitConnectedApp.getGitApplicationMetadata().getRefName();
 
         datasource = new Datasource();
         datasource.setName("Default Database");
@@ -329,6 +326,8 @@ public class ActionExecutionSolutionCETest {
             ExecuteActionDTO executeActionDTO, ActionExecutionResult mockResult) {
         Mockito.when(pluginExecutorHelper.getPluginExecutor(any())).thenReturn(Mono.just(pluginExecutor));
         Mockito.when(pluginExecutor.executeParameterizedWithMetrics(any(), any(), any(), any(), any()))
+                .thenReturn(Mono.just(mockResult));
+        Mockito.when(pluginExecutor.executeParameterizedWithMetricsAndFlags(any(), any(), any(), any(), any(), any()))
                 .thenReturn(Mono.just(mockResult));
         Mockito.when(pluginExecutor.datasourceCreate(any())).thenReturn(Mono.empty());
         Mockito.doReturn(Mono.just(false))
@@ -530,6 +529,8 @@ public class ActionExecutionSolutionCETest {
         Mockito.when(pluginExecutorHelper.getPluginExecutor(any())).thenReturn(Mono.just(pluginExecutor));
         Mockito.when(pluginExecutor.executeParameterizedWithMetrics(any(), any(), any(), any(), any()))
                 .thenReturn(Mono.error(pluginException));
+        Mockito.when(pluginExecutor.executeParameterizedWithMetricsAndFlags(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Mono.error(pluginException));
         Mockito.when(pluginExecutor.datasourceCreate(any())).thenReturn(Mono.empty());
         Mockito.doReturn(Mono.just(false))
                 .when(spyDatasourceService)
@@ -587,6 +588,8 @@ public class ActionExecutionSolutionCETest {
         Mockito.when(pluginExecutorHelper.getPluginExecutor(any())).thenReturn(Mono.just(pluginExecutor));
         Mockito.when(pluginExecutor.executeParameterizedWithMetrics(any(), any(), any(), any(), any()))
                 .thenReturn(Mono.error(pluginException));
+        Mockito.when(pluginExecutor.executeParameterizedWithMetricsAndFlags(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Mono.error(pluginException));
         Mockito.when(pluginExecutor.datasourceCreate(any())).thenReturn(Mono.empty());
         Mockito.doReturn(Mono.just(false))
                 .when(spyDatasourceService)
@@ -636,6 +639,9 @@ public class ActionExecutionSolutionCETest {
 
         Mockito.when(pluginExecutorHelper.getPluginExecutor(any())).thenReturn(Mono.just(pluginExecutor));
         Mockito.when(pluginExecutor.executeParameterizedWithMetrics(any(), any(), any(), any(), any()))
+                .thenReturn(Mono.error(new StaleConnectionException()))
+                .thenReturn(Mono.error(new StaleConnectionException()));
+        Mockito.when(pluginExecutor.executeParameterizedWithMetricsAndFlags(any(), any(), any(), any(), any(), any()))
                 .thenReturn(Mono.error(new StaleConnectionException()))
                 .thenReturn(Mono.error(new StaleConnectionException()));
         Mockito.when(pluginExecutor.datasourceCreate(any())).thenReturn(Mono.empty());
@@ -689,6 +695,8 @@ public class ActionExecutionSolutionCETest {
         Mockito.when(pluginExecutorHelper.getPluginExecutor(any())).thenReturn(Mono.just(pluginExecutor));
         Mockito.when(pluginExecutor.executeParameterizedWithMetrics(any(), any(), any(), any(), any()))
                 .thenAnswer(x -> Mono.delay(Duration.ofMillis(1000)).ofType(ActionExecutionResult.class));
+        Mockito.when(pluginExecutor.executeParameterizedWithMetricsAndFlags(any(), any(), any(), any(), any(), any()))
+                .thenAnswer(x -> Mono.delay(Duration.ofMillis(1000)).ofType(ActionExecutionResult.class));
         Mockito.when(pluginExecutor.datasourceCreate(any())).thenReturn(Mono.empty());
         Mockito.doReturn(Mono.just(false))
                 .when(spyDatasourceService)
@@ -719,6 +727,9 @@ public class ActionExecutionSolutionCETest {
 
         Mockito.when(pluginExecutorHelper.getPluginExecutor(any())).thenReturn(Mono.just(pluginExecutor));
         Mockito.when(pluginExecutor.executeParameterizedWithMetrics(any(), any(), any(), any(), any()))
+                .thenThrow(new StaleConnectionException())
+                .thenReturn(Mono.just(mockResult));
+        Mockito.when(pluginExecutor.executeParameterizedWithMetricsAndFlags(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new StaleConnectionException())
                 .thenReturn(Mono.just(mockResult));
         Mockito.when(pluginExecutor.datasourceCreate(any())).thenReturn(Mono.empty());

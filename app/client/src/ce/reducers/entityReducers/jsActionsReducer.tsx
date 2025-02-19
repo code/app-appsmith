@@ -1,12 +1,12 @@
 import { createReducer } from "utils/ReducerUtils";
 import type { JSAction, JSCollection } from "entities/JSCollection";
-import type { ReduxAction } from "@appsmith/constants/ReduxActionConstants";
+import type { ReduxAction } from "actions/ReduxActionTypes";
 import {
   ReduxActionTypes,
   ReduxActionErrorTypes,
-} from "@appsmith/constants/ReduxActionConstants";
+} from "ee/constants/ReduxActionConstants";
 import { set, keyBy, findIndex, unset } from "lodash";
-import produce from "immer";
+import { create } from "mutative";
 import { klona } from "klona";
 
 export const initialState: JSCollectionDataState = [];
@@ -20,7 +20,9 @@ export interface JSCollectionData {
   // Existence of parse errors for each action (updates after execution)
   isDirty?: Record<string, boolean>;
 }
+
 export type JSCollectionDataState = JSCollectionData[];
+
 export interface PartialActionData {
   isLoading: boolean;
   config: { id: string };
@@ -53,6 +55,7 @@ export const handlers = {
       const foundAction = state.find((currentAction) => {
         return currentAction.config.id === action.id;
       });
+
       return {
         isLoading: false,
         config: action,
@@ -109,6 +112,7 @@ export const handlers = {
               : jsCollection.activeJSActionId,
         };
       }
+
       return jsCollection;
     }),
   [ReduxActionTypes.UPDATE_JS_ACTION_BODY_SUCCESS]: (
@@ -131,6 +135,7 @@ export const handlers = {
                 isMainJSCollection: a.config.isMainJSCollection,
               },
         };
+
       return a;
     }),
   [ReduxActionTypes.UPDATE_JS_ACTION_BODY_INIT]: (
@@ -143,6 +148,7 @@ export const handlers = {
           ...a,
           config: { ...a.config, body: action.payload.body },
         };
+
       return a;
     }),
   [ReduxActionErrorTypes.UPDATE_JS_ACTION_ERROR]: (
@@ -161,6 +167,7 @@ export const handlers = {
               }
             : action.payload.data,
         };
+
       return a;
     }),
   [ReduxActionTypes.COPY_JS_ACTION_SUCCESS]: (
@@ -192,6 +199,7 @@ export const handlers = {
 
       action.payload.forEach((actionPayload: JSCollection) => {
         const stateAction = stateActionMap[actionPayload.id];
+
         if (stateAction) {
           result.push({
             data: stateAction.data,
@@ -214,6 +222,7 @@ export const handlers = {
 
       return result;
     }
+
     return state;
   },
   [ReduxActionTypes.MOVE_JS_ACTION_SUCCESS]: (
@@ -243,8 +252,10 @@ export const handlers = {
       if (a.config.id === action.payload.collection.id) {
         const newData = { ...a.data };
         const newIsDirty = { ...a.isDirty };
+
         unset(newData, action.payload.action.id);
         unset(newIsDirty, action.payload.action.id);
+
         return {
           ...a,
           isExecuting: {
@@ -259,6 +270,7 @@ export const handlers = {
           },
         };
       }
+
       return a;
     }),
   [ReduxActionTypes.EXECUTE_JS_FUNCTION_SUCCESS]: (
@@ -283,6 +295,7 @@ export const handlers = {
           },
         };
       }
+
       return a;
     }),
   [ReduxActionTypes.SET_JS_FUNCTION_EXECUTION_DATA]: (
@@ -291,18 +304,22 @@ export const handlers = {
   ): JSCollectionDataState =>
     state.map((jsCollectionData) => {
       const collectionId = jsCollectionData.config.id;
+
       if (action.payload.hasOwnProperty(collectionId)) {
         let data = {
           ...jsCollectionData.data,
         };
+
         action.payload[collectionId].forEach((item) => {
           data = { ...data, [item.actionId]: item.data };
         });
+
         return {
           ...jsCollectionData,
           data,
         };
       }
+
       return jsCollectionData;
     }),
   [ReduxActionTypes.SET_JS_FUNCTION_EXECUTION_ERRORS]: (
@@ -311,18 +328,22 @@ export const handlers = {
   ): JSCollectionDataState =>
     state.map((jsCollectionData) => {
       const collectionId = jsCollectionData.config.id;
+
       if (action.payload.hasOwnProperty(collectionId)) {
         let isDirty = {
           ...jsCollectionData.isDirty,
         };
+
         action.payload[collectionId].forEach(({ actionId }) => {
           isDirty = { ...isDirty, [actionId]: true };
         });
+
         return {
           ...jsCollectionData,
           isDirty,
         };
       }
+
       return jsCollectionData;
     }),
   [ReduxActionTypes.UPDATE_JS_FUNCTION_PROPERTY_SUCCESS]: (
@@ -336,6 +357,7 @@ export const handlers = {
           data: action.payload,
         };
       }
+
       return a;
     }),
   [ReduxActionTypes.TOGGLE_FUNCTION_EXECUTE_ON_LOAD_SUCCESS]: (
@@ -352,8 +374,10 @@ export const handlers = {
           if (jsAction.id === action.payload.actionId) {
             set(jsAction, `executeOnLoad`, action.payload.executeOnLoad);
           }
+
           return jsAction;
         });
+
         return {
           ...a,
           config: {
@@ -362,6 +386,7 @@ export const handlers = {
           },
         };
       }
+
       return a;
     }),
   [ReduxActionTypes.SET_JS_ACTION_TO_EXECUTE_ON_PAGELOAD]: (
@@ -375,12 +400,14 @@ export const handlers = {
       }>
     >,
   ) => {
-    return produce(state, (draft) => {
+    return create(state, (draft) => {
       const CollectionUpdateSearch = keyBy(action.payload, "collectionId");
       const actionUpdateSearch = keyBy(action.payload, "id");
+
       draft.forEach((action, index) => {
         if (action.config.id in CollectionUpdateSearch) {
           const allActions = draft[index].config.actions;
+
           allActions.forEach((js) => {
             if (js.id in actionUpdateSearch) {
               js.executeOnLoad = actionUpdateSearch[js.id].executeOnLoad;
@@ -404,6 +431,7 @@ export const handlers = {
           activeJSActionId: action.payload.jsActionId,
         };
       }
+
       return jsCollection;
     }),
   [ReduxActionTypes.RESET_EDITOR_REQUEST]: () => {
@@ -426,6 +454,7 @@ export const handlers = {
           },
         };
       }
+
       return jsCollectionData;
     }),
   [ReduxActionTypes.UPDATE_TEST_PAYLOAD_FOR_JS_ACTION]: (
@@ -449,6 +478,7 @@ export const handlers = {
           },
         };
       }
+
       return jsCollectionData;
     }),
 };

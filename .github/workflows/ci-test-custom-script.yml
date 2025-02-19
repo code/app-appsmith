@@ -14,6 +14,11 @@ on:
         required: false
         type: string
         default: ""
+      spec:
+        description: "Spec files to run, one per line"
+        required: false
+        type: string
+        default: ""
       matrix:
         description: "Matrix jobs"
         required: false
@@ -143,6 +148,7 @@ jobs:
         working-directory: "."
         run: |
           sudo /etc/init.d/ssh stop ;
+          sudo systemctl disable --now ssh.socket
           mkdir -p ~/git-server/keys
           ted_tag="${{inputs.ted_tag}}"
           docker run --name test-event-driver -d -p 22:22 -p 5001:5001 -p 3306:3306 \
@@ -160,10 +166,8 @@ jobs:
             -e APPSMITH_JWT_SECRET=appsmith-cloud-services-jwt-secret-dummy-key \
             -e APPSMITH_ENCRYPTION_SALT=encryption-salt \
             -e APPSMITH_ENCRYPTION_PASSWORD=encryption-password \
-            -e APPSMITH_CLOUD_SERVICES_URL=https://cs-dev.appsmith.com \
             -e APPSMITH_CUSTOMER_PORTAL_URL=https://dev.appsmith.com \
             -e APPSMITH_CLOUD_SERVICES_BASE_URL=https://cs-dev.appsmith.com \
-            -e APPSMITH_CLOUD_SERVER_BASE_URL=https://release.app.appsmith.com \
             -e AUTH0_ISSUER_URL=https://login.release-customer.appsmith.com/ \
             -e AUTH0_CLIENT_ID=dummy-client-id \
             -e AUTH0_CLIENT_SECRET=dummy-secret-id \
@@ -193,6 +197,21 @@ jobs:
         with:
           node-version-file: app/client/package.json
 
+      - name: Check DB URL
+        if: steps.run_result.outputs.run_result != 'success'
+        run: |
+          db_url=$(grep -oP 'APPSMITH_DB_URL=\K[^ ]+' cicontainerlocal/stacks/configuration/docker.env || echo "")
+          if [[ -z "$db_url" ]]; then
+            echo "::error::APPSMITH_DB_URL not found in the environment file"
+          fi
+          if [[ $db_url == "postgresql"* ]]; then
+            echo "Database type: Postgres. Ensure PostgreSQL-specific configurations are in place."
+          elif [[ $db_url == "mongo"* ]]; then
+            echo "Database type: MongoDB. Verify MongoDB connection settings if issues arise."
+          else
+            echo "::warning::Unknown database type. Please verify the database configuration."
+          fi
+
       # actions/setup-node@v4 doesn’t work properly with Yarn 3
       # when the project lives in a subdirectory: https://github.com/actions/setup-node/issues/488
       # Restoring the cache manually instead
@@ -216,7 +235,11 @@ jobs:
         if: steps.run_result.outputs.run_result != 'success'
         run: |
           echo 'tags_to_exclude=airgap' >> "$GITHUB_ENV"
-          echo "CYPRESS_grepTags=${{ inputs.tags }}" >> $GITHUB_ENV
+          if [[ "${{ inputs.tags }}" = "@tag.All" ]]; then
+            echo "CYPRESS_grepTags=" >> "$GITHUB_ENV"
+          else
+            echo "CYPRESS_grepTags=${{ inputs.tags }}" >> "$GITHUB_ENV"
+          fi
 
       - name: Print the tags
         run: |
@@ -231,11 +254,14 @@ jobs:
           chmod a+x ./cypress/setup-test-ci.sh
           ./cypress/setup-test-ci.sh
 
-      - uses: browser-actions/setup-chrome@latest
-        with:
-          chrome-version: stable
-      - run: |
-          echo "BROWSER_PATH=$(which chrome)" >> $GITHUB_ENV
+      - name: Install Google Chrome 129.0.6668.100
+        run: |
+          sudo apt-get remove google-chrome-stable
+          wget -q https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_129.0.6668.100-1_amd64.deb
+          sudo apt-get update
+          sudo apt-get install -y ./google-chrome-stable_129.0.6668.100-1_amd64.deb
+          echo "BROWSER_PATH=$(which google-chrome)" >> $GITHUB_ENV
+          google-chrome --version
 
       - name: Save Git values
         # pass env variables from this step to other steps
@@ -276,7 +302,6 @@ jobs:
           fi
 
       - name: Run the cypress test
-        uses: cypress-io/github-action@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CYPRESS_USERNAME: ${{ secrets.CYPRESS_USERNAME }}
@@ -342,12 +367,25 @@ jobs:
           CYPRESS_SKIP_FLAKY: true
           CYPRESS_STATIC_ALLOCATION: true
           DEBUG: ${{secrets.CYPRESS_GREP_DEBUG }} # This is derived from secrets so that we can toggle it without having to change any workflow. Only acceptable value is: @cypress/grep
-        with:
-          browser: ${{ env.BROWSER_PATH }}
-          install: false
-          config-file: cypress_ci_custom.config.ts
-          working-directory: app/client
-          env: "NODE_ENV=development"
+          CYPRESS_SNOWFLAKE_ACCOUNT_NAME: ${{ secrets.SNOWFLAKE_ACCOUNT_NAME }}
+          CYPRESS_SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+          CYPRESS_SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          NODE_ENV: development
+          GITHUB_WORKFLOW : ${{ github.workflow }}
+        run: |
+            cd app/client
+            ls -la
+            if [[ -n "${{ inputs.spec }}" ]]; then
+              npx cypress-repeat-pro run -n 3 --rerun-failed-only \
+                --spec "${{ inputs.spec }}" \
+                --config-file "cypress_ci_custom.config.ts" \
+                --browser "${{ env.BROWSER_PATH }}"
+            else
+              npx cypress-repeat-pro run -n 3 --rerun-failed-only \
+                --config-file "cypress_ci_custom.config.ts" \
+                --browser "${{ env.BROWSER_PATH }}"
+            fi
+            cat cy-repeat-summary.txt
 
       - name: Trim number of cypress log files
         if: failure()
@@ -360,6 +398,14 @@ jobs:
         with:
           name: cypress-console-logs
           path: ${{ github.workspace }}/app/client/cypress/cypress-logs
+          overwrite: true
+
+      # Upload the screenshots as artifacts if there's a failure
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots-${{ matrix.job }}
+          path: ${{ github.workspace }}/app/client/cypress/screenshots/
           overwrite: true
 
       - name: Collect CI container logs
@@ -392,6 +438,14 @@ jobs:
           path: ~/results
           overwrite: true
 
+      - name: Upload cypress snapshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshots-${{github.run_attempt}}
+          path: ${{ github.workspace }}/app/client/cypress/snapshots
+          overwrite: true
+
       # Set status = failedtest
       - name: Set fail if there are test failures
         if: failure()
@@ -414,8 +468,21 @@ jobs:
         if: failure()
         with:
           name: server-logs-${{ matrix.job }}
-          path: app/server/server-logs.log
+          path: ${{ github.workspace }}/app/server/server-logs.log
           overwrite: true
+
+      - name: Collect docker log as file
+        if: always()
+        run: |
+          docker logs appsmith >& app/server/docker-logs.log
+
+      - name: Upload server docker logs bundle on failure
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+            name: docker-logs-${{ matrix.job }}
+            path: app/server/docker-logs.log
+            overwrite: true
 
       # Set status = success
       - name: Save the status of the run

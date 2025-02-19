@@ -141,7 +141,7 @@ public class AnalyticsServiceCEImpl implements AnalyticsServiceCE {
                                     "isSuperUser", isSuperUser,
                                     "instanceId", instanceId,
                                     "mostRecentlyUsedWorkspaceId", tuple.getT4(),
-                                    "role", ObjectUtils.defaultIfNull(userData.getRole(), ""),
+                                    "role", "",
                                     "proficiency", ObjectUtils.defaultIfNull(userData.getProficiency(), ""),
                                     "goal", ObjectUtils.defaultIfNull(userData.getUseCase(), ""))));
                     analytics.flush();
@@ -150,13 +150,7 @@ public class AnalyticsServiceCEImpl implements AnalyticsServiceCE {
     }
 
     public void identifyInstance(
-            String instanceId,
-            String role,
-            String proficiency,
-            String useCase,
-            String adminEmail,
-            String adminFullName,
-            String ip) {
+            String instanceId, String proficiency, String useCase, String adminEmail, String adminFullName, String ip) {
         if (!isActive()) {
             return;
         }
@@ -167,7 +161,7 @@ public class AnalyticsServiceCEImpl implements AnalyticsServiceCE {
                         "isInstance",
                         true, // Is this "identify" data-point for a user or an instance?
                         ROLE,
-                        ObjectUtils.defaultIfNull(role, ""),
+                        "",
                         PROFICIENCY,
                         ObjectUtils.defaultIfNull(proficiency, ""),
                         GOAL,
@@ -206,6 +200,7 @@ public class AnalyticsServiceCEImpl implements AnalyticsServiceCE {
         // Hash usernames at all places for self-hosted instance
         if (shouldHashUserId(event, userId, hashUserId, commonConfig.isCloudHosting())) {
             final String hashedUserId = hash(userId);
+            // Remove request key, if it's self-hosted as it contains user's evaluated params
             analyticsProperties.remove("request");
             for (final Map.Entry<String, Object> entry : analyticsProperties.entrySet()) {
                 if (userId.equals(entry.getValue())) {

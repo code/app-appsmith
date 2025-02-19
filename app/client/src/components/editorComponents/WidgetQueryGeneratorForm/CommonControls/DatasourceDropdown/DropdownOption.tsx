@@ -1,4 +1,4 @@
-import { Icon, MenuItem } from "design-system";
+import { Icon, MenuItem } from "@appsmith/ads";
 import React from "react";
 import styled from "styled-components";
 import { DEFAULT_QUERY_OPTIONS_COUNTS_TO_SHOW } from "../../constants";
@@ -59,7 +59,7 @@ export function LoadMoreOptions(props: LoadmoreProps) {
     return (
       <MenuItem>
         <div
-          data-testId="t--one-click-binding-datasource--load-more"
+          data-testid="t--one-click-binding-datasource--load-more"
           onMouseDown={(e) => {
             e?.stopPropagation();
           }}

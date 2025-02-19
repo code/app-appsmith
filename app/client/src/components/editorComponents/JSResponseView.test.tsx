@@ -1,20 +1,21 @@
 import React from "react";
 import { queryByText, render } from "@testing-library/react";
 import JSResponseView from "./JSResponseView";
-import * as actionExecutionUtils from "@appsmith/utils/actionExecutionUtils";
+import * as actionExecutionUtils from "ee/utils/actionExecutionUtils";
 import configureStore from "redux-mock-store";
 import { Provider } from "react-redux";
 import { ThemeProvider } from "styled-components";
 import { unitTestBaseMockStore } from "layoutSystems/common/dropTarget/unitTestUtils";
 import { lightTheme } from "selectors/themeSelectors";
 import { BrowserRouter as Router } from "react-router-dom";
-import { EditorViewMode } from "@appsmith/entities/IDE/constants";
-import type { JSCollectionData } from "@appsmith/reducers/entityReducers/jsActionsReducer";
-import { PluginType } from "entities/Action";
+import { EditorViewMode } from "IDE/Interfaces/EditorTypes";
+import type { JSCollectionData } from "ee/reducers/entityReducers/jsActionsReducer";
+import { PluginType } from "entities/Plugin";
 import "@testing-library/jest-dom/extend-expect";
-import { EMPTY_RESPONSE_LAST_HALF } from "@appsmith/constants/messages";
+import { EMPTY_RESPONSE_RUN } from "ee/constants/messages";
+import { DEBUGGER_TAB_KEYS } from "./Debugger/constants";
 
-jest.mock("@appsmith/utils/actionExecutionUtils");
+jest.mock("ee/utils/actionExecutionUtils");
 
 const mockStore = configureStore([]);
 
@@ -43,7 +44,7 @@ const storeState = {
       debugger: {
         open: true,
         responseTabHeight: 200,
-        selectedTab: "response",
+        selectedTab: DEBUGGER_TAB_KEYS.RESPONSE_TAB,
       },
     },
     editor: {
@@ -69,6 +70,7 @@ const collectionData: JSCollectionData = {
   isLoading: false,
   config: {
     id: "12",
+    baseId: "b12",
     applicationId: "app1",
     workspaceId: "w1234",
     name: "asas",
@@ -82,6 +84,8 @@ const collectionData: JSCollectionData = {
 };
 
 describe("JSResponseView", () => {
+  // TODO: Fix this the next time the file is edited
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let store: any;
 
   beforeEach(() => {
@@ -111,7 +115,8 @@ describe("JSResponseView", () => {
         </ThemeProvider>
       </Provider>,
     );
-    expect(getByText(EMPTY_RESPONSE_LAST_HALF())).toBeInTheDocument();
+
+    expect(getByText(EMPTY_RESPONSE_RUN())).toBeInTheDocument();
   });
 
   it("should render correctly when isBrowserExecutionAllowed returns false", () => {
@@ -139,7 +144,7 @@ describe("JSResponseView", () => {
       </Provider>,
     );
     // nothing should be rendered here since the implementation for component is in EE code
-    expect(queryByText(document.body, EMPTY_RESPONSE_LAST_HALF())).toBeNull();
+    expect(queryByText(document.body, EMPTY_RESPONSE_RUN())).toBeNull();
   });
 
   it("the container should have class select-text to enable the selection of text for user", () => {

@@ -1,6 +1,6 @@
-import { PluginType } from "entities/Action";
+import { PluginType } from "entities/Plugin";
 import { generateDataTreeJSAction } from "./dataTreeJSAction";
-import type { JSCollectionData } from "@appsmith/reducers/entityReducers/jsActionsReducer";
+import type { JSCollectionData } from "ee/reducers/entityReducers/jsActionsReducer";
 
 describe("generateDataTreeJSAction", () => {
   it("generate js collection in data tree", () => {
@@ -191,8 +191,10 @@ describe("generateDataTreeJSAction", () => {
         myVar1: "SMART_SUBSTITUTE",
         myVar2: "SMART_SUBSTITUTE",
       },
+      actionNames: new Set(["myFun2", "myFun1"]),
     };
     const resultData = generateDataTreeJSAction(jsCollection);
+
     expect(resultData.unEvalEntity).toStrictEqual(expectedData);
     expect(resultData.configEntity).toStrictEqual(expectedConfig);
   });
@@ -388,9 +390,11 @@ describe("generateDataTreeJSAction", () => {
         myVar1: "SMART_SUBSTITUTE",
         myVar2: "SMART_SUBSTITUTE",
       },
+      actionNames: new Set(["myFun2", "myFun1"]),
     };
 
     const result = generateDataTreeJSAction(jsCollection);
+
     expect(result.unEvalEntity).toStrictEqual(expectedData);
     expect(result.configEntity).toStrictEqual(expectedConfig);
   });
